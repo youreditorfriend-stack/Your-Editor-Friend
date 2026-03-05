@@ -22,10 +22,13 @@ import {
 } from 'lucide-react';
 import { PortfolioGrid, ServiceBento } from './components/Portfolio';
 
-const App: React.FC = () => {
+import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import { AdminPanel } from './components/AdminPanel';
+
+const MainSite: React.FC = () => {
   const [scrolled, setScrolled] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [activeCategory, setActiveCategory] = useState('Real Estate');
+  const [activeCategory, setActiveCategory] = useState('Personal branding');
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
@@ -43,7 +46,7 @@ const App: React.FC = () => {
     { name: 'Process', href: '#process' },
   ];
 
-  const categories = ['Real Estate', 'Personal branding', 'Ai advertisement'];
+  const categories = ['Personal branding', 'AI Advertisement', 'Real Estate', 'Motion graphics', 'Youtube long form'];
 
   const scrollTo = (id: string) => {
     setIsMenuOpen(false);
@@ -114,23 +117,23 @@ const App: React.FC = () => {
           <button 
             key={link.name} 
             onClick={() => scrollTo(link.href.replace('#', ''))}
-            className="text-3xl font-semibold hover:text-[#E50914]"
+            className="text-2xl font-semibold hover:text-[#E50914]"
           >
             {link.name}
           </button>
         ))}
         <div className="flex flex-col gap-4 mt-8 w-full px-12">
-          <a href={WHATSAPP_LINK} className="bg-[#25D366] text-white py-4 rounded-full text-xl font-semibold text-center flex items-center justify-center gap-3">
-            <MessageCircle size={24} fill="currentColor" /> {WHATSAPP_DISPLAY}
+          <a href={WHATSAPP_LINK} className="bg-[#25D366] text-white py-3 rounded-full text-lg font-semibold text-center flex items-center justify-center gap-3">
+            <MessageCircle size={20} fill="currentColor" /> {WHATSAPP_DISPLAY}
           </a>
-          <a href="mailto:youreditorfriend@gmail.com" className="bg-[#E50914] text-white py-4 rounded-full text-xl font-semibold text-center flex items-center justify-center gap-3">
-            <Mail size={24} /> Email Me
+          <a href="mailto:youreditorfriend@gmail.com" className="bg-[#E50914] text-white py-3 rounded-full text-lg font-semibold text-center flex items-center justify-center gap-3">
+            <Mail size={20} /> Email Me
           </a>
         </div>
       </div>
 
       {/* Hero Section */}
-      <header className="relative min-h-screen flex items-center justify-center pt-20 px-6 overflow-hidden">
+      <header className="relative min-h-[85vh] flex items-center justify-center pt-12 px-6 overflow-hidden">
         {/* Ambient Background Gradient */}
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-[#E50914]/10 rounded-full blur-[120px] pointer-events-none" />
         
@@ -155,7 +158,7 @@ const App: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.1 }}
-            className="text-6xl md:text-8xl font-semibold tracking-tight leading-[1.05] mb-8"
+            className="text-4xl md:text-8xl font-semibold tracking-tight leading-[1.05] mb-8"
           >
             I turn raw footage <br /> 
             <span className="font-black">into <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-zinc-300 to-zinc-500">Business Growth</span></span>
@@ -165,7 +168,7 @@ const App: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="text-lg md:text-xl text-zinc-400 max-w-3xl mx-auto mb-12 leading-relaxed font-light"
+            className="text-base md:text-xl text-zinc-400 max-w-3xl mx-auto mb-12 leading-relaxed font-light"
           >
             Janish Prabu here. Founder of <span className="text-white font-normal">Your Editor Friend</span>. We help businesses and brands build trust and scale through cinematic, high-retention video editing.
           </motion.p>
@@ -182,19 +185,6 @@ const App: React.FC = () => {
             >
               View My Work <ArrowRight size={18} />
             </button>
-            <div className="flex items-center gap-4">
-              <div className="flex -space-x-3">
-                {[1, 2, 3, 4].map((i) => (
-                  <div key={i} className="w-10 h-10 rounded-full border-2 border-[#0A0A0A] bg-zinc-800 flex items-center justify-center text-[10px] font-medium text-zinc-400 overflow-hidden">
-                    {i === 4 ? '+80' : <img src={`https://i.pravatar.cc/100?u=${i}`} className="w-full h-full object-cover opacity-60" />}
-                  </div>
-                ))}
-              </div>
-              <div className="flex flex-col items-start justify-center text-left leading-tight">
-                <span className="text-sm font-medium text-white">80+ Clients</span>
-                <span className="text-xs text-zinc-500 font-light tracking-wide uppercase">Global Brands</span>
-              </div>
-            </div>
           </motion.div>
         </motion.div>
 
@@ -210,47 +200,41 @@ const App: React.FC = () => {
       </header>
 
       {/* Services Section */}
-      <section id="services" className="py-32 px-6">
+      <section id="services" className="py-20 md:py-32 px-6">
         <div className="max-w-7xl mx-auto">
-          <div className="mb-20">
-            <h2 className="text-4xl md:text-5xl font-semibold tracking-tight mb-4">Editing Expertise</h2>
-            <p className="text-zinc-500 max-w-xl font-light">From viral TikTok hooks to corporate brand stories, we craft every frame with intent.</p>
-          </div>
           <ServiceBento />
         </div>
       </section>
 
       {/* Stats / Proof */}
-      <section className="py-24 bg-zinc-900/20 border-y border-white/5">
-        <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-12">
+      <section className="py-16 md:py-24 bg-zinc-900/20 border-y border-white/5">
+        <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-3 gap-8 md:gap-12">
           {[
             { label: 'Videos Created', value: '1,000+' },
-            { label: 'Accounts Managed', value: '80+' },
             { label: 'Watch Time', value: '50M+' },
             { label: 'Avg Retention', value: '75%' },
           ].map((stat, i) => (
             <div key={i} className="text-center md:text-left">
-              <div className="text-3xl md:text-5xl font-semibold mb-2 text-white">{stat.value}</div>
-              <div className="text-[10px] text-zinc-500 font-medium uppercase tracking-[0.2em]">{stat.label}</div>
+              <div className="text-2xl md:text-5xl font-semibold mb-2 text-white">{stat.value}</div>
+              <div className="text-[9px] md:text-[10px] text-zinc-500 font-medium uppercase tracking-[0.2em]">{stat.label}</div>
             </div>
           ))}
         </div>
       </section>
 
       {/* Portfolio Section */}
-      <section id="portfolio" className="py-32 px-6 bg-[#080808]">
+      <section id="portfolio" className="py-20 md:py-32 px-6 bg-[#080808]">
         <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col md:flex-row justify-between items-end gap-8 mb-20">
+          <div className="flex flex-col gap-8 mb-12 md:mb-20">
             <div>
-              <h2 className="text-4xl md:text-5xl font-semibold tracking-tight mb-4">Recent Projects</h2>
-              <p className="text-zinc-500 max-w-xl font-light">A selection of work across short-form, corporate, and YouTube content.</p>
+              <h2 className="text-3xl md:text-5xl font-semibold tracking-tight">Recent Projects</h2>
             </div>
             <div className="flex flex-wrap gap-3">
               {categories.map((cat) => (
                 <button 
                   key={cat}
                   onClick={() => setActiveCategory(cat)}
-                  className={`px-6 py-2 rounded-full border transition-all text-xs font-medium uppercase tracking-widest ${activeCategory === cat ? 'border-white text-white bg-white/5' : 'border-transparent text-zinc-500 hover:text-white'}`}
+                  className={`px-6 py-2 rounded-full border transition-all text-[10px] md:text-xs font-medium uppercase tracking-widest ${activeCategory === cat ? 'border-white text-white bg-white/5' : 'border-transparent text-zinc-500 hover:text-white'}`}
                 >
                   {cat}
                 </button>
@@ -264,7 +248,7 @@ const App: React.FC = () => {
       {/* Process / Why Me */}
       <section id="process" className="py-32 px-6">
         <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-20 items-center">
-          <div className="relative aspect-square rounded-3xl overflow-hidden bg-zinc-900 border border-white/10 group">
+          <div className="relative aspect-square rounded-2xl overflow-hidden bg-zinc-900 border border-white/10 group">
             <div className="absolute inset-0 bg-gradient-to-br from-[#E50914]/10 to-transparent"></div>
             <div className="absolute inset-0 flex items-center justify-center p-12">
                <div className="space-y-4 w-full">
@@ -278,8 +262,8 @@ const App: React.FC = () => {
             </div>
           </div>
           <div>
-            <h2 className="text-4xl font-semibold mb-12 leading-tight tracking-tight">The "Editor Friend" <br /> Workflow.</h2>
-            <div className="space-y-10">
+            <h2 className="text-3xl md:text-4xl font-semibold mb-8 md:mb-12 leading-tight tracking-tight">The "Editor Friend" <br /> Workflow.</h2>
+            <div className="space-y-8 md:space-y-10">
               {[
                 { icon: <Layers size={18} />, title: 'Strategic Ingest', desc: 'We don\'t just cut; we analyze your goals and audience before the first edit.' },
                 { icon: <Zap size={18} />, title: 'Retention Optimization', desc: 'Pacing, sound design, and motion graphics optimized for engagement.' },
@@ -308,14 +292,14 @@ const App: React.FC = () => {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <h2 className="text-5xl md:text-7xl font-semibold tracking-tight mb-8">Ready to level up your content?</h2>
+            <h2 className="text-3xl md:text-7xl font-semibold tracking-tight mb-8">Ready to level up your content?</h2>
             
-            <div className="flex flex-col md:flex-row items-center justify-center gap-6 mb-12">
+            <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-6 mb-12">
               <a 
                 href="mailto:youreditorfriend@gmail.com" 
-                className="group flex items-center gap-4 text-xl md:text-3xl font-medium text-zinc-400 hover:text-white transition-colors"
+                className="group flex items-center gap-3 md:gap-4 text-lg md:text-3xl font-medium text-zinc-400 hover:text-white transition-colors"
               >
-                <Mail size={24} className="text-[#E50914]" />
+                <Mail size={20} className="text-[#E50914]" />
                 youreditorfriend@gmail.com
               </a>
               <span className="hidden md:block text-zinc-800 text-2xl">|</span>
@@ -323,9 +307,9 @@ const App: React.FC = () => {
                 href={WHATSAPP_LINK}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group flex items-center gap-4 text-xl md:text-3xl font-medium text-zinc-400 hover:text-white transition-colors"
+                className="group flex items-center gap-3 md:gap-4 text-lg md:text-3xl font-medium text-zinc-400 hover:text-white transition-colors"
               >
-                <MessageCircle size={24} fill="currentColor" className="text-[#25D366]" />
+                <MessageCircle size={20} fill="currentColor" className="text-[#25D366]" />
                 {WHATSAPP_DISPLAY}
               </a>
             </div>
@@ -334,9 +318,9 @@ const App: React.FC = () => {
               href={WHATSAPP_LINK} 
               target="_blank"
               rel="noopener noreferrer"
-              className="bg-[#E50914] hover:bg-red-700 text-white px-12 py-5 rounded-full text-xl font-bold inline-flex items-center gap-3 transition-all transform hover:scale-105 active:scale-95 shadow-2xl shadow-red-900/20"
+              className="bg-[#E50914] hover:bg-red-700 text-white px-10 md:px-12 py-4 md:py-5 rounded-full text-lg md:text-xl font-bold inline-flex items-center gap-3 transition-all transform hover:scale-105 active:scale-95 shadow-2xl shadow-red-900/20"
             >
-              Start Your Project <ArrowRight size={24} />
+              Start Your Project <ArrowRight className="w-5 h-5 md:w-6 md:h-6" />
             </a>
           </motion.div>
           
@@ -356,6 +340,17 @@ const App: React.FC = () => {
         </div>
       </footer>
     </div>
+  );
+};
+
+const App: React.FC = () => {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<MainSite />} />
+        <Route path="/admin" element={<AdminPanel />} />
+      </Routes>
+    </Router>
   );
 };
 
