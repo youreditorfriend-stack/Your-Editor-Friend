@@ -27,7 +27,7 @@ export const ServiceBento = () => {
       tag: 'VIRAL'
     },
     {
-      title: 'Ai Ads',
+      title: 'Ai Ad (No VO)',
       desc: 'High-conversion growth.',
       icon: <TrendingUp size={44} strokeWidth={1.5} />,
       color: 'from-blue-500/20 to-cyan-500/20',
@@ -35,8 +35,8 @@ export const ServiceBento = () => {
       tag: 'GROWTH'
     },
     {
-      title: 'YouTube',
-      desc: 'Story-driven long form.',
+      title: 'Ai Ad (VO)',
+      desc: 'Story-driven cinematic ads.',
       icon: <Play size={44} strokeWidth={1.5} />,
       color: 'from-green-500/20 to-emerald-500/20',
       iconColor: 'text-green-400',
@@ -123,7 +123,7 @@ const PortfolioCard: React.FC<PortfolioCardProps> = ({ work, index }) => {
       onMouseLeave={() => setIsHovered(false)}
       onClick={handleClick}
       className={`relative group overflow-hidden rounded-2xl bg-zinc-900 border border-white/10 cursor-pointer shadow-2xl transition-all duration-500 hover:border-red-500/50 hover:shadow-red-500/10 ${
-        work.category === 'Motion graphics' || work.category === 'Youtube long form'
+        work.category === 'Motion graphics'
           ? 'aspect-video' 
           : 'aspect-[9/16]'
       }`}
@@ -182,6 +182,7 @@ const PortfolioCard: React.FC<PortfolioCardProps> = ({ work, index }) => {
 
 export const PortfolioGrid: React.FC<PortfolioGridProps> = ({ activeCategory }) => {
   const [allWorks, setAllWorks] = useState<any[]>([]);
+  const [categorySettings, setCategorySettings] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -189,7 +190,25 @@ export const PortfolioGrid: React.FC<PortfolioGridProps> = ({ activeCategory }) 
       try {
         const res = await fetch('/api/portfolio');
         const data = await res.json();
-        setAllWorks(data);
+        
+        // Flatten videos from all enabled categories
+        const categories = data.portfolio || [];
+        const allItems: any[] = [];
+        
+        categories.forEach((cat: any) => {
+          if (cat.enabled !== false) {
+            cat.videos.forEach((vid: any) => {
+              if (vid.enabled !== false) {
+                allItems.push({
+                  ...vid,
+                  category: cat.name
+                });
+              }
+            });
+          }
+        });
+        
+        setAllWorks(allItems);
       } catch (error) {
         console.error('Failed to fetch portfolio:', error);
       } finally {
@@ -211,7 +230,7 @@ export const PortfolioGrid: React.FC<PortfolioGridProps> = ({ activeCategory }) 
 
   return (
     <div className={`grid gap-4 md:gap-6 min-h-[600px] ${
-      activeCategory === 'Motion graphics' || activeCategory === 'Youtube long form'
+      activeCategory === 'Motion graphics'
         ? 'grid-cols-1 md:grid-cols-2'
         : 'grid-cols-2 md:grid-cols-3'
     }`}>

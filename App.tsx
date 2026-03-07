@@ -22,17 +22,46 @@ import {
 } from 'lucide-react';
 import { PortfolioGrid, ServiceBento } from './components/Portfolio';
 
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from 'react-router-dom';
 import { AdminPanel } from './components/AdminPanel';
+import { CustomQuotePage } from './components/CustomQuotePage';
+
+interface PricingConfig {
+  price: number;
+  discountThreshold: number;
+  discountPercentage: number;
+}
 
 const MainSite: React.FC = () => {
   const [scrolled, setScrolled] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [activeCategory, setActiveCategory] = useState('Personal branding');
+  const [activeCategory, setActiveCategory] = useState('Personal Branding');
+  const [visibleCategories, setVisibleCategories] = useState<string[]>([]);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
     window.addEventListener('scroll', handleScroll);
+    
+    // Fetch settings to filter categories
+    const fetchSettings = async () => {
+      try {
+        const res = await fetch('/api/portfolio');
+        const data = await res.json();
+        const portfolio = data.portfolio || [];
+        const enabledCats = portfolio
+          .filter((cat: any) => cat.enabled !== false)
+          .map((cat: any) => cat.name);
+        
+        setVisibleCategories(enabledCats);
+        if (enabledCats.length > 0 && !enabledCats.includes(activeCategory)) {
+          setActiveCategory(enabledCats[0]);
+        }
+      } catch (error) {
+        console.error('Failed to fetch settings:', error);
+      }
+    };
+    fetchSettings();
+
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
@@ -40,13 +69,13 @@ const MainSite: React.FC = () => {
   const opacity = useTransform(scrollYProgress, [0, 0.2], [1, 0]);
   const scale = useTransform(scrollYProgress, [0, 0.2], [1, 0.95]);
 
+  const navigate = useNavigate();
+
   const navLinks = [
     { name: 'Services', href: '#services' },
     { name: 'Portfolio', href: '#portfolio' },
-    { name: 'Process', href: '#process' },
+    { name: 'Pricing', href: '#pricing' },
   ];
-
-  const categories = ['Personal branding', 'AI Advertisement', 'Real Estate', 'Motion graphics', 'Youtube long form'];
 
   const scrollTo = (id: string) => {
     setIsMenuOpen(false);
@@ -55,7 +84,16 @@ const MainSite: React.FC = () => {
 
   const WHATSAPP_NUMBER = "916374343169"; 
   const WHATSAPP_DISPLAY = "+91 63743 43169";
-  const WHATSAPP_LINK = `https://wa.me/${WHATSAPP_NUMBER}?text=Hi%20Janish,%20I'm%20interested%20in%20your%20video%20editing%20services!`;
+  
+  const getWhatsAppLink = (message?: string) => {
+    const defaultMsg = "Hi Janish, I'm interested in your video editing services!";
+    const text = encodeURIComponent(message || defaultMsg);
+    return `https://wa.me/${WHATSAPP_NUMBER}?text=${text}`;
+  };
+
+  const WHATSAPP_LINK = getWhatsAppLink();
+  const BUSINESS_PLAN_LINK = getWhatsAppLink("Hi Editorfriend. i am intrested in Business plan");
+  const CREATOR_PLAN_LINK = getWhatsAppLink("Hi editorfrind i am intrested in Creator trend plan");
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-[#EDEDED] font-sans selection:bg-[#E50914] selection:text-white antialiased">
@@ -158,7 +196,7 @@ const MainSite: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.1 }}
-            className="text-4xl md:text-8xl font-semibold tracking-tight leading-[1.05] mb-8"
+            className="text-3xl md:text-6xl font-semibold tracking-tight leading-[1.05] mb-8"
           >
             I turn raw footage <br /> 
             <span className="font-black">into <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-zinc-300 to-zinc-500">Business Growth</span></span>
@@ -168,7 +206,7 @@ const MainSite: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="text-base md:text-xl text-zinc-400 max-w-3xl mx-auto mb-12 leading-relaxed font-light"
+            className="text-sm md:text-lg text-zinc-400 max-w-3xl mx-auto mb-12 leading-relaxed font-light"
           >
             Janish Prabu here. Founder of <span className="text-white font-normal">Your Editor Friend</span>. We help businesses and brands build trust and scale through cinematic, high-retention video editing.
           </motion.p>
@@ -199,38 +237,15 @@ const MainSite: React.FC = () => {
         </motion.div>
       </header>
 
-      {/* Services Section */}
-      <section id="services" className="py-20 md:py-32 px-6">
-        <div className="max-w-7xl mx-auto">
-          <ServiceBento />
-        </div>
-      </section>
-
-      {/* Stats / Proof */}
-      <section className="py-16 md:py-24 bg-zinc-900/20 border-y border-white/5">
-        <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-3 gap-8 md:gap-12">
-          {[
-            { label: 'Videos Created', value: '1,000+' },
-            { label: 'Watch Time', value: '50M+' },
-            { label: 'Avg Retention', value: '75%' },
-          ].map((stat, i) => (
-            <div key={i} className="text-center md:text-left">
-              <div className="text-2xl md:text-5xl font-semibold mb-2 text-white">{stat.value}</div>
-              <div className="text-[9px] md:text-[10px] text-zinc-500 font-medium uppercase tracking-[0.2em]">{stat.label}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-
       {/* Portfolio Section */}
       <section id="portfolio" className="py-20 md:py-32 px-6 bg-[#080808]">
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col gap-8 mb-12 md:mb-20">
             <div>
-              <h2 className="text-3xl md:text-5xl font-semibold tracking-tight">Recent Projects</h2>
+              <h2 className="text-2xl md:text-4xl font-semibold tracking-tight">Recent Projects</h2>
             </div>
             <div className="flex flex-wrap gap-3">
-              {categories.map((cat) => (
+              {visibleCategories.map((cat) => (
                 <button 
                   key={cat}
                   onClick={() => setActiveCategory(cat)}
@@ -245,41 +260,139 @@ const MainSite: React.FC = () => {
         </div>
       </section>
 
-      {/* Process / Why Me */}
-      <section id="process" className="py-32 px-6">
-        <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-20 items-center">
-          <div className="relative aspect-square rounded-2xl overflow-hidden bg-zinc-900 border border-white/10 group">
-            <div className="absolute inset-0 bg-gradient-to-br from-[#E50914]/10 to-transparent"></div>
-            <div className="absolute inset-0 flex items-center justify-center p-12">
-               <div className="space-y-4 w-full">
-                  {[1, 2, 3].map(i => (
-                    <div key={i} className={`h-6 rounded bg-zinc-800/50 group-hover:bg-zinc-800 transition-colors`} style={{ width: `${100 - (i * 15)}%`, animationDelay: `${i * 0.2}s` }}></div>
-                  ))}
-               </div>
-            </div>
-            <div className="absolute bottom-8 left-8">
-              <div className="text-7xl font-bold text-white/[0.03] select-none">PROCESS</div>
-            </div>
+      {/* Services Section */}
+      <section id="services" className="py-20 md:py-32 px-6">
+        <div className="max-w-7xl mx-auto">
+          <ServiceBento />
+        </div>
+      </section>
+
+      {/* Pricing Section */}
+      <section id="pricing" className="py-32 px-6 bg-[#080808]">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-20">
+            <h2 className="text-4xl md:text-5xl font-semibold tracking-tight mb-4">Simple, Transparent Pricing</h2>
+            <p className="text-zinc-500 max-w-xl mx-auto font-light">Choose the plan that fits your content goals. No hidden fees.</p>
           </div>
-          <div>
-            <h2 className="text-3xl md:text-4xl font-semibold mb-8 md:mb-12 leading-tight tracking-tight">The "Editor Friend" <br /> Workflow.</h2>
-            <div className="space-y-8 md:space-y-10">
-              {[
-                { icon: <Layers size={18} />, title: 'Strategic Ingest', desc: 'We don\'t just cut; we analyze your goals and audience before the first edit.' },
-                { icon: <Zap size={18} />, title: 'Retention Optimization', desc: 'Pacing, sound design, and motion graphics optimized for engagement.' },
-                { icon: <CheckCircle2 size={18} />, title: 'Seamless Handoff', desc: 'Ready-to-post files with metadata and thumbnail suggestions.' }
-              ].map((item, i) => (
-                <div key={i} className="flex gap-6">
-                  <div className="w-10 h-10 shrink-0 rounded-xl bg-zinc-900 flex items-center justify-center text-[#E50914] border border-white/5">
-                    {item.icon}
+
+          <div className="grid md:grid-cols-3 gap-8">
+            {/* Card 1: Basic Business Plan */}
+            <a 
+              href={BUSINESS_PLAN_LINK}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="relative p-8 rounded-3xl border bg-zinc-900/50 border-white/5 hover:border-white/10 transition-all duration-300 flex flex-col group cursor-pointer"
+            >
+              <div className="mb-8">
+                <h3 className="text-xl font-semibold mb-2">Basic Business Plan</h3>
+                <div className="flex items-baseline gap-2 mb-4">
+                  <span className="text-4xl font-bold">₹10,000</span>
+                  <span className="text-zinc-500 text-sm line-through">₹12,000</span>
+                  <span className="text-zinc-500 text-sm">/month</span>
+                </div>
+                <p className="text-zinc-400 text-sm font-light">Small shops, regular uploaders.</p>
+              </div>
+              <div className="space-y-4 mb-8 flex-1">
+                <div className="flex items-center gap-3 text-sm font-bold text-white">
+                  <CheckCircle2 size={16} className="text-[#E50914] shrink-0" />
+                  15 Short-form videos
+                </div>
+                {[
+                  'Basic cuts & transitions',
+                  'Background music & standard SFX',
+                  'Standard B-roll integration',
+                  'Templated text animations',
+                  '24-hour delivery',
+                  'Maximum 1 revision',
+                  'Bulk submission required'
+                ].map((feature, idx) => (
+                  <div key={idx} className="flex items-center gap-3 text-sm font-light text-zinc-400">
+                    <CheckCircle2 size={16} className="text-[#E50914] shrink-0" />
+                    {feature}
                   </div>
-                  <div>
-                    <h3 className="text-lg font-semibold mb-1.5">{item.title}</h3>
-                    <p className="text-zinc-500 leading-relaxed font-light text-sm">{item.desc}</p>
+                ))}
+                <p className="text-[10px] text-zinc-600 italic mt-4">
+                  * Not for intense storytelling, flashy edits, or heavy creative work.
+                </p>
+              </div>
+              <div 
+                className="w-full py-3 rounded-xl text-sm font-semibold bg-white text-black group-hover:bg-zinc-200 transition-all flex items-center justify-center gap-2"
+              >
+                Get Started <ArrowRight size={16} />
+              </div>
+            </a>
+
+            {/* Card 2: Creator Trend Plan */}
+            <a 
+              href={CREATOR_PLAN_LINK}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="relative p-8 rounded-3xl border bg-zinc-900 border-[#E50914] scale-105 z-10 flex flex-col group cursor-pointer"
+            >
+              <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-[#E50914] text-white text-[10px] font-bold uppercase tracking-widest px-4 py-1 rounded-full">
+                Most Popular
+              </div>
+              <div className="mb-8">
+                <h3 className="text-xl font-semibold mb-2">Creator Trend Plan</h3>
+                <div className="flex items-baseline gap-2 mb-4">
+                  <span className="text-4xl font-bold">₹22,000</span>
+                  <span className="text-zinc-500 text-sm line-through">₹24,000</span>
+                  <span className="text-zinc-500 text-sm">/month</span>
+                </div>
+                <p className="text-zinc-400 text-sm font-light">Content creators and growing brands.</p>
+              </div>
+              <div className="space-y-4 mb-8 flex-1">
+                <div className="flex items-center gap-3 text-sm font-bold text-white">
+                  <CheckCircle2 size={16} className="text-[#E50914] shrink-0" />
+                  8 Short-form videos
+                </div>
+                {[
+                  'Market trend editing style',
+                  'Personalized video approach',
+                  'Creative & modern text animations',
+                  'Medium motion graphics',
+                  'Unlimited revisions',
+                  '48-hour delivery',
+                  'Thumbnail design'
+                ].map((feature, idx) => (
+                  <div key={idx} className="flex items-center gap-3 text-sm font-light text-zinc-300">
+                    <CheckCircle2 size={16} className="text-[#E50914] shrink-0" />
+                    {feature}
+                  </div>
+                ))}
+              </div>
+              <div 
+                className="w-full py-3 rounded-xl text-sm font-semibold bg-[#E50914] text-white group-hover:bg-red-700 transition-all flex items-center justify-center gap-2"
+              >
+                Choose Creator Plan <ArrowRight size={16} />
+              </div>
+            </a>
+
+            {/* Card 3: Build Your Own Plan (Teaser) */}
+            <Link 
+              to="/custom-quote"
+              className="relative p-8 rounded-3xl border bg-zinc-900/50 border-white/5 hover:border-white/10 transition-all duration-300 flex flex-col group cursor-pointer"
+            >
+              <div className="mb-8">
+                <h3 className="text-xl font-semibold mb-2">Build Your Own Plan</h3>
+                <div className="flex items-baseline gap-1 mb-4">
+                  <span className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-zinc-500">Custom</span>
+                </div>
+                <p className="text-zinc-400 text-sm font-light">Need something specific? Browse our reference reels and get a custom quote tailored to your exact needs.</p>
+              </div>
+              <div className="flex-1 flex items-center justify-center py-12">
+                <div className="relative">
+                  <div className="w-20 h-20 bg-[#E50914]/10 rounded-full flex items-center justify-center text-[#E50914] group-hover:bg-[#E50914]/20 transition-colors shadow-lg shadow-red-900/20">
+                    <Zap size={32} fill="currentColor" />
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
+              <div 
+                className="w-full py-3 rounded-xl text-sm font-semibold bg-white/5 text-white border border-white/10 group-hover:bg-white/10 transition-all flex items-center justify-center gap-2"
+              >
+                Build Custom Plan <ArrowRight size={16} />
+              </div>
+            </Link>
           </div>
         </div>
       </section>
@@ -292,24 +405,24 @@ const MainSite: React.FC = () => {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <h2 className="text-3xl md:text-7xl font-semibold tracking-tight mb-8">Ready to level up your content?</h2>
+            <h2 className="text-2xl md:text-5xl font-semibold tracking-tight mb-8">Ready to level up your content?</h2>
             
             <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-6 mb-12">
               <a 
                 href="mailto:youreditorfriend@gmail.com" 
-                className="group flex items-center gap-3 md:gap-4 text-lg md:text-3xl font-medium text-zinc-400 hover:text-white transition-colors"
+                className="group flex items-center gap-3 md:gap-4 text-sm md:text-lg font-medium text-zinc-400 hover:text-white transition-colors"
               >
-                <Mail size={20} className="text-[#E50914]" />
+                <Mail size={16} className="text-[#E50914]" />
                 youreditorfriend@gmail.com
               </a>
-              <span className="hidden md:block text-zinc-800 text-2xl">|</span>
+              <span className="hidden md:block text-zinc-800 text-xl">|</span>
               <a 
                 href={WHATSAPP_LINK}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group flex items-center gap-3 md:gap-4 text-lg md:text-3xl font-medium text-zinc-400 hover:text-white transition-colors"
+                className="group flex items-center gap-3 md:gap-4 text-sm md:text-lg font-medium text-zinc-400 hover:text-white transition-colors"
               >
-                <MessageCircle size={20} fill="currentColor" className="text-[#25D366]" />
+                <MessageCircle size={16} fill="currentColor" className="text-[#25D366]" />
                 {WHATSAPP_DISPLAY}
               </a>
             </div>
@@ -330,8 +443,8 @@ const MainSite: React.FC = () => {
                <span>&copy; 2024</span>
             </div>
             <div className="flex gap-6 items-center">
-              <a href="#" className="hover:text-white transition-colors"><Instagram size={20} /></a>
-              <a href="#" className="hover:text-white transition-colors"><Youtube size={20} /></a>
+              <a href="https://www.instagram.com/iamyoureditorfriend/?hl=en" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors"><Instagram size={20} /></a>
+              <a href="https://www.youtube.com/@Editor_friend" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors"><Youtube size={20} /></a>
               <a href={WHATSAPP_LINK} target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors"><MessageCircle size={20} fill="currentColor" /></a>
               <a href="mailto:youreditorfriend@gmail.com" className="hover:text-white transition-colors"><Mail size={20} /></a>
             </div>
@@ -349,6 +462,7 @@ const App: React.FC = () => {
       <Routes>
         <Route path="/" element={<MainSite />} />
         <Route path="/admin" element={<AdminPanel />} />
+        <Route path="/custom-quote" element={<CustomQuotePage />} />
       </Routes>
     </Router>
   );

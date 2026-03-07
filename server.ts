@@ -16,12 +16,14 @@ async function startServer() {
   app.use(express.json());
 
   // API routes
-  app.post("/api/auth/verify", (req, res) => {
+  app.post("/api/login", (req, res) => {
     const { password } = req.body;
-    if (password === process.env.ADMIN_PASSWORD) {
-      res.json({ success: true });
+    const adminPassword = process.env.ADMIN_PASSWORD || "admin123";
+    
+    if (password === adminPassword) {
+      res.json({ success: true, token: Buffer.from(adminPassword).toString('base64') });
     } else {
-      res.status(401).json({ success: false, error: "Invalid password" });
+      res.status(401).json({ success: false, message: "Invalid password" });
     }
   });
 
@@ -36,10 +38,15 @@ async function startServer() {
 
   app.post("/api/portfolio", async (req, res) => {
     try {
-      const { password, data: newPortfolio } = req.body;
-      if (password !== process.env.ADMIN_PASSWORD) {
+      const authHeader = req.headers.authorization;
+      const adminPassword = process.env.ADMIN_PASSWORD || "admin123";
+      const expectedToken = Buffer.from(adminPassword).toString('base64');
+
+      if (!authHeader || authHeader !== `Bearer ${expectedToken}`) {
         return res.status(401).json({ error: "Unauthorized" });
       }
+
+      const { data: newPortfolio } = req.body;
       await fs.writeFile(DATA_FILE, JSON.stringify(newPortfolio, null, 2));
       res.json({ message: "Portfolio updated successfully" });
     } catch (error) {
