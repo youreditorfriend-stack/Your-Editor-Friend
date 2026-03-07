@@ -41,11 +41,11 @@ const CATEGORIES = [
 ];
 
 const QUICK_TAGS = [
-  'Need fast delivery ⚡',
-  'Add B-roll footage 🎞️',
-  'Viral captions format 🔠',
-  'Custom Sound Design 🎧',
-  'Provide Thumbnails 🖼️'
+  { id: 'fast', label: 'Need fast delivery ⚡' },
+  { id: 'broll', label: 'Add B-roll footage 🎞️' },
+  { id: 'viral', label: 'Viral captions format 📱' },
+  { id: 'sound', label: 'Custom Sound Design 🎧' },
+  { id: 'thumb', label: 'Provide Thumbnails 🖼️' }
 ];
 
 const NumberCounter = ({ value }: { value: number }) => {
@@ -72,6 +72,7 @@ export const CustomQuotePage: React.FC = () => {
   const [requirements, setRequirements] = useState('');
   const [fullName, setFullName] = useState('');
   const [contactNumber, setContactNumber] = useState('');
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -170,8 +171,10 @@ export const CustomQuotePage: React.FC = () => {
 
   const { original, final, discount } = calculateQuote();
 
-  const handleTagClick = (tag: string) => {
-    setRequirements(prev => prev ? `${prev}\n${tag}` : tag);
+  const handleTagToggle = (tagId: string) => {
+    setSelectedTags(prev => 
+      prev.includes(tagId) ? prev.filter(id => id !== tagId) : [...prev, tagId]
+    );
   };
 
   const isFormValid = fullName.trim() !== '' && contactNumber.trim() !== '' && (subStyles.length === 0 || selectedSubStyle);
@@ -186,6 +189,7 @@ export const CustomQuotePage: React.FC = () => {
 - Quantity: ${quantity} videos/month
 - Reference Link: ${refLink || 'Not provided'}
 - Requirements: ${requirements || 'None'}
+- Add-ons: ${selectedTags.map(id => QUICK_TAGS.find(t => t.id === id)?.label).join(', ') || 'None'}
 - Estimated Total: ₹${final.toLocaleString()}`;
     
     const url = `https://wa.me/916374343169?text=${encodeURIComponent(message)}`;
@@ -201,344 +205,237 @@ export const CustomQuotePage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-white font-sans selection:bg-[#E50914]">
+    <div className="min-h-screen bg-[#0A0A0A] text-white font-sans selection:bg-[#E50914] pb-32">
       {/* Navigation */}
       <nav className="fixed top-0 w-full z-50 bg-[#0A0A0A]/80 backdrop-blur-xl border-b border-white/10 py-4">
         <div className="max-w-7xl mx-auto px-6 flex justify-between items-center">
           <Link to="/" className="flex items-center gap-2 text-zinc-400 hover:text-white transition-colors group">
             <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
-            <span className="font-medium">Back to Home</span>
+            <span className="font-medium">Back</span>
           </Link>
-          <div className="font-bold tracking-tighter">YOUR EDITOR FRIEND</div>
+          <div className="font-bold tracking-tighter text-sm">YOUR EDITOR FRIEND</div>
         </div>
       </nav>
 
-      <main className="pt-32 pb-20 px-6">
-        <div className="max-w-7xl mx-auto">
-          <header className="mb-16 text-center md:text-left">
+      <main className="pt-24 px-4">
+        <div className="max-w-xl mx-auto">
+          {/* 1. HEADER */}
+          <header className="mb-8">
             <motion.h1 
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="text-4xl md:text-6xl font-black tracking-tighter mb-4"
+              className="text-3xl font-black tracking-tighter mb-2"
             >
               BUILD YOUR <span className="text-[#E50914]">CUSTOM</span> PLAN
             </motion.h1>
             <motion.p 
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="text-zinc-500 text-lg max-w-2xl font-light"
+              className="text-zinc-500 text-sm font-light leading-relaxed"
             >
               Select your preferred style, tell us your requirements, and get an exact quote tailored to your vision.
             </motion.p>
           </header>
 
-          <div className="grid lg:grid-cols-2 gap-12 items-start">
-            {/* Left Section: Reference Gallery */}
-            <section className="space-y-8 sticky top-32">
-              <div>
-                <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
-                  <Play size={20} className="text-[#E50914]" /> Select Your Style
-                </h2>
-                
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-8">
-                  {dynamicCategories.map((cat) => (
-                    <button
-                      key={cat.id}
-                      onClick={() => {
-                        setActiveCategory(cat);
-                        setSelectedSubStyle(null);
-                      }}
-                      className={`p-4 rounded-2xl border transition-all text-left flex items-center gap-3 ${
-                        activeCategory.id === cat.id 
-                          ? 'bg-white text-black border-white' 
-                          : 'bg-zinc-900/50 border-white/5 text-zinc-400 hover:border-white/20'
-                      }`}
-                    >
-                      <div className={`${activeCategory.id === cat.id ? 'text-black' : 'text-[#E50914]'}`}>
-                        {cat.icon}
-                      </div>
-                      <span className="text-[10px] font-bold tracking-tight uppercase">{cat.label}</span>
-                    </button>
-                  ))}
-                </div>
+          {/* 2. CATEGORY SELECTOR (Horizontal Scroll) */}
+          <section className="mb-8 -mx-4 px-4 overflow-x-auto no-scrollbar flex gap-2 pb-2">
+            {dynamicCategories.map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => {
+                  setActiveCategory(cat);
+                  setSelectedSubStyle(null);
+                }}
+                className={`whitespace-nowrap px-6 py-2.5 rounded-full text-xs font-bold border transition-all shrink-0 ${
+                  activeCategory.id === cat.id 
+                    ? 'bg-[#E50914] border-[#E50914] text-white shadow-lg shadow-red-900/20' 
+                    : 'bg-zinc-900/50 border-white/5 text-zinc-500 hover:border-white/20'
+                }`}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </section>
 
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={activeCategory.id + (selectedSubStyle?.id || '')}
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    className="space-y-6"
+          {/* 3. HERO VIDEO PREVIEW */}
+          <section className="mb-8">
+            <div className="relative aspect-[9/16] w-full max-w-[320px] mx-auto rounded-3xl overflow-hidden bg-zinc-900 border border-white/10 shadow-2xl">
+              <iframe
+                className="w-full h-full"
+                src={`https://www.youtube-nocookie.com/embed/${selectedSubStyle?.videoUrl || currentAdminStyle?.videoUrl || 'KSoPrGLdUog'}?autoplay=1&mute=1&controls=0&loop=1&playlist=${selectedSubStyle?.videoUrl || currentAdminStyle?.videoUrl || 'KSoPrGLdUog'}&modestbranding=1&rel=0`}
+                title={activeCategory.label}
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              ></iframe>
+              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent pointer-events-none" />
+              <div className="absolute bottom-6 left-6 right-6">
+                <h3 className="text-lg font-bold mb-1">{selectedSubStyle?.name || activeCategory.label}</h3>
+                <p className="text-xs text-zinc-400 font-light leading-relaxed">
+                  {selectedSubStyle?.description || currentAdminStyle?.description || 'Premium high-retention video editing.'}
+                </p>
+              </div>
+            </div>
+            <div className="mt-6 text-center">
+              <div className="text-zinc-500 text-[10px] uppercase tracking-widest font-bold mb-1">Base Price</div>
+              <div className="text-3xl font-black text-white tracking-tighter">
+                ₹{basePrice.toLocaleString()} <span className="text-sm text-zinc-500 font-bold">/ VIDEO</span>
+              </div>
+            </div>
+          </section>
+
+          {/* 4. STYLE SELECTION */}
+          {subStyles.length > 0 && (
+            <section className="mb-10">
+              <h2 className="text-xs uppercase tracking-[0.2em] font-bold text-zinc-500 mb-4">Select Reference Style</h2>
+              <div className="space-y-3">
+                {subStyles.map((style: any) => (
+                  <button
+                    key={style.id}
+                    onClick={() => setSelectedSubStyle(style)}
+                    className={`w-full p-4 rounded-2xl border transition-all text-left flex items-center gap-4 group ${
+                      selectedSubStyle?.id === style.id 
+                        ? 'bg-zinc-900 border-[#E50914] shadow-lg shadow-red-900/10' 
+                        : 'bg-zinc-900/30 border-white/5 hover:border-white/10'
+                    }`}
                   >
-                    <div className="relative aspect-[9/16] max-w-[320px] mx-auto lg:mx-0 rounded-3xl overflow-hidden bg-zinc-900 border border-white/10 shadow-2xl">
-                      <iframe
-                        className="w-full h-full"
-                        src={`https://www.youtube-nocookie.com/embed/${selectedSubStyle?.videoUrl || currentAdminStyle?.videoUrl || 'KSoPrGLdUog'}?autoplay=1&mute=1&controls=0&loop=1&playlist=${selectedSubStyle?.videoUrl || currentAdminStyle?.videoUrl || 'KSoPrGLdUog'}&modestbranding=1&rel=0`}
-                        title={activeCategory.label}
-                        frameBorder="0"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      ></iframe>
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
-                      <div className="absolute bottom-6 left-6 right-6">
-                        <h3 className="text-lg font-bold mb-1">{selectedSubStyle?.name || activeCategory.label}</h3>
-                        <p className="text-xs text-zinc-400 font-light leading-relaxed">
-                          {selectedSubStyle?.description || currentAdminStyle?.description || 'Premium high-retention video editing.'}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Dynamic Pricing Text */}
-                    <div className="text-center lg:text-left">
-                      <div className="flex items-baseline justify-center lg:justify-start gap-3">
-                        {discount > 0 ? (
-                          <>
-                            <span className="text-zinc-500 text-lg line-through decoration-red-500/50 font-medium">
-                              ₹{basePrice.toLocaleString()}
-                            </span>
-                            <span className="text-3xl font-black text-white tracking-tighter">
-                              ₹{Math.round(basePrice * (1 - discount / 100)).toLocaleString()}
-                              <span className="text-sm text-zinc-500 font-bold ml-2 uppercase tracking-widest">/ video</span>
-                            </span>
-                          </>
-                        ) : (
-                          <span className="text-3xl font-black text-white tracking-tighter">
-                            ₹{basePrice.toLocaleString()}
-                            <span className="text-sm text-zinc-500 font-bold ml-2 uppercase tracking-widest">/ video</span>
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[10px] text-zinc-500 uppercase tracking-[0.2em] font-bold mt-2">
-                        {discount > 0 ? `Bulk Discount Applied (${discount}% OFF)` : 'Standard Single Video Pricing'}
-                      </p>
-                    </div>
-                  </motion.div>
-                </AnimatePresence>
-              </div>
-            </section>
-
-            {/* Right Section: The Custom Quote Form */}
-            <section className="bg-zinc-900/30 border border-white/5 p-8 md:p-12 rounded-[2.5rem] relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-[#E50914]/5 rounded-full blur-[80px] -mr-32 -mt-32"></div>
-              
-              <div className="relative z-10">
-                <h2 className="text-2xl font-bold mb-8 flex items-center gap-2">
-                  <Zap size={24} className="text-[#E50914]" /> Tell us what you need
-                </h2>
-
-                <div className="space-y-8">
-                  {/* Video Type Toggle */}
-                  <div>
-                    <label className="text-[10px] uppercase tracking-[0.2em] font-bold text-zinc-500 mb-4 block">Select Video Type</label>
-                    <div className="flex flex-wrap gap-2">
-                      {dynamicCategories.map((cat) => (
-                        <button
-                          key={cat.id}
-                          onClick={() => {
-                            setActiveCategory(cat);
-                            setSelectedSubStyle(null);
-                          }}
-                          className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${
-                            activeCategory.id === cat.id 
-                              ? 'bg-[#E50914] border-[#E50914] text-white' 
-                              : 'bg-black/30 border-white/10 text-zinc-500 hover:border-white/20'
-                          }`}
-                        >
-                          {cat.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Nested Sub-Styles for Active Category */}
-                  <AnimatePresence>
-                    {subStyles.length > 0 && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        className="space-y-4 overflow-hidden"
-                      >
-                        <label className="text-[10px] uppercase tracking-[0.2em] font-bold text-zinc-500 block">Select Reference Style</label>
-                        <div className="grid grid-cols-1 gap-3">
-                          {subStyles.map((style: any) => (
-                            <button
-                              key={style.id}
-                              onClick={() => setSelectedSubStyle(style)}
-                              className={`p-4 rounded-2xl border transition-all text-left flex items-center justify-between group ${
-                                selectedSubStyle?.id === style.id 
-                                  ? 'bg-white/10 border-[#E50914]' 
-                                  : 'bg-black/30 border-white/5 hover:border-white/10'
-                              }`}
-                            >
-                              <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 rounded-lg bg-zinc-800 overflow-hidden shrink-0">
-                                  <img 
-                                    src={`https://img.youtube.com/vi/${style.videoUrl}/mqdefault.jpg`} 
-                                    className="w-full h-full object-cover"
-                                    alt=""
-                                  />
-                                </div>
-                                <div className="flex-1">
-                                  <div className="text-sm font-bold">{style.name}</div>
-                                  <div className="text-[10px] text-zinc-500">Base: ₹{style.basePrice.toLocaleString()} / video</div>
-                                </div>
-                              </div>
-                              {selectedSubStyle?.id === style.id && <CheckCircle2 size={20} className="text-[#E50914]" />}
-                            </button>
-                          ))}
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-
-                  {/* Quantity Slider */}
-                  <div>
-                    <div className="flex justify-between items-center mb-4">
-                      <label className="text-[10px] uppercase tracking-[0.2em] font-bold text-zinc-500">Videos needed per month</label>
-                      <span className="text-[#E50914] font-black text-xl">{quantity}</span>
-                    </div>
-                    <input 
-                      type="range" 
-                      min="1" 
-                      max="30" 
-                      value={quantity}
-                      onChange={(e) => setQuantity(Number(e.target.value))}
-                      className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-[#E50914]"
-                    />
-                  </div>
-
-                  {/* Reference Link */}
-                  <div>
-                    <label className="text-[10px] uppercase tracking-[0.2em] font-bold text-zinc-500 mb-2 block flex items-center gap-2">
-                      <LinkIcon size={12} /> Paste Reference Video Link
-                    </label>
-                    <input 
-                      type="text" 
-                      placeholder="Instagram / TikTok / YouTube link"
-                      value={refLink}
-                      onChange={(e) => setRefLink(e.target.value)}
-                      className="w-full bg-black/50 border border-white/10 rounded-2xl px-6 py-4 text-sm focus:border-[#E50914] outline-none transition-all placeholder:text-zinc-700"
-                    />
-                  </div>
-
-                  {/* Quick Tags */}
-                  <div>
-                    <label className="text-[10px] uppercase tracking-[0.2em] font-bold text-zinc-500 mb-3 block">Quick Requirements</label>
-                    <div className="flex flex-wrap gap-2">
-                      {QUICK_TAGS.map((tag) => (
-                        <button
-                          key={tag}
-                          onClick={() => handleTagClick(tag)}
-                          className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-[10px] font-medium hover:bg-white/10 hover:border-white/20 transition-all"
-                        >
-                          {tag}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Requirements */}
-                  <div>
-                    <textarea 
-                      rows={4}
-                      placeholder="Any specific requirements? Tell us about your brand..."
-                      value={requirements}
-                      onChange={(e) => setRequirements(e.target.value)}
-                      className="w-full bg-black/50 border border-white/10 rounded-2xl px-6 py-4 text-sm focus:border-[#E50914] outline-none transition-all placeholder:text-zinc-700 resize-none"
-                    />
-                  </div>
-
-                  {/* Lead Capture Fields */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-[10px] uppercase tracking-[0.2em] font-bold text-zinc-500 mb-2 block flex items-center gap-2">
-                        <User size={12} /> Full Name *
-                      </label>
-                      <input 
-                        type="text" 
-                        required
-                        placeholder="John Doe"
-                        value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
-                        className="w-full bg-black/50 border border-white/10 rounded-2xl px-6 py-4 text-sm focus:border-[#E50914] outline-none transition-all"
+                    <div className="w-14 h-14 rounded-xl bg-zinc-800 overflow-hidden shrink-0 border border-white/5">
+                      <img 
+                        src={`https://img.youtube.com/vi/${style.videoUrl}/mqdefault.jpg`} 
+                        className="w-full h-full object-cover"
+                        alt=""
                       />
                     </div>
-                    <div>
-                      <label className="text-[10px] uppercase tracking-[0.2em] font-bold text-zinc-500 mb-2 block flex items-center gap-2">
-                        <Phone size={12} /> WhatsApp Number *
-                      </label>
-                      <input 
-                        type="tel" 
-                        required
-                        placeholder="+91 00000 00000"
-                        value={contactNumber}
-                        onChange={(e) => setContactNumber(e.target.value)}
-                        className="w-full bg-black/50 border border-white/10 rounded-2xl px-6 py-4 text-sm focus:border-[#E50914] outline-none transition-all"
-                      />
+                    <div className="flex-1">
+                      <div className="text-sm font-bold mb-0.5">{style.name}</div>
+                      <div className="text-[10px] text-zinc-500 font-medium">Base: ₹{style.basePrice.toLocaleString()} / video</div>
                     </div>
-                  </div>
-
-                  {/* Quote Preview */}
-                  <div className="p-8 bg-white/5 rounded-[2rem] border border-white/10 relative overflow-hidden">
-                    <div className="flex justify-between items-start mb-6">
-                      <div className="space-y-1">
-                        <span className="text-sm font-medium text-zinc-400">Estimated Total</span>
-                        {discount > 0 && (
-                          <div className="text-zinc-500 text-sm line-through decoration-red-500/50">
-                            ₹{original.toLocaleString()}
-                          </div>
-                        )}
-                      </div>
-                      <div className="text-right">
-                        <div className="text-4xl font-black text-white tracking-tighter">
-                          <NumberCounter value={final} />
-                        </div>
-                        <AnimatePresence>
-                          {discount > 0 && (
-                            <motion.div
-                              initial={{ opacity: 0, x: 20 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              exit={{ opacity: 0, x: 20 }}
-                              className="inline-flex items-center gap-1.5 bg-[#E50914] text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full mt-2 shadow-lg shadow-red-500/20"
-                            >
-                              {discount === 5 ? '🔥' : '🎉'} {discount}% OFF Applied
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
+                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${
+                      selectedSubStyle?.id === style.id ? 'bg-[#E50914] border-[#E50914]' : 'border-white/10'
+                    }`}>
+                      {selectedSubStyle?.id === style.id && <CheckCircle2 size={12} className="text-white" />}
                     </div>
-
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-2 text-zinc-500 text-[10px] italic">
-                        <Info size={12} />
-                        Note: This is an estimated rough pricing. The final quote may vary slightly based on your exact requirements, raw footage quality, and project complexity.
-                      </div>
-                      
-                      <button 
-                        onClick={handleSendWhatsApp}
-                        disabled={!isFormValid}
-                        className={`w-full py-5 rounded-2xl font-bold flex items-center justify-center gap-3 transition-all transform hover:scale-[1.02] active:scale-95 shadow-xl ${
-                          isFormValid 
-                            ? 'bg-[#E50914] text-white hover:bg-red-700 shadow-red-900/20' 
-                            : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
-                        }`}
-                      >
-                        Get Custom Quote <ChevronRight size={20} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                  </button>
+                ))}
               </div>
             </section>
-          </div>
+          )}
+
+          {/* 5. QUANTITY SLIDER */}
+          <section className="mb-10">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xs uppercase tracking-[0.2em] font-bold text-zinc-500">Videos needed per month</h2>
+              <span className="text-[#E50914] font-black text-2xl">{quantity}</span>
+            </div>
+            <div className="relative px-2">
+              <input 
+                type="range" 
+                min="1" 
+                max="10" 
+                value={quantity}
+                onChange={(e) => setQuantity(Number(e.target.value))}
+                className="w-full h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-[#E50914]"
+              />
+              <div className="flex justify-between mt-2 px-1">
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
+                  <span key={n} className={`text-[10px] font-bold ${quantity === n ? 'text-[#E50914]' : 'text-zinc-700'}`}>{n}</span>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* 6. QUICK REQUIREMENTS (Add-ons) */}
+          <section className="mb-10">
+            <h2 className="text-xs uppercase tracking-[0.2em] font-bold text-zinc-500 mb-4">Quick Requirements</h2>
+            <div className="flex flex-wrap gap-2">
+              {QUICK_TAGS.map((tag) => (
+                <button
+                  key={tag.id}
+                  onClick={() => handleTagToggle(tag.id)}
+                  className={`px-4 py-2.5 rounded-xl border text-xs font-bold transition-all ${
+                    selectedTags.includes(tag.id)
+                      ? 'bg-[#E50914]/10 border-[#E50914] text-[#E50914]'
+                      : 'bg-zinc-900/50 border-white/5 text-zinc-500 hover:border-white/10'
+                  }`}
+                >
+                  {tag.label}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          {/* 7. USER INPUT FORMS */}
+          <section className="space-y-6 mb-12">
+            <div>
+              <label className="text-[10px] uppercase tracking-[0.2em] font-bold text-zinc-500 mb-2 block">Paste Reference Video Link</label>
+              <input 
+                type="url" 
+                placeholder="https://instagram.com/reel/..."
+                value={refLink}
+                onChange={(e) => setRefLink(e.target.value)}
+                className="w-full bg-zinc-900/50 border border-white/5 rounded-2xl px-5 py-4 text-sm focus:border-[#E50914] outline-none transition-all placeholder:text-zinc-700"
+              />
+            </div>
+
+            <div>
+              <label className="text-[10px] uppercase tracking-[0.2em] font-bold text-zinc-500 mb-2 block">Any specific requirements?</label>
+              <textarea 
+                rows={3}
+                placeholder="Tell us about your brand vision..."
+                value={requirements}
+                onChange={(e) => setRequirements(e.target.value)}
+                className="w-full bg-zinc-900/50 border border-white/5 rounded-2xl px-5 py-4 text-sm focus:border-[#E50914] outline-none transition-all placeholder:text-zinc-700 resize-none"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 gap-4">
+              <div>
+                <label className="text-[10px] uppercase tracking-[0.2em] font-bold text-zinc-500 mb-2 block">Full Name</label>
+                <input 
+                  type="text" 
+                  placeholder="Your Name"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  className="w-full bg-zinc-900/50 border border-white/5 rounded-2xl px-5 py-4 text-sm focus:border-[#E50914] outline-none transition-all"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] uppercase tracking-[0.2em] font-bold text-zinc-500 mb-2 block">WhatsApp Number</label>
+                <input 
+                  type="tel" 
+                  placeholder="+91 00000 00000"
+                  value={contactNumber}
+                  onChange={(e) => setContactNumber(e.target.value)}
+                  className="w-full bg-zinc-900/50 border border-white/5 rounded-2xl px-5 py-4 text-sm focus:border-[#E50914] outline-none transition-all"
+                />
+              </div>
+            </div>
+          </section>
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="py-12 px-6 border-t border-white/5 text-center text-zinc-600 text-[10px] uppercase tracking-[0.2em]">
-        &copy; 2024 YOUR EDITOR FRIEND &bull; PREMIUM VIDEO EDITING
-      </footer>
+      {/* 8. STICKY BOTTOM BAR */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-zinc-900/90 backdrop-blur-xl border-t border-white/10 p-4 pb-safe">
+        <div className="max-w-xl mx-auto flex items-center justify-between gap-4">
+          <div className="flex flex-col">
+            <span className="text-[10px] uppercase tracking-widest font-bold text-zinc-500">Estimated Total</span>
+            <div className="text-2xl font-black text-white tracking-tighter">
+              <NumberCounter value={final} />
+            </div>
+          </div>
+          <button 
+            onClick={handleSendWhatsApp}
+            disabled={!isFormValid}
+            className={`flex-1 py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all transform active:scale-95 ${
+              isFormValid 
+                ? 'bg-[#E50914] text-white shadow-lg shadow-red-900/20' 
+                : 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
+            }`}
+          >
+            Get Custom Quote
+          </button>
+        </div>
+      </div>
     </div>
   );
 };
