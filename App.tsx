@@ -382,6 +382,21 @@ const MainSite: React.FC = () => {
               </div>
               <div className="flex-1 flex items-center justify-center py-12">
                 <div className="relative">
+                  {/* Spreading Waves Animation */}
+                  {[...Array(3)].map((_, i) => (
+                    <motion.div
+                      key={i}
+                      initial={{ scale: 1, opacity: 0.5 }}
+                      animate={{ scale: 2.2, opacity: 0 }}
+                      transition={{
+                        duration: 2.5,
+                        repeat: Infinity,
+                        delay: i * 0.8,
+                        ease: "easeOut"
+                      }}
+                      className="absolute inset-0 rounded-full border border-[#E50914]/30"
+                    />
+                  ))}
                   <div className="w-20 h-20 bg-[#E50914]/10 rounded-full flex items-center justify-center text-[#E50914] group-hover:bg-[#E50914]/20 transition-colors shadow-lg shadow-red-900/20">
                     <Zap size={32} fill="currentColor" />
                   </div>
