@@ -1,13 +1,23 @@
 import express from "express";
 import { createServer as createViteServer } from "vite";
-import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
+import { initializeApp } from "firebase/app";
+import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const DATA_FILE = path.join(__dirname, "data", "portfolio.json");
+// Firebase Configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyBqgmzrNelS701uQ1ngLvcoatUkcBuiRic",
+  authDomain: "gen-lang-client-0681082317.firebaseapp.com",
+  projectId: "gen-lang-client-0681082317",
+  appId: "1:834918791822:web:ef4b1dc9724967ab64a7df"
+};
+
+const firebaseApp = initializeApp(firebaseConfig);
+const db = getFirestore(firebaseApp);
 
 async function startServer() {
   const app = express();
@@ -29,10 +39,17 @@ async function startServer() {
 
   app.get("/api/portfolio", async (req, res) => {
     try {
-      const data = await fs.readFile(DATA_FILE, "utf-8");
-      res.json(JSON.parse(data));
+      const docRef = doc(db, "app", "data");
+      const docSnap = await getDoc(docRef);
+      
+      if (docSnap.exists()) {
+        res.json(docSnap.data());
+      } else {
+        res.status(404).json({ error: "Portfolio data not found in Firebase" });
+      }
     } catch (error) {
-      res.status(500).json({ error: "Failed to read portfolio data" });
+      console.error("Firebase read error:", error);
+      res.status(500).json({ error: "Failed to read portfolio data from Firebase" });
     }
   });
 
@@ -47,10 +64,11 @@ async function startServer() {
       }
 
       const { data: newPortfolio } = req.body;
-      await fs.writeFile(DATA_FILE, JSON.stringify(newPortfolio, null, 2));
-      res.json({ message: "Portfolio updated successfully" });
+      await setDoc(doc(db, "app", "data"), newPortfolio);
+      res.json({ message: "Portfolio updated successfully in Firebase" });
     } catch (error) {
-      res.status(500).json({ error: "Failed to update portfolio data" });
+      console.error("Firebase write error:", error);
+      res.status(500).json({ error: "Failed to update portfolio data in Firebase" });
     }
   });
 

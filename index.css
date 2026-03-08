@@ -2,8 +2,8 @@
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --color-brand-accent: #E50914;
-  --color-brand-bg: #0A0A0A;
+  --color-brand-accent: #00FFFF;
+  --color-brand-bg: #000000;
 }
 
 @layer base {

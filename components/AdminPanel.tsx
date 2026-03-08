@@ -25,6 +25,8 @@ import {
   LogOut
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { db } from '../src/firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import {
   DndContext,
   closestCenter,
@@ -133,12 +135,17 @@ export const AdminPanel: React.FC = () => {
 
   const fetchData = async () => {
     try {
-      const res = await fetch('/api/portfolio');
-      const jsonData = await res.json();
-      setData(jsonData);
+      const docRef = doc(db, "app", "data");
+      const docSnap = await getDoc(docRef);
+      
+      if (docSnap.exists()) {
+        setData(docSnap.data() as AppData);
+      } else {
+        setMessage({ text: 'No data found in Firebase', type: 'error' });
+      }
     } catch (error) {
-      console.error('Failed to fetch data:', error);
-      setMessage({ text: 'Failed to load data', type: 'error' });
+      console.error('Failed to fetch data from Firebase:', error);
+      setMessage({ text: 'Failed to load data from Firebase', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -148,22 +155,14 @@ export const AdminPanel: React.FC = () => {
     if (!data) return;
     setSaving(true);
     try {
-      const res = await fetch('/api/portfolio', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
-        },
-        body: JSON.stringify({ data }),
-      });
-      if (res.ok) {
-        setMessage({ text: 'Changes saved successfully!', type: 'success' });
-        setTimeout(() => setMessage(null), 3000);
-      } else {
-        throw new Error('Failed to save');
-      }
+      const docRef = doc(db, "app", "data");
+      await setDoc(docRef, data);
+      
+      setMessage({ text: 'Changes saved successfully to Firebase!', type: 'success' });
+      setTimeout(() => setMessage(null), 3000);
     } catch (error) {
-      setMessage({ text: 'Failed to save changes', type: 'error' });
+      console.error('Failed to save to Firebase:', error);
+      setMessage({ text: 'Failed to save changes to Firebase', type: 'error' });
     } finally {
       setSaving(false);
     }

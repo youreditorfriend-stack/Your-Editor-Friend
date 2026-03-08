@@ -15,6 +15,8 @@ import {
   Layers,
   MousePointer2
 } from 'lucide-react';
+import { db } from '../src/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 
 export const ServiceBento = () => {
   const services = [
@@ -188,29 +190,32 @@ export const PortfolioGrid: React.FC<PortfolioGridProps> = ({ activeCategory }) 
   useEffect(() => {
     const fetchPortfolio = async () => {
       try {
-        const res = await fetch('/api/portfolio');
-        const data = await res.json();
+        const docRef = doc(db, "app", "data");
+        const docSnap = await getDoc(docRef);
         
-        // Flatten videos from all enabled categories
-        const categories = data.portfolio || [];
-        const allItems: any[] = [];
-        
-        categories.forEach((cat: any) => {
-          if (cat.enabled !== false) {
-            cat.videos.forEach((vid: any) => {
-              if (vid.enabled !== false) {
-                allItems.push({
-                  ...vid,
-                  category: cat.name
-                });
-              }
-            });
-          }
-        });
-        
-        setAllWorks(allItems);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          // Flatten videos from all enabled categories
+          const categories = data.portfolio || [];
+          const allItems: any[] = [];
+          
+          categories.forEach((cat: any) => {
+            if (cat.enabled !== false) {
+              cat.videos.forEach((vid: any) => {
+                if (vid.enabled !== false) {
+                  allItems.push({
+                    ...vid,
+                    category: cat.name
+                  });
+                }
+              });
+            }
+          });
+          
+          setAllWorks(allItems);
+        }
       } catch (error) {
-        console.error('Failed to fetch portfolio:', error);
+        console.error('Failed to fetch portfolio from Firebase:', error);
       } finally {
         setLoading(false);
       }

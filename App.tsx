@@ -21,6 +21,8 @@ import {
   Phone
 } from 'lucide-react';
 import { PortfolioGrid, ServiceBento } from './components/Portfolio';
+import { db } from './src/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from 'react-router-dom';
 import { AdminPanel } from './components/AdminPanel';
@@ -45,19 +47,23 @@ const MainSite: React.FC = () => {
     // Fetch settings to filter categories
     const fetchSettings = async () => {
       try {
-        const res = await fetch('/api/portfolio');
-        const data = await res.json();
-        const portfolio = data.portfolio || [];
-        const enabledCats = portfolio
-          .filter((cat: any) => cat.enabled !== false)
-          .map((cat: any) => cat.name);
+        const docRef = doc(db, "app", "data");
+        const docSnap = await getDoc(docRef);
         
-        setVisibleCategories(enabledCats);
-        if (enabledCats.length > 0 && !enabledCats.includes(activeCategory)) {
-          setActiveCategory(enabledCats[0]);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          const portfolio = data.portfolio || [];
+          const enabledCats = portfolio
+            .filter((cat: any) => cat.enabled !== false)
+            .map((cat: any) => cat.name);
+          
+          setVisibleCategories(enabledCats);
+          if (enabledCats.length > 0 && !enabledCats.includes(activeCategory)) {
+            setActiveCategory(enabledCats[0]);
+          }
         }
       } catch (error) {
-        console.error('Failed to fetch settings:', error);
+        console.error('Failed to fetch settings from Firebase:', error);
       }
     };
     fetchSettings();
