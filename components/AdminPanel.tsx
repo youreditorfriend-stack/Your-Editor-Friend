@@ -1,372 +1,987 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
-*/
-
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Lock, 
   LayoutDashboard, 
-  Video, 
-  Settings, 
-  LogOut, 
+  Briefcase, 
+  DollarSign, 
+  Plus, 
+  Trash2, 
+  Edit3, 
   Eye, 
-  EyeOff,
+  EyeOff, 
+  ChevronRight, 
+  ChevronDown,
   Save,
+  Loader2,
+  ArrowLeft,
+  Youtube,
+  Type,
+  ExternalLink,
+  Tag,
   CheckCircle2,
-  AlertCircle,
-  Globe
+  X,
+  GripVertical,
+  Lock,
+  LogOut
 } from 'lucide-react';
-import { setFeaturedVideo, getFeaturedVideo } from '../firebase';
+import { Link } from 'react-router-dom';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
-const STATIC_PORTFOLIO_DATA = {
-  "portfolio": [
-    {
-      "id": "cat-1",
-      "name": "Personal Branding",
-      "enabled": true,
-      "videos": [
-        { "id": "1", "title": "Brands pay dhoni", "youtubeId": "KSoPrGLdUog", "enabled": true },
-        { "id": "2", "title": "Ram music", "youtubeId": "Dratplxyl8s", "enabled": true },
-        { "id": "3", "title": "AI ML DS", "youtubeId": "cg--ED8zNDk", "enabled": true }
-      ]
-    },
-    {
-      "id": "cat-2",
-      "name": "AI Advertisement",
-      "enabled": true,
-      "videos": [
-        { "id": "4", "title": "VARQ", "youtubeId": "YIe_WVTpSd8", "enabled": true },
-        { "id": "5", "title": "Ueir organics", "youtubeId": "NgUHikVfDNs", "enabled": true },
-        { "id": "6", "title": "Kamal Rajini recreation", "youtubeId": "hLh0h6Vj6w8", "enabled": true }
-      ]
-    },
-    {
-      "id": "cat-3",
-      "name": "Real Estate",
-      "enabled": true,
-      "videos": [
-        { "id": "7", "title": "Premium Property Edit", "youtubeId": "r-dFqVZqWww", "enabled": true },
-        { "id": "8", "title": "Flashy home reveal", "youtubeId": "wk4ezLigQ0Y", "enabled": true },
-        { "id": "9", "title": "Blast turf Reveal", "youtubeId": "oEoeevc1QNM", "enabled": true }
-      ]
-    },
-    {
-      "id": "cat-4",
-      "name": "Motion Graphics",
-      "enabled": true,
-      "videos": [
-        { "id": "10", "title": "Project postmortom", "youtubeId": "NGMXnfw2QSw", "enabled": true },
-        { "id": "11", "title": "Redflagged", "youtubeId": "aPpVQ63XM7g", "enabled": true },
-        { "id": "12", "title": "Ashoka Gold & DIamonds", "youtubeId": "HI50vxdp5es", "enabled": true },
-        { "id": "13", "title": "Toxic talks", "youtubeId": "h3q9hsEPPzg", "enabled": true }
-      ]
-    }
-  ]
-};
+interface PortfolioVideo {
+  id: string;
+  title: string;
+  youtubeId?: string;
+  imgId?: string;
+  enabled: boolean;
+}
+
+interface PortfolioCategory {
+  id: string;
+  name: string;
+  enabled: boolean;
+  videos: PortfolioVideo[];
+}
+
+interface ReferenceStyle {
+  id: string;
+  name: string;
+  description: string;
+  videoUrl: string;
+  basePrice: number;
+  enabled: boolean;
+}
+
+interface PricingCategory {
+  id: string;
+  name: string;
+  enabled: boolean;
+  styles: ReferenceStyle[];
+}
+
+interface AppData {
+  portfolio: PortfolioCategory[];
+  pricing: PricingCategory[];
+}
 
 export const AdminPanel: React.FC = () => {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [activeTab, setActiveTab] = useState<'portfolio' | 'pricing'>('portfolio');
+  const [data, setData] = useState<AppData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [portfolio, setPortfolio] = useState(STATIC_PORTFOLIO_DATA.portfolio);
-  const [activeTab, setActiveTab] = useState('portfolio');
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success'>('idle');
-  const [featuredVideoUrl, setFeaturedVideoUrl] = useState('');
-  const [firebaseStatus, setFirebaseStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+  const [loginError, setLoginError] = useState('');
 
   useEffect(() => {
-    // Check if user is already logged in (session storage)
-    const token = sessionStorage.getItem('admin_token');
-    if (token) setIsLoggedIn(true);
-
-    // Load portfolio from localStorage if it exists
-    const savedPortfolio = localStorage.getItem('portfolio_data');
-    if (savedPortfolio) {
-      setPortfolio(JSON.parse(savedPortfolio));
+    const token = localStorage.getItem('admin_token');
+    if (token) {
+      setIsAuthenticated(true);
     }
-
-    // Fetch featured video from Firebase
-    const fetchFeatured = async () => {
-      try {
-        const url = await getFeaturedVideo();
-        if (url) setFeaturedVideoUrl(url);
-      } catch (err) {
-        console.error("Firebase fetch error:", err);
-      }
-    };
-    fetchFeatured();
   }, []);
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Simple client-side password check for static site
-    if (password === 'admin123') {
-      sessionStorage.setItem('admin_token', 'logged_in');
-      setIsLoggedIn(true);
-      setError('');
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchData();
     } else {
-      setError('Invalid password');
+      setLoading(false);
+    }
+  }, [isAuthenticated]);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      });
+      const result = await res.json();
+      if (result.success) {
+        localStorage.setItem('admin_token', result.token);
+        setIsAuthenticated(true);
+        setLoginError('');
+      } else {
+        setLoginError('Invalid password');
+      }
+    } catch (error) {
+      setLoginError('Login failed');
     }
   };
 
   const handleLogout = () => {
-    sessionStorage.removeItem('admin_token');
-    setIsLoggedIn(false);
+    localStorage.removeItem('admin_token');
+    setIsAuthenticated(false);
+    setData(null);
   };
 
-  const toggleCategory = (catId: string) => {
-    setPortfolio(prev => prev.map(cat => 
-      cat.id === catId ? { ...cat, enabled: !cat.enabled } : cat
-    ));
-  };
-
-  const toggleVideo = (catId: string, vidId: string) => {
-    setPortfolio(prev => prev.map(cat => 
-      cat.id === catId ? {
-        ...cat,
-        videos: cat.videos.map(vid => 
-          vid.id === vidId ? { ...vid, enabled: !vid.enabled } : vid
-        )
-      } : cat
-    ));
-  };
-
-  const saveChanges = () => {
-    setSaveStatus('saving');
-    // Save to localStorage for the current browser
-    localStorage.setItem('portfolio_data', JSON.stringify(portfolio));
-    
-    setTimeout(() => {
-      setSaveStatus('success');
-      setTimeout(() => setSaveStatus('idle'), 2000);
-    }, 800);
-  };
-
-  const handleSaveFirebaseVideo = async () => {
-    if (!featuredVideoUrl.trim()) return;
-    setFirebaseStatus('saving');
+  const fetchData = async () => {
     try {
-      await setFeaturedVideo(featuredVideoUrl);
-      setFirebaseStatus('success');
-      setTimeout(() => setFirebaseStatus('idle'), 2000);
-    } catch (err) {
-      console.error("Firebase save error:", err);
-      setFirebaseStatus('error');
-      setTimeout(() => setFirebaseStatus('idle'), 3000);
+      const res = await fetch('/api/portfolio');
+      const jsonData = await res.json();
+      setData(jsonData);
+    } catch (error) {
+      console.error('Failed to fetch data:', error);
+      setMessage({ text: 'Failed to load data', type: 'error' });
+    } finally {
+      setLoading(false);
     }
   };
 
-  if (!isLoggedIn) {
+  const handleSave = async () => {
+    if (!data) return;
+    setSaving(true);
+    try {
+      const res = await fetch('/api/portfolio', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
+        },
+        body: JSON.stringify({ data }),
+      });
+      if (res.ok) {
+        setMessage({ text: 'Changes saved successfully!', type: 'success' });
+        setTimeout(() => setMessage(null), 3000);
+      } else {
+        throw new Error('Failed to save');
+      }
+    } catch (error) {
+      setMessage({ text: 'Failed to save changes', type: 'error' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Portfolio Actions
+  const addPortfolioCategory = () => {
+    if (!data) return;
+    const newCat: PortfolioCategory = {
+      id: `cat-${Date.now()}`,
+      name: 'New Category',
+      enabled: true,
+      videos: []
+    };
+    setData({ ...data, portfolio: [...data.portfolio, newCat] });
+  };
+
+  const updatePortfolioCategory = (id: string, field: keyof PortfolioCategory, value: any) => {
+    if (!data) return;
+    setData({
+      ...data,
+      portfolio: data.portfolio.map(cat => cat.id === id ? { ...cat, [field]: value } : cat)
+    });
+  };
+
+  const deletePortfolioCategory = (id: string) => {
+    if (!data) return;
+    if (window.confirm('Are you sure you want to delete this category and all its videos?')) {
+      setData({ ...data, portfolio: data.portfolio.filter(cat => cat.id !== id) });
+    }
+  };
+
+  const addVideo = (catId: string) => {
+    if (!data) return;
+    const newVid: PortfolioVideo = {
+      id: `vid-${Date.now()}`,
+      title: 'New Video',
+      youtubeId: '',
+      enabled: true
+    };
+    setData({
+      ...data,
+      portfolio: data.portfolio.map(cat => 
+        cat.id === catId ? { ...cat, videos: [newVid, ...cat.videos] } : cat
+      )
+    });
+  };
+
+  const updateVideo = (catId: string, vidId: string, field: keyof PortfolioVideo, value: any) => {
+    if (!data) return;
+    setData({
+      ...data,
+      portfolio: data.portfolio.map(cat => 
+        cat.id === catId ? {
+          ...cat,
+          videos: cat.videos.map(vid => vid.id === vidId ? { ...vid, [field]: value } : vid)
+        } : cat
+      )
+    });
+  };
+
+  const deleteVideo = (catId: string, vidId: string) => {
+    if (!data) return;
+    setData({
+      ...data,
+      portfolio: data.portfolio.map(cat => 
+        cat.id === catId ? { ...cat, videos: cat.videos.filter(vid => vid.id !== vidId) } : cat
+      )
+    });
+  };
+
+  // Pricing Actions
+  const addPricingCategory = () => {
+    if (!data) return;
+    const newCat: PricingCategory = {
+      id: `pcat-${Date.now()}`,
+      name: 'New Pricing Category',
+      enabled: true,
+      styles: []
+    };
+    setData({ ...data, pricing: [...data.pricing, newCat] });
+  };
+
+  const updatePricingCategory = (id: string, field: keyof PricingCategory, value: any) => {
+    if (!data) return;
+    setData({
+      ...data,
+      pricing: data.pricing.map(cat => cat.id === id ? { ...cat, [field]: value } : cat)
+    });
+  };
+
+  const deletePricingCategory = (id: string) => {
+    if (!data) return;
+    if (window.confirm('Are you sure you want to delete this pricing category?')) {
+      setData({ ...data, pricing: data.pricing.filter(cat => cat.id !== id) });
+    }
+  };
+
+  const addStyle = (catId: string) => {
+    if (!data) return;
+    const newStyle: ReferenceStyle = {
+      id: `style-${Date.now()}`,
+      name: 'New Style',
+      description: '',
+      videoUrl: '',
+      basePrice: 1500,
+      enabled: true
+    };
+    setData({
+      ...data,
+      pricing: data.pricing.map(cat => 
+        cat.id === catId ? { ...cat, styles: [newStyle, ...cat.styles] } : cat
+      )
+    });
+  };
+
+  const updateStyle = (catId: string, styleId: string, field: keyof ReferenceStyle, value: any) => {
+    if (!data) return;
+    setData({
+      ...data,
+      pricing: data.pricing.map(cat => 
+        cat.id === catId ? {
+          ...cat,
+          styles: cat.styles.map(style => style.id === styleId ? { ...style, [field]: value } : style)
+        } : cat
+      )
+    });
+  };
+
+  const deleteStyle = (catId: string, styleId: string) => {
+    if (!data) return;
+    setData({
+      ...data,
+      pricing: data.pricing.map(cat => 
+        cat.id === catId ? { ...cat, styles: cat.styles.filter(style => style.id !== styleId) } : cat
+      )
+    });
+  };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEndPortfolio = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id && data) {
+      const oldIndex = data.portfolio.findIndex((cat) => cat.id === active.id);
+      const newIndex = data.portfolio.findIndex((cat) => cat.id === over.id);
+      setData({
+        ...data,
+        portfolio: arrayMove(data.portfolio, oldIndex, newIndex),
+      });
+    }
+  };
+
+  const handleDragEndVideos = (catId: string, event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id && data) {
+      setData({
+        ...data,
+        portfolio: data.portfolio.map((cat) => {
+          if (cat.id === catId) {
+            const oldIndex = cat.videos.findIndex((vid) => vid.id === active.id);
+            const newIndex = cat.videos.findIndex((vid) => vid.id === over.id);
+            return {
+              ...cat,
+              videos: arrayMove(cat.videos, oldIndex, newIndex),
+            };
+          }
+          return cat;
+        }),
+      });
+    }
+  };
+
+  const handleDragEndPricing = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id && data) {
+      const oldIndex = data.pricing.findIndex((cat) => cat.id === active.id);
+      const newIndex = data.pricing.findIndex((cat) => cat.id === over.id);
+      setData({
+        ...data,
+        pricing: arrayMove(data.pricing, oldIndex, newIndex),
+      });
+    }
+  };
+
+  const handleDragEndStyles = (catId: string, event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id && data) {
+      setData({
+        ...data,
+        pricing: data.pricing.map((cat) => {
+          if (cat.id === catId) {
+            const oldIndex = cat.styles.findIndex((style) => style.id === active.id);
+            const newIndex = cat.styles.findIndex((style) => style.id === over.id);
+            return {
+              ...cat,
+              styles: arrayMove(cat.styles, oldIndex, newIndex),
+            };
+          }
+          return cat;
+        }),
+      });
+    }
+  };
+
+  if (loading) {
     return (
-      <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center px-6">
+      <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
+        <Loader2 className="animate-spin text-[#E50914]" size={48} />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center p-6">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-md p-8 rounded-3xl bg-zinc-900 border border-white/10 shadow-2xl"
+          className="w-full max-w-md bg-zinc-900/50 border border-white/10 p-10 rounded-[2.5rem] shadow-2xl"
         >
-          <div className="flex flex-col items-center mb-8">
-            <div className="w-16 h-16 rounded-full bg-[#E50914]/10 flex items-center justify-center text-[#E50914] mb-4">
+          <div className="text-center mb-10">
+            <div className="w-16 h-16 bg-[#E50914]/10 rounded-2xl flex items-center justify-center text-[#E50914] mx-auto mb-6">
               <Lock size={32} />
             </div>
-            <h1 className="text-2xl font-bold text-white">Admin Access</h1>
-            <p className="text-zinc-500 text-sm">Enter password to manage your site</p>
+            <h1 className="text-2xl font-black tracking-tighter text-white mb-2">ADMIN ACCESS</h1>
+            <p className="text-zinc-500 text-sm">Please enter your password to continue.</p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-6">
             <div>
-              <input 
-                type="password" 
+              <input
+                type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Password"
-                className="w-full bg-black border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#E50914] outline-none transition-all"
+                placeholder="Enter Password"
+                className="w-full bg-black/50 border border-white/10 rounded-2xl px-6 py-4 text-sm focus:border-[#E50914] outline-none transition-all placeholder:text-zinc-700"
+                autoFocus
               />
-              {error && <p className="text-red-500 text-xs mt-2 flex items-center gap-1"><AlertCircle size={12} /> {error}</p>}
+              {loginError && (
+                <p className="text-red-500 text-[10px] font-bold uppercase tracking-widest mt-3 text-center">
+                  {loginError}
+                </p>
+              )}
             </div>
-            <button 
+            <button
               type="submit"
-              className="w-full bg-[#E50914] hover:bg-red-700 text-white py-3 rounded-xl font-bold transition-all active:scale-95"
+              className="w-full bg-[#E50914] text-white py-4 rounded-2xl font-bold hover:bg-red-700 transition-all transform active:scale-95 shadow-xl shadow-red-900/20"
             >
-              Login
+              Unlock Dashboard
             </button>
           </form>
-          
-          <p className="mt-8 text-center text-zinc-600 text-[10px] uppercase tracking-widest">
-            Static Site Mode &middot; Browser Persistence
-          </p>
+
+          <div className="mt-8 text-center">
+            <Link to="/" className="text-zinc-600 hover:text-white text-xs font-medium transition-colors">
+              Back to Website
+            </Link>
+          </div>
         </motion.div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-white font-sans">
+    <div className="min-h-screen bg-[#0A0A0A] text-white flex">
       {/* Sidebar */}
-      <div className="fixed left-0 top-0 h-full w-64 bg-zinc-950 border-r border-white/5 p-6 hidden md:block">
-        <div className="mb-12">
-          <span className="font-bold text-sm tracking-tighter text-[#E50914]">EDITOR FRIEND ADMIN</span>
+      <aside className="w-64 bg-zinc-900/50 border-r border-white/5 flex flex-col sticky top-0 h-screen">
+        <div className="p-8">
+          <Link to="/" className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors mb-8">
+            <ArrowLeft size={16} /> <span className="text-xs font-bold uppercase tracking-widest">Back to Site</span>
+          </Link>
+          <h1 className="text-2xl font-black tracking-tighter text-white">ADMIN <span className="text-[#E50914]">HUB</span></h1>
         </div>
 
-        <nav className="space-y-2">
-          <button 
+        <nav className="flex-1 px-4 space-y-2">
+          <button
             onClick={() => setActiveTab('portfolio')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'portfolio' ? 'bg-[#E50914] text-white shadow-lg shadow-red-900/20' : 'text-zinc-500 hover:text-white hover:bg-white/5'}`}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === 'portfolio' ? 'bg-[#E50914] text-white shadow-lg shadow-red-900/20' : 'text-zinc-500 hover:bg-white/5 hover:text-white'}`}
           >
-            <Video size={18} /> Portfolio
+            <Briefcase size={18} /> Portfolio Management
           </button>
-          <button 
-            onClick={() => setActiveTab('firebase')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'firebase' ? 'bg-[#E50914] text-white shadow-lg shadow-red-900/20' : 'text-zinc-500 hover:text-white hover:bg-white/5'}`}
+          <button
+            onClick={() => setActiveTab('pricing')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === 'pricing' ? 'bg-[#E50914] text-white shadow-lg shadow-red-900/20' : 'text-zinc-500 hover:bg-white/5 hover:text-white'}`}
           >
-            <Globe size={18} /> Featured Video
+            <DollarSign size={18} /> Pricing Management
           </button>
-          <button 
-            onClick={() => setActiveTab('settings')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'settings' ? 'bg-[#E50914] text-white shadow-lg shadow-red-900/20' : 'text-zinc-500 hover:text-white hover:bg-white/5'}`}
-          >
-            <Settings size={18} /> Settings
-          </button>
+          
+          <div className="pt-4">
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-zinc-500 hover:bg-red-500/10 hover:text-red-500 transition-all"
+            >
+              <LogOut size={18} /> Logout
+            </button>
+          </div>
         </nav>
 
-        <div className="absolute bottom-6 left-6 right-6">
-          <button 
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-zinc-500 hover:text-red-500 hover:bg-red-500/5 transition-all"
+        <div className="p-6 border-t border-white/5">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="w-full bg-white text-black py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-zinc-200 transition-all disabled:opacity-50"
           >
-            <LogOut size={18} /> Logout
+            {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+            Save All Changes
+          </button>
+          {message && (
+            <div className={`mt-4 text-[10px] font-bold uppercase tracking-widest text-center ${message.type === 'success' ? 'text-green-500' : 'text-red-500'}`}>
+              {message.text}
+            </div>
+          )}
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 p-12 overflow-y-auto">
+        <AnimatePresence mode="wait">
+          {activeTab === 'portfolio' ? (
+            <motion.div
+              key="portfolio"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="space-y-12"
+            >
+              <div className="flex justify-between items-center">
+                <div>
+                  <h2 className="text-3xl font-black tracking-tighter uppercase">Portfolio Management</h2>
+                  <p className="text-zinc-500 text-sm">Manage your categories and showcase videos.</p>
+                </div>
+                <button
+                  onClick={addPortfolioCategory}
+                  className="bg-white/5 hover:bg-white/10 border border-white/10 px-6 py-3 rounded-xl text-sm font-bold flex items-center gap-2 transition-all"
+                >
+                  <Plus size={18} /> Add Category
+                </button>
+              </div>
+
+              <div className="space-y-8">
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEndPortfolio}
+                >
+                  <SortableContext
+                    items={data?.portfolio.map(cat => cat.id) || []}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {data?.portfolio.map((cat) => (
+                      <SortableCategoryItem
+                        key={cat.id}
+                        cat={cat}
+                        updatePortfolioCategory={updatePortfolioCategory}
+                        deletePortfolioCategory={deletePortfolioCategory}
+                        addVideo={addVideo}
+                        updateVideo={updateVideo}
+                        deleteVideo={deleteVideo}
+                        handleDragEndVideos={handleDragEndVideos}
+                        sensors={sensors}
+                      />
+                    ))}
+                  </SortableContext>
+                </DndContext>
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="pricing"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="space-y-12"
+            >
+              <div className="flex justify-between items-center">
+                <div>
+                  <h2 className="text-3xl font-black tracking-tighter uppercase">Pricing Management</h2>
+                  <p className="text-zinc-500 text-sm">Manage categories and reference styles for the quote builder.</p>
+                </div>
+                <button
+                  onClick={addPricingCategory}
+                  className="bg-white/5 hover:bg-white/10 border border-white/10 px-6 py-3 rounded-xl text-sm font-bold flex items-center gap-2 transition-all"
+                >
+                  <Plus size={18} /> Add Category
+                </button>
+              </div>
+
+              <div className="space-y-8">
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEndPricing}
+                >
+                  <SortableContext
+                    items={data?.pricing.map(cat => cat.id) || []}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {data?.pricing.map((cat) => (
+                      <SortablePricingCategoryItem
+                        key={cat.id}
+                        cat={cat}
+                        updatePricingCategory={updatePricingCategory}
+                        deletePricingCategory={deletePricingCategory}
+                        addStyle={addStyle}
+                        updateStyle={updateStyle}
+                        deleteStyle={deleteStyle}
+                        handleDragEndStyles={handleDragEndStyles}
+                        sensors={sensors}
+                      />
+                    ))}
+                  </SortableContext>
+                </DndContext>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </main>
+    </div>
+  );
+};
+
+const SortableCategoryItem = ({ 
+  cat, 
+  updatePortfolioCategory, 
+  deletePortfolioCategory, 
+  addVideo, 
+  updateVideo, 
+  deleteVideo,
+  handleDragEndVideos,
+  sensors
+}: any) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: cat.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 10 : 1,
+    position: 'relative' as const,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="bg-zinc-900/40 border border-white/5 rounded-[2rem] overflow-hidden">
+      {/* Category Header */}
+      <div className="p-6 border-b border-white/5 bg-white/[0.02] flex items-center justify-between">
+        <div className="flex items-center gap-4 flex-1">
+          <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-2 text-zinc-600 hover:text-white transition-colors">
+            <GripVertical size={20} />
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-[#E50914]/10 flex items-center justify-center text-[#E50914]">
+            <Tag size={20} />
+          </div>
+          <input
+            type="text"
+            value={cat.name}
+            onChange={(e) => updatePortfolioCategory(cat.id, 'name', e.target.value)}
+            className="bg-transparent border-none text-xl font-bold focus:outline-none focus:ring-0 p-0 w-full"
+          />
+        </div>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => updatePortfolioCategory(cat.id, 'enabled', !cat.enabled)}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all border ${cat.enabled ? 'bg-green-500/10 border-green-500/20 text-green-500' : 'bg-zinc-800 border-zinc-700 text-zinc-500'}`}
+          >
+            {cat.enabled ? <Eye size={14} /> : <EyeOff size={14} />}
+            {cat.enabled ? 'Visible' : 'Hidden'}
+          </button>
+          <button
+            onClick={() => deletePortfolioCategory(cat.id)}
+            className="p-2 text-zinc-600 hover:text-red-500 transition-colors"
+          >
+            <Trash2 size={18} />
           </button>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="md:ml-64 p-6 md:p-12">
-        <div className="max-w-5xl mx-auto">
-          {activeTab === 'portfolio' && (
-            <>
-              <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
-                <div>
-                  <h1 className="text-3xl font-bold mb-2">Manage Portfolio</h1>
-                  <p className="text-zinc-500 text-sm">Toggle visibility of your categories and videos.</p>
-                </div>
-                <button 
-                  onClick={saveChanges}
-                  disabled={saveStatus !== 'idle'}
-                  className={`flex items-center gap-2 px-8 py-3 rounded-xl font-bold transition-all active:scale-95 ${saveStatus === 'success' ? 'bg-green-500 text-white' : 'bg-white text-black hover:bg-zinc-200'}`}
-                >
-                  {saveStatus === 'idle' && <><Save size={18} /> Save Changes</>}
-                  {saveStatus === 'saving' && <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />}
-                  {saveStatus === 'success' && <><CheckCircle2 size={18} /> Saved!</>}
-                </button>
-              </header>
+      {/* Videos Grid */}
+      <div className="p-8">
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Videos in this category</h3>
+          <button
+            onClick={() => addVideo(cat.id)}
+            className="text-[10px] font-black uppercase tracking-widest text-[#E50914] flex items-center gap-1.5 hover:text-red-400 transition-colors"
+          >
+            <Plus size={14} /> Add Video
+          </button>
+        </div>
 
-              <div className="space-y-8">
-                {portfolio.map((cat) => (
-                  <div key={cat.id} className="bg-zinc-900/50 border border-white/5 rounded-3xl overflow-hidden">
-                    <div className="p-6 bg-zinc-900 border-b border-white/5 flex justify-between items-center">
-                      <div className="flex items-center gap-4">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${cat.enabled ? 'bg-[#E50914]/10 text-[#E50914]' : 'bg-zinc-800 text-zinc-600'}`}>
-                          <LayoutDashboard size={20} />
-                        </div>
-                        <h2 className={`text-xl font-bold ${!cat.enabled && 'text-zinc-600'}`}>{cat.name}</h2>
-                      </div>
-                      <button 
-                        onClick={() => toggleCategory(cat.id)}
-                        className={`p-2 rounded-lg transition-all ${cat.enabled ? 'text-green-500 hover:bg-green-500/10' : 'text-zinc-600 hover:bg-white/5'}`}
-                      >
-                        {cat.enabled ? <Eye size={20} /> : <EyeOff size={20} />}
-                      </button>
-                    </div>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={(event) => handleDragEndVideos(cat.id, event)}
+        >
+          <SortableContext
+            items={cat.videos.map((v: any) => v.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              {cat.videos.map((vid: any) => (
+                <SortableVideoItem
+                  key={vid.id}
+                  vid={vid}
+                  catId={cat.id}
+                  updateVideo={updateVideo}
+                  deleteVideo={deleteVideo}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
+        
+        {cat.videos.length === 0 && (
+          <div className="text-center py-12 border border-dashed border-white/5 rounded-2xl">
+            <p className="text-zinc-600 text-xs">No videos added to this category yet.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
-                    <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {cat.videos.map((vid) => (
-                        <div key={vid.id} className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${vid.enabled ? 'bg-black/40 border-white/10' : 'bg-zinc-950/50 border-transparent opacity-50'}`}>
-                          <div className="flex items-center gap-4 overflow-hidden">
-                            <div className="w-16 h-10 bg-zinc-800 rounded-md overflow-hidden shrink-0">
-                              <img 
-                                src={`https://img.youtube.com/vi/${vid.youtubeId}/default.jpg`} 
-                                className="w-full h-full object-cover"
-                                alt=""
-                              />
-                            </div>
-                            <span className="font-medium text-sm truncate">{vid.title}</span>
-                          </div>
-                          <button 
-                            onClick={() => toggleVideo(cat.id, vid.id)}
-                            className={`p-2 rounded-lg transition-all ${vid.enabled ? 'text-green-500 hover:bg-green-500/10' : 'text-zinc-600 hover:bg-white/5'}`}
-                          >
-                            {vid.enabled ? <Eye size={18} /> : <EyeOff size={18} />}
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
+const SortableVideoItem = ({ vid, catId, updateVideo, deleteVideo }: any) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: vid.id });
 
-          {activeTab === 'firebase' && (
-            <div className="max-w-2xl">
-              <header className="mb-12">
-                <h1 className="text-3xl font-bold mb-2">Featured Video</h1>
-                <p className="text-zinc-500 text-sm">Update the main video on your homepage using Firebase Firestore.</p>
-              </header>
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 20 : 1,
+    position: 'relative' as const,
+  };
 
-              <div className="bg-zinc-900/50 border border-white/5 rounded-3xl p-8 space-y-6">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-zinc-400">YouTube Embed Link</label>
-                  <input 
-                    id="videoLink"
-                    type="text" 
-                    value={featuredVideoUrl}
-                    onChange={(e) => setFeaturedVideoUrl(e.target.value)}
-                    placeholder="https://www.youtube.com/embed/..."
-                    className="w-full bg-black border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#E50914] outline-none transition-all"
-                  />
-                  <p className="text-[10px] text-zinc-600">Example: https://www.youtube.com/embed/dQw4w9WgXcQ</p>
-                </div>
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`bg-black/40 border rounded-2xl p-4 space-y-4 transition-all ${vid.enabled ? 'border-white/10' : 'border-white/5 opacity-50'}`}
+    >
+      <div className="aspect-video rounded-xl overflow-hidden bg-zinc-900 border border-white/5 relative group">
+        {vid.youtubeId ? (
+          <img
+            src={`https://img.youtube.com/vi/${vid.youtubeId}/mqdefault.jpg`}
+            className="w-full h-full object-cover"
+            alt=""
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-zinc-800">
+            <Youtube size={32} />
+          </div>
+        )}
+        <div className="absolute top-2 left-2">
+          <div {...attributes} {...listeners} className="p-2 rounded-lg bg-black/60 backdrop-blur-md text-white/50 hover:text-white cursor-grab active:cursor-grabbing transition-colors">
+            <GripVertical size={14} />
+          </div>
+        </div>
+        <div className="absolute top-2 right-2 flex gap-2">
+          <button
+            onClick={() => updateVideo(catId, vid.id, 'enabled', !vid.enabled)}
+            className={`p-2 rounded-lg backdrop-blur-md transition-all ${vid.enabled ? 'bg-green-500/20 text-green-500' : 'bg-zinc-800/80 text-zinc-500'}`}
+          >
+            {vid.enabled ? <Eye size={14} /> : <EyeOff size={14} />}
+          </button>
+          <button
+            onClick={() => deleteVideo(catId, vid.id)}
+            className="p-2 rounded-lg bg-red-500/20 text-red-500 backdrop-blur-md"
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
+      </div>
 
-                <button 
-                  id="saveBtn"
-                  onClick={handleSaveFirebaseVideo}
-                  disabled={firebaseStatus !== 'idle'}
-                  className={`w-full flex items-center justify-center gap-2 py-4 rounded-xl font-bold transition-all active:scale-95 ${
-                    firebaseStatus === 'success' ? 'bg-green-500 text-white' : 
-                    firebaseStatus === 'error' ? 'bg-red-500 text-white' :
-                    'bg-[#E50914] text-white hover:bg-red-700'
-                  }`}
-                >
-                  {firebaseStatus === 'idle' && <><Save size={18} /> Save Video to Firebase</>}
-                  {firebaseStatus === 'saving' && <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />}
-                  {firebaseStatus === 'success' && <><CheckCircle2 size={18} /> Saved Successfully!</>}
-                  {firebaseStatus === 'error' && <><AlertCircle size={18} /> Error Saving</>}
-                </button>
-              </div>
+      <div className="space-y-3">
+        <div>
+          <label className="text-[8px] font-black uppercase tracking-widest text-zinc-600 mb-1 block">Video Title</label>
+          <input
+            type="text"
+            value={vid.title}
+            onChange={(e) => updateVideo(catId, vid.id, 'title', e.target.value)}
+            className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#E50914]"
+          />
+        </div>
+        <div>
+          <label className="text-[8px] font-black uppercase tracking-widest text-zinc-600 mb-1 block">YouTube ID</label>
+          <input
+            type="text"
+            value={vid.youtubeId || ''}
+            onChange={(e) => updateVideo(catId, vid.id, 'youtubeId', e.target.value)}
+            className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#E50914]"
+            placeholder="e.g. KSoPrGLdUog"
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
 
-              {featuredVideoUrl && (
-                <div className="mt-8">
-                  <p className="text-sm font-medium text-zinc-400 mb-4">Preview</p>
-                  <div className="aspect-video rounded-2xl overflow-hidden border border-white/10 bg-black">
-                    <iframe 
-                      src={featuredVideoUrl}
-                      className="w-full h-full"
-                      allowFullScreen
-                    />
-                  </div>
-                </div>
-              )}
+const SortablePricingCategoryItem = ({
+  cat,
+  updatePricingCategory,
+  deletePricingCategory,
+  addStyle,
+  updateStyle,
+  deleteStyle,
+  handleDragEndStyles,
+  sensors
+}: any) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: cat.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 10 : 1,
+    position: 'relative' as const,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="bg-zinc-900/40 border border-white/5 rounded-[2rem] overflow-hidden">
+      {/* Category Header */}
+      <div className="p-6 border-b border-white/5 bg-white/[0.02] flex items-center justify-between">
+        <div className="flex items-center gap-4 flex-1">
+          <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-2 text-zinc-600 hover:text-white transition-colors">
+            <GripVertical size={20} />
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-[#E50914]/10 flex items-center justify-center text-[#E50914]">
+            <DollarSign size={20} />
+          </div>
+          <input
+            type="text"
+            value={cat.name}
+            onChange={(e) => updatePricingCategory(cat.id, 'name', e.target.value)}
+            className="bg-transparent border-none text-xl font-bold focus:outline-none focus:ring-0 p-0 w-full"
+          />
+        </div>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => updatePricingCategory(cat.id, 'enabled', !cat.enabled)}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all border ${cat.enabled ? 'bg-green-500/10 border-green-500/20 text-green-500' : 'bg-zinc-800 border-zinc-700 text-zinc-500'}`}
+          >
+            {cat.enabled ? <Eye size={14} /> : <EyeOff size={14} />}
+            {cat.enabled ? 'Visible' : 'Hidden'}
+          </button>
+          <button
+            onClick={() => deletePricingCategory(cat.id)}
+            className="p-2 text-zinc-600 hover:text-red-500 transition-colors"
+          >
+            <Trash2 size={18} />
+          </button>
+        </div>
+      </div>
+
+      {/* Styles List */}
+      <div className="p-8">
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Reference Styles</h3>
+          <button
+            onClick={() => addStyle(cat.id)}
+            className="text-[10px] font-black uppercase tracking-widest text-[#E50914] flex items-center gap-1.5 hover:text-red-400 transition-colors"
+          >
+            <Plus size={14} /> Add Style
+          </button>
+        </div>
+
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={(event) => handleDragEndStyles(cat.id, event)}
+        >
+          <SortableContext
+            items={cat.styles.map((s: any) => s.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="space-y-4">
+              {cat.styles.map((style: any) => (
+                <SortableStyleItem
+                  key={style.id}
+                  styleData={style}
+                  catId={cat.id}
+                  updateStyle={updateStyle}
+                  deleteStyle={deleteStyle}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
+        
+        {cat.styles.length === 0 && (
+          <div className="text-center py-12 border border-dashed border-white/5 rounded-2xl">
+            <p className="text-zinc-600 text-xs">No reference styles added yet.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const SortableStyleItem = ({ styleData: style, catId, updateStyle, deleteStyle }: any) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: style.id });
+
+  const dndStyle = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 20 : 1,
+    position: 'relative' as const,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={dndStyle}
+      className={`bg-black/40 border rounded-2xl p-6 transition-all ${style.enabled ? 'border-white/10' : 'border-white/5 opacity-50'}`}
+    >
+      <div className="flex flex-col xl:flex-row gap-8">
+        <div className="w-full xl:w-64 aspect-video rounded-xl overflow-hidden bg-zinc-900 border border-white/5 relative shrink-0">
+          {style.videoUrl ? (
+            <img
+              src={`https://img.youtube.com/vi/${style.videoUrl}/mqdefault.jpg`}
+              className="w-full h-full object-cover"
+              alt=""
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-zinc-800">
+              <Youtube size={32} />
             </div>
           )}
-          
-          <div className="mt-12 p-8 rounded-3xl bg-blue-500/5 border border-blue-500/20 text-blue-400 text-sm leading-relaxed">
-            <div className="flex gap-3">
-              <AlertCircle size={20} className="shrink-0" />
+          <div className="absolute top-2 left-2">
+            <div {...attributes} {...listeners} className="p-2 rounded-lg bg-black/60 backdrop-blur-md text-white/50 hover:text-white cursor-grab active:cursor-grabbing transition-colors">
+              <GripVertical size={14} />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-4">
+            <div>
+              <label className="text-[8px] font-black uppercase tracking-widest text-zinc-600 mb-1 block">Style Name</label>
+              <input
+                type="text"
+                value={style.name}
+                onChange={(e) => updateStyle(catId, style.id, 'name', e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-[#E50914]"
+              />
+            </div>
+            <div>
+              <label className="text-[8px] font-black uppercase tracking-widest text-zinc-600 mb-1 block">Description</label>
+              <textarea
+                value={style.description}
+                onChange={(e) => updateStyle(catId, style.id, 'description', e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-[#E50914] h-20 resize-none"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="font-bold mb-1">Static Site Notice</p>
-                <p>Since this is a static site without a backend, changes saved here are stored in your **browser's local storage**. They will be visible to you on this device, but to make permanent changes for all users, you must update the `STATIC_PORTFOLIO_DATA` in the source code.</p>
+                <label className="text-[8px] font-black uppercase tracking-widest text-zinc-600 mb-1 block">Base Price (₹)</label>
+                <input
+                  type="number"
+                  value={style.basePrice}
+                  onChange={(e) => updateStyle(catId, style.id, 'basePrice', Number(e.target.value))}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-[#E50914]"
+                />
               </div>
+              <div>
+                <label className="text-[8px] font-black uppercase tracking-widest text-zinc-600 mb-1 block">YouTube ID</label>
+                <input
+                  type="text"
+                  value={style.videoUrl}
+                  onChange={(e) => updateStyle(catId, style.id, 'videoUrl', e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-[#E50914]"
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-4 pt-4">
+              <button
+                onClick={() => updateStyle(catId, style.id, 'enabled', !style.enabled)}
+                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${style.enabled ? 'bg-green-500/10 border-green-500/20 text-green-500' : 'bg-zinc-800 border-zinc-700 text-zinc-500'}`}
+              >
+                {style.enabled ? <Eye size={14} /> : <EyeOff size={14} />}
+                {style.enabled ? 'Style Enabled' : 'Style Disabled'}
+              </button>
+              <button
+                onClick={() => deleteStyle(catId, style.id)}
+                className="p-3 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-all"
+              >
+                <Trash2 size={18} />
+              </button>
             </div>
           </div>
         </div>

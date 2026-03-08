@@ -62,116 +62,11 @@ const NumberCounter = ({ value }: { value: number }) => {
   return <span>₹{displayValue.toLocaleString()}</span>;
 };
 
-const STATIC_DATA = {
-  "portfolio": [
-    {
-      "id": "cat-1",
-      "name": "Personal Branding",
-      "enabled": true,
-      "videos": [
-        { "id": "1", "title": "Brands pay dhoni", "youtubeId": "KSoPrGLdUog", "enabled": true },
-        { "id": "2", "title": "Ram music", "youtubeId": "Dratplxyl8s", "enabled": true },
-        { "id": "3", "title": "AI ML DS", "youtubeId": "cg--ED8zNDk", "enabled": true }
-      ]
-    },
-    {
-      "id": "cat-2",
-      "name": "AI Advertisement",
-      "enabled": true,
-      "videos": [
-        { "id": "4", "title": "VARQ", "youtubeId": "YIe_WVTpSd8", "enabled": true },
-        { "id": "5", "title": "Ueir organics", "youtubeId": "NgUHikVfDNs", "enabled": true },
-        { "id": "6", "title": "Kamal Rajini recreation", "youtubeId": "hLh0h6Vj6w8", "enabled": true }
-      ]
-    },
-    {
-      "id": "cat-3",
-      "name": "Real Estate",
-      "enabled": true,
-      "videos": [
-        { "id": "7", "title": "Premium Property Edit", "youtubeId": "r-dFqVZqWww", "enabled": true },
-        { "id": "8", "title": "Flashy home reveal", "youtubeId": "wk4ezLigQ0Y", "enabled": true },
-        { "id": "9", "title": "Blast turf Reveal", "youtubeId": "oEoeevc1QNM", "enabled": true }
-      ]
-    },
-    {
-      "id": "cat-4",
-      "name": "Motion Graphics",
-      "enabled": true,
-      "videos": [
-        { "id": "10", "title": "Project postmortom", "youtubeId": "NGMXnfw2QSw", "enabled": true },
-        { "id": "11", "title": "Redflagged", "youtubeId": "aPpVQ63XM7g", "enabled": true },
-        { "id": "12", "title": "Ashoka Gold & DIamonds", "youtubeId": "HI50vxdp5es", "enabled": true },
-        { "id": "13", "title": "Toxic talks", "youtubeId": "h3q9hsEPPzg", "enabled": true }
-      ]
-    }
-  ],
-  "pricing": [
-    {
-      "id": "pcat-1",
-      "name": "Personal Branding",
-      "enabled": true,
-      "styles": [
-        {
-          "id": "style-1",
-          "name": "Style A - Basic Captions",
-          "description": "High-retention talking head videos with dynamic captions and pop-up text.",
-          "videoUrl": "KSoPrGLdUog",
-          "basePrice": 1500,
-          "enabled": true
-        }
-      ]
-    },
-    {
-      "id": "pcat-2",
-      "name": "Real Estate",
-      "enabled": true,
-      "styles": [
-        {
-          "id": "style-2",
-          "name": "Premium Property Tour",
-          "description": "Cinematic property tours and agent branding with smooth transitions.",
-          "videoUrl": "r-dFqVZqWww",
-          "basePrice": 2000,
-          "enabled": true
-        }
-      ]
-    },
-    {
-      "id": "pcat-3",
-      "name": "AI Advertisement",
-      "enabled": true,
-      "styles": [
-        {
-          "id": "style-3",
-          "name": "AI Product Ad",
-          "description": "AI-generated visuals for high-converting product ads and creative storytelling.",
-          "videoUrl": "NgUHikVfDNs",
-          "basePrice": 1800,
-          "enabled": true
-        }
-      ]
-    },
-    {
-      "id": "pcat-4",
-      "name": "Motion Graphics",
-      "enabled": true,
-      "styles": [
-        {
-          "id": "style-4",
-          "name": "Dynamic Motion",
-          "description": "Complex animations, data visualizations, and premium text effects.",
-          "videoUrl": "NGMXnfw2QSw",
-          "basePrice": 2500,
-          "enabled": true
-        }
-      ]
-    }
-  ]
-};
+import { PRICING_DATA } from '../src/data/portfolioData';
 
 export const CustomQuotePage: React.FC = () => {
   const [customStyles, setCustomStyles] = useState<CustomStyle[]>([]);
+  const [categorySettings, setCategorySettings] = useState<Record<string, boolean>>({});
   const [activeCategory, setActiveCategory] = useState(CATEGORIES[0]);
   const [selectedSubStyle, setSelectedSubStyle] = useState<any>(null);
   const [quantity, setQuantity] = useState(5);
@@ -182,16 +77,12 @@ export const CustomQuotePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check localStorage for admin overrides, otherwise use static data
-    const savedPortfolio = localStorage.getItem('portfolio_data');
-    const data = savedPortfolio 
-      ? { pricing: JSON.parse(savedPortfolio).pricing || STATIC_DATA.pricing }
-      : STATIC_DATA;
-
-    const pricingCategories = data.pricing || [];
+    // Flatten styles from all enabled pricing categories in static data
     const allStyles: any[] = [];
+    const settings: Record<string, boolean> = {};
     
-    pricingCategories.forEach((cat: any) => {
+    PRICING_DATA.forEach((cat: any) => {
+      settings[cat.name] = cat.enabled !== false;
       if (cat.enabled !== false) {
         cat.styles.forEach((style: any) => {
           if (style.enabled !== false) {
@@ -206,6 +97,7 @@ export const CustomQuotePage: React.FC = () => {
     });
     
     setCustomStyles(allStyles);
+    setCategorySettings(settings);
     
     if (allStyles.length > 0) {
       const firstStyle = allStyles[0];
@@ -218,7 +110,7 @@ export const CustomQuotePage: React.FC = () => {
     setLoading(false);
   }, []);
 
-  // Use admin styles to build the category list, filtered by visibility settings
+  // Use static data to build the category list
   const dynamicCategories = customStyles
     .reduce((acc: any[], style: any) => {
       if (!acc.find(c => c.id === style.category)) {
@@ -231,10 +123,13 @@ export const CustomQuotePage: React.FC = () => {
       return acc;
     }, []);
 
-  // Get active style data from admin or defaults
+  // Get active style data from static data
   const currentAdminStyle = customStyles.find(s => s.category === activeCategory.id);
   
-  const activePricingCategory = STATIC_DATA.pricing.find(cat => cat.name === activeCategory.id);
+  // Get sub-styles for the active category from the static data
+  const rawPricing = PRICING_DATA;
+
+  const activePricingCategory = rawPricing.find(cat => cat.name === activeCategory.id);
   const subStyles = activePricingCategory?.styles?.filter((s: any) => s.enabled !== false) || [];
 
   const basePrice = selectedSubStyle?.basePrice || currentAdminStyle?.singlePrice || 1500;
