@@ -47,20 +47,25 @@ const MainSite: React.FC = () => {
     // Fetch settings to filter categories
     const fetchSettings = async () => {
       try {
+        console.log('Fetching settings from Firebase...');
         const docRef = doc(db, "app", "data");
         const docSnap = await getDoc(docRef);
         
         if (docSnap.exists()) {
           const data = docSnap.data();
+          console.log('Settings data received:', data);
           const portfolio = data.portfolio || [];
           const enabledCats = portfolio
             .filter((cat: any) => cat.enabled !== false)
             .map((cat: any) => cat.name);
           
+          console.log('Enabled categories:', enabledCats);
           setVisibleCategories(enabledCats);
           if (enabledCats.length > 0 && !enabledCats.includes(activeCategory)) {
             setActiveCategory(enabledCats[0]);
           }
+        } else {
+          console.warn('No settings document found in Firebase');
         }
       } catch (error) {
         console.error('Failed to fetch settings from Firebase:', error);

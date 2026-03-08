@@ -190,18 +190,21 @@ export const PortfolioGrid: React.FC<PortfolioGridProps> = ({ activeCategory }) 
   useEffect(() => {
     const fetchPortfolio = async () => {
       try {
+        console.log('Fetching portfolio from Firebase...');
         const docRef = doc(db, "app", "data");
         const docSnap = await getDoc(docRef);
         
         if (docSnap.exists()) {
           const data = docSnap.data();
+          console.log('Firebase data received:', data);
           // Flatten videos from all enabled categories
           const categories = data.portfolio || [];
           const allItems: any[] = [];
           
           categories.forEach((cat: any) => {
             if (cat.enabled !== false) {
-              cat.videos.forEach((vid: any) => {
+              const vids = cat.videos || [];
+              vids.forEach((vid: any) => {
                 if (vid.enabled !== false) {
                   allItems.push({
                     ...vid,
@@ -212,7 +215,10 @@ export const PortfolioGrid: React.FC<PortfolioGridProps> = ({ activeCategory }) 
             }
           });
           
+          console.log('Processed items:', allItems.length);
           setAllWorks(allItems);
+        } else {
+          console.warn('No portfolio document found in Firebase');
         }
       } catch (error) {
         console.error('Failed to fetch portfolio from Firebase:', error);
