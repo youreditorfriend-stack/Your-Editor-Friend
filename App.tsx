@@ -26,6 +26,8 @@ import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from 'react
 import { AdminPanel } from './components/AdminPanel';
 import { CustomQuotePage } from './components/CustomQuotePage';
 
+import { PORTFOLIO_DATA } from './src/data/portfolioData';
+
 interface PricingConfig {
   price: number;
   discountThreshold: number;
@@ -42,25 +44,15 @@ const MainSite: React.FC = () => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
     window.addEventListener('scroll', handleScroll);
     
-    // Fetch settings to filter categories
-    const fetchSettings = async () => {
-      try {
-        const res = await fetch('/api/portfolio');
-        const data = await res.json();
-        const portfolio = data.portfolio || [];
-        const enabledCats = portfolio
-          .filter((cat: any) => cat.enabled !== false)
-          .map((cat: any) => cat.name);
-        
-        setVisibleCategories(enabledCats);
-        if (enabledCats.length > 0 && !enabledCats.includes(activeCategory)) {
-          setActiveCategory(enabledCats[0]);
-        }
-      } catch (error) {
-        console.error('Failed to fetch settings:', error);
-      }
-    };
-    fetchSettings();
+    // Use static data to filter categories
+    const enabledCats = PORTFOLIO_DATA
+      .filter((cat: any) => cat.enabled !== false)
+      .map((cat: any) => cat.name);
+    
+    setVisibleCategories(enabledCats);
+    if (enabledCats.length > 0 && !enabledCats.includes(activeCategory)) {
+      setActiveCategory(enabledCats[0]);
+    }
 
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
@@ -218,10 +210,10 @@ const MainSite: React.FC = () => {
             className="flex flex-col sm:flex-row items-center justify-center gap-6"
           >
             <button 
-              onClick={() => scrollTo('portfolio')}
+              onClick={() => navigate('/custom-quote')}
               className="w-full sm:w-auto bg-[#E50914] hover:bg-red-700 text-white px-10 py-4 rounded-full text-base font-medium flex items-center justify-center gap-2 transition-all transform hover:scale-105 active:scale-95 shadow-xl shadow-red-900/10"
             >
-              View My Work <ArrowRight size={18} />
+              Book Editing service <ArrowRight size={18} />
             </button>
           </motion.div>
         </motion.div>

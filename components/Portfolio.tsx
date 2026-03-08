@@ -180,42 +180,31 @@ const PortfolioCard: React.FC<PortfolioCardProps> = ({ work, index }) => {
   );
 };
 
+import { PORTFOLIO_DATA } from '../src/data/portfolioData';
+
 export const PortfolioGrid: React.FC<PortfolioGridProps> = ({ activeCategory }) => {
   const [allWorks, setAllWorks] = useState<any[]>([]);
-  const [categorySettings, setCategorySettings] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchPortfolio = async () => {
-      try {
-        const res = await fetch('/api/portfolio');
-        const data = await res.json();
-        
-        // Flatten videos from all enabled categories
-        const categories = data.portfolio || [];
-        const allItems: any[] = [];
-        
-        categories.forEach((cat: any) => {
-          if (cat.enabled !== false) {
-            cat.videos.forEach((vid: any) => {
-              if (vid.enabled !== false) {
-                allItems.push({
-                  ...vid,
-                  category: cat.name
-                });
-              }
+    // Flatten videos from all enabled categories in static data
+    const allItems: any[] = [];
+    
+    PORTFOLIO_DATA.forEach((cat: any) => {
+      if (cat.enabled !== false) {
+        cat.videos.forEach((vid: any) => {
+          if (vid.enabled !== false) {
+            allItems.push({
+              ...vid,
+              category: cat.name
             });
           }
         });
-        
-        setAllWorks(allItems);
-      } catch (error) {
-        console.error('Failed to fetch portfolio:', error);
-      } finally {
-        setLoading(false);
       }
-    };
-    fetchPortfolio();
+    });
+    
+    setAllWorks(allItems);
+    setLoading(false);
   }, []);
 
   const filteredWorks = allWorks.filter(work => work.category === activeCategory);
