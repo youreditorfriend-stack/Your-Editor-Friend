@@ -26,8 +26,6 @@ import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from 'react
 import { AdminPanel } from './components/AdminPanel';
 import { CustomQuotePage } from './components/CustomQuotePage';
 
-import { PORTFOLIO_DATA } from './src/data/portfolioData';
-
 interface PricingConfig {
   price: number;
   discountThreshold: number;
@@ -44,15 +42,25 @@ const MainSite: React.FC = () => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
     window.addEventListener('scroll', handleScroll);
     
-    // Use static data to filter categories
-    const enabledCats = PORTFOLIO_DATA
-      .filter((cat: any) => cat.enabled !== false)
-      .map((cat: any) => cat.name);
-    
-    setVisibleCategories(enabledCats);
-    if (enabledCats.length > 0 && !enabledCats.includes(activeCategory)) {
-      setActiveCategory(enabledCats[0]);
-    }
+    // Fetch settings to filter categories
+    const fetchSettings = async () => {
+      try {
+        const res = await fetch('/api/portfolio');
+        const data = await res.json();
+        const portfolio = data.portfolio || [];
+        const enabledCats = portfolio
+          .filter((cat: any) => cat.enabled !== false)
+          .map((cat: any) => cat.name);
+        
+        setVisibleCategories(enabledCats);
+        if (enabledCats.length > 0 && !enabledCats.includes(activeCategory)) {
+          setActiveCategory(enabledCats[0]);
+        }
+      } catch (error) {
+        console.error('Failed to fetch settings:', error);
+      }
+    };
+    fetchSettings();
 
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);

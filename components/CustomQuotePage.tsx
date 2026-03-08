@@ -62,8 +62,6 @@ const NumberCounter = ({ value }: { value: number }) => {
   return <span>₹{displayValue.toLocaleString()}</span>;
 };
 
-import { PRICING_DATA } from '../src/data/portfolioData';
-
 export const CustomQuotePage: React.FC = () => {
   const [customStyles, setCustomStyles] = useState<CustomStyle[]>([]);
   const [categorySettings, setCategorySettings] = useState<Record<string, boolean>>({});
@@ -77,40 +75,53 @@ export const CustomQuotePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Flatten styles from all enabled pricing categories in static data
-    const allStyles: any[] = [];
-    const settings: Record<string, boolean> = {};
-    
-    PRICING_DATA.forEach((cat: any) => {
-      settings[cat.name] = cat.enabled !== false;
-      if (cat.enabled !== false) {
-        cat.styles.forEach((style: any) => {
-          if (style.enabled !== false) {
-            allStyles.push({
-              ...style,
-              category: cat.name,
-              singlePrice: style.basePrice
+    const fetchStyles = async () => {
+      try {
+        const res = await fetch('/api/portfolio');
+        const data = await res.json();
+        
+        // Flatten styles from all enabled pricing categories
+        const pricingCategories = data.pricing || [];
+        const allStyles: any[] = [];
+        const settings: Record<string, boolean> = {};
+        
+        pricingCategories.forEach((cat: any) => {
+          settings[cat.name] = cat.enabled !== false;
+          if (cat.enabled !== false) {
+            cat.styles.forEach((style: any) => {
+              if (style.enabled !== false) {
+                allStyles.push({
+                  ...style,
+                  category: cat.name,
+                  // Map basePrice to singlePrice for compatibility
+                  singlePrice: style.basePrice
+                });
+              }
             });
           }
         });
+        
+        setCustomStyles(allStyles);
+        setCategorySettings(settings);
+        
+        if (allStyles.length > 0) {
+          const firstStyle = allStyles[0];
+          setActiveCategory({ 
+            id: firstStyle.category, 
+            label: firstStyle.category, 
+            icon: CATEGORIES.find(c => c.id === firstStyle.category)?.icon || <Smartphone size={18} /> 
+          });
+        }
+      } catch (error) {
+        console.error('Failed to fetch styles:', error);
+      } finally {
+        setLoading(false);
       }
-    });
-    
-    setCustomStyles(allStyles);
-    setCategorySettings(settings);
-    
-    if (allStyles.length > 0) {
-      const firstStyle = allStyles[0];
-      setActiveCategory({ 
-        id: firstStyle.category, 
-        label: firstStyle.category, 
-        icon: CATEGORIES.find(c => c.id === firstStyle.category)?.icon || <Smartphone size={18} /> 
-      });
-    }
-    setLoading(false);
+    };
+    fetchStyles();
   }, []);
 
-  // Use static data to build the category list
+  // Use admin styles to build the category list, filtered by visibility settings
   const dynamicCategories = customStyles
     .reduce((acc: any[], style: any) => {
       if (!acc.find(c => c.id === style.category)) {
@@ -123,11 +134,19 @@ export const CustomQuotePage: React.FC = () => {
       return acc;
     }, []);
 
-  // Get active style data from static data
+  // Get active style data from admin or defaults
   const currentAdminStyle = customStyles.find(s => s.category === activeCategory.id);
   
-  // Get sub-styles for the active category from the static data
-  const rawPricing = PRICING_DATA;
+  // Get sub-styles for the active category from the raw data
+  const [rawPricing, setRawPricing] = useState<any[]>([]);
+  useEffect(() => {
+    const fetchRaw = async () => {
+      const res = await fetch('/api/portfolio');
+      const data = await res.json();
+      setRawPricing(data.pricing || []);
+    };
+    fetchRaw();
+  }, []);
 
   const activePricingCategory = rawPricing.find(cat => cat.name === activeCategory.id);
   const subStyles = activePricingCategory?.styles?.filter((s: any) => s.enabled !== false) || [];
