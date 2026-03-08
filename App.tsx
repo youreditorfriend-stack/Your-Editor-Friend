@@ -23,7 +23,9 @@ import {
 import { PortfolioGrid, ServiceBento } from './components/Portfolio';
 
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from 'react-router-dom';
+import { AdminPanel } from './components/AdminPanel';
 import { CustomQuotePage } from './components/CustomQuotePage';
+import { getFeaturedVideo } from './firebase';
 
 interface PricingConfig {
   price: number;
@@ -45,13 +47,18 @@ const MainSite: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState('Personal Branding');
   const [visibleCategories, setVisibleCategories] = useState<string[]>([]);
+  const [featuredVideo, setFeaturedVideo] = useState<string | null>(null);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
     window.addEventListener('scroll', handleScroll);
     
-    // Use static data instead of fetching
-    const portfolio = STATIC_PORTFOLIO_DATA.portfolio || [];
+    // Check localStorage for admin overrides, otherwise use static data
+    const savedPortfolio = localStorage.getItem('portfolio_data');
+    const portfolio = savedPortfolio 
+      ? JSON.parse(savedPortfolio) 
+      : STATIC_PORTFOLIO_DATA.portfolio;
+      
     const enabledCats = portfolio
       .filter((cat: any) => cat.enabled !== false)
       .map((cat: any) => cat.name);
@@ -60,6 +67,17 @@ const MainSite: React.FC = () => {
     if (enabledCats.length > 0 && !enabledCats.includes(activeCategory)) {
       setActiveCategory(enabledCats[0]);
     }
+
+    // Fetch featured video from Firebase
+    const fetchFeatured = async () => {
+      try {
+        const url = await getFeaturedVideo();
+        if (url) setFeaturedVideo(url);
+      } catch (err) {
+        console.error("Firebase fetch error:", err);
+      }
+    };
+    fetchFeatured();
 
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
@@ -235,6 +253,34 @@ const MainSite: React.FC = () => {
           <span className="text-[10px] uppercase tracking-[0.3em] font-medium">Scroll</span>
         </motion.div>
       </header>
+
+      {/* Featured Video Section (Firebase Dynamic) */}
+      {featuredVideo && (
+        <section className="py-20 px-6 bg-black relative overflow-hidden">
+          <div className="max-w-5xl mx-auto">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              className="relative group"
+            >
+              <div className="absolute -inset-1 bg-gradient-to-r from-[#E50914] to-red-900 rounded-[2rem] blur opacity-20 group-hover:opacity-40 transition duration-1000 group-hover:duration-200"></div>
+              <div className="relative aspect-video rounded-[2rem] overflow-hidden border border-white/10 bg-zinc-900 shadow-2xl">
+                <iframe 
+                  id="myVideo"
+                  src={featuredVideo}
+                  className="w-full h-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+              <div className="mt-8 text-center">
+                <span className="text-[10px] uppercase tracking-[0.4em] text-[#E50914] font-bold">Featured Project</span>
+              </div>
+            </motion.div>
+          </div>
+        </section>
+      )}
 
       {/* Portfolio Section */}
       <section id="portfolio" className="py-20 md:py-32 px-6 bg-[#080808]">
@@ -475,6 +521,7 @@ const App: React.FC = () => {
     <Router>
       <Routes>
         <Route path="/" element={<MainSite />} />
+        <Route path="/admin" element={<AdminPanel />} />
         <Route path="/custom-quote" element={<CustomQuotePage />} />
       </Routes>
     </Router>

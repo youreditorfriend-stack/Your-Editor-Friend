@@ -182,8 +182,13 @@ export const CustomQuotePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Use static data instead of fetching
-    const pricingCategories = STATIC_DATA.pricing || [];
+    // Check localStorage for admin overrides, otherwise use static data
+    const savedPortfolio = localStorage.getItem('portfolio_data');
+    const data = savedPortfolio 
+      ? { pricing: JSON.parse(savedPortfolio).pricing || STATIC_DATA.pricing }
+      : STATIC_DATA;
+
+    const pricingCategories = data.pricing || [];
     const allStyles: any[] = [];
     
     pricingCategories.forEach((cat: any) => {

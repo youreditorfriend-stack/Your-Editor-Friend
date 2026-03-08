@@ -231,8 +231,13 @@ export const PortfolioGrid: React.FC<PortfolioGridProps> = ({ activeCategory }) 
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Use static data instead of fetching
-    const categories = STATIC_PORTFOLIO_DATA.portfolio || [];
+    // Check localStorage for admin overrides, otherwise use static data
+    const savedPortfolio = localStorage.getItem('portfolio_data');
+    const data = savedPortfolio 
+      ? { portfolio: JSON.parse(savedPortfolio) }
+      : STATIC_PORTFOLIO_DATA;
+
+    const categories = data.portfolio || [];
     const allItems: any[] = [];
     
     categories.forEach((cat: any) => {
