@@ -180,17 +180,62 @@ const PortfolioCard: React.FC<PortfolioCardProps> = ({ work, index }) => {
   );
 };
 
-import { PORTFOLIO_DATA } from '../src/data/portfolioData';
+const STATIC_PORTFOLIO_DATA = {
+  "portfolio": [
+    {
+      "id": "cat-1",
+      "name": "Personal Branding",
+      "enabled": true,
+      "videos": [
+        { "id": "1", "title": "Brands pay dhoni", "youtubeId": "KSoPrGLdUog", "enabled": true },
+        { "id": "2", "title": "Ram music", "youtubeId": "Dratplxyl8s", "enabled": true },
+        { "id": "3", "title": "AI ML DS", "youtubeId": "cg--ED8zNDk", "enabled": true }
+      ]
+    },
+    {
+      "id": "cat-2",
+      "name": "AI Advertisement",
+      "enabled": true,
+      "videos": [
+        { "id": "4", "title": "VARQ", "youtubeId": "YIe_WVTpSd8", "enabled": true },
+        { "id": "5", "title": "Ueir organics", "youtubeId": "NgUHikVfDNs", "enabled": true },
+        { "id": "6", "title": "Kamal Rajini recreation", "youtubeId": "hLh0h6Vj6w8", "enabled": true }
+      ]
+    },
+    {
+      "id": "cat-3",
+      "name": "Real Estate",
+      "enabled": true,
+      "videos": [
+        { "id": "7", "title": "Premium Property Edit", "youtubeId": "r-dFqVZqWww", "enabled": true },
+        { "id": "8", "title": "Flashy home reveal", "youtubeId": "wk4ezLigQ0Y", "enabled": true },
+        { "id": "9", "title": "Blast turf Reveal", "youtubeId": "oEoeevc1QNM", "enabled": true }
+      ]
+    },
+    {
+      "id": "cat-4",
+      "name": "Motion Graphics",
+      "enabled": true,
+      "videos": [
+        { "id": "10", "title": "Project postmortom", "youtubeId": "NGMXnfw2QSw", "enabled": true },
+        { "id": "11", "title": "Redflagged", "youtubeId": "aPpVQ63XM7g", "enabled": true },
+        { "id": "12", "title": "Ashoka Gold & DIamonds", "youtubeId": "HI50vxdp5es", "enabled": true },
+        { "id": "13", "title": "Toxic talks", "youtubeId": "h3q9hsEPPzg", "enabled": true }
+      ]
+    }
+  ]
+};
 
 export const PortfolioGrid: React.FC<PortfolioGridProps> = ({ activeCategory }) => {
   const [allWorks, setAllWorks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Flatten videos from all enabled categories in static data
+    // Use static data instead of fetching
+    const categories = STATIC_PORTFOLIO_DATA.portfolio || [];
     const allItems: any[] = [];
     
-    PORTFOLIO_DATA.forEach((cat: any) => {
+    categories.forEach((cat: any) => {
       if (cat.enabled !== false) {
         cat.videos.forEach((vid: any) => {
           if (vid.enabled !== false) {

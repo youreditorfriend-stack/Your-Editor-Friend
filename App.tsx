@@ -23,16 +23,22 @@ import {
 import { PortfolioGrid, ServiceBento } from './components/Portfolio';
 
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from 'react-router-dom';
-import { AdminPanel } from './components/AdminPanel';
 import { CustomQuotePage } from './components/CustomQuotePage';
-
-import { PORTFOLIO_DATA } from './src/data/portfolioData';
 
 interface PricingConfig {
   price: number;
   discountThreshold: number;
   discountPercentage: number;
 }
+
+const STATIC_PORTFOLIO_DATA = {
+  "portfolio": [
+    { "id": "cat-1", "name": "Personal Branding", "enabled": true },
+    { "id": "cat-2", "name": "AI Advertisement", "enabled": true },
+    { "id": "cat-3", "name": "Real Estate", "enabled": true },
+    { "id": "cat-4", "name": "Motion Graphics", "enabled": true }
+  ]
+};
 
 const MainSite: React.FC = () => {
   const [scrolled, setScrolled] = useState(false);
@@ -44,8 +50,9 @@ const MainSite: React.FC = () => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
     window.addEventListener('scroll', handleScroll);
     
-    // Use static data to filter categories
-    const enabledCats = PORTFOLIO_DATA
+    // Use static data instead of fetching
+    const portfolio = STATIC_PORTFOLIO_DATA.portfolio || [];
+    const enabledCats = portfolio
       .filter((cat: any) => cat.enabled !== false)
       .map((cat: any) => cat.name);
     
@@ -468,7 +475,6 @@ const App: React.FC = () => {
     <Router>
       <Routes>
         <Route path="/" element={<MainSite />} />
-        <Route path="/admin" element={<AdminPanel />} />
         <Route path="/custom-quote" element={<CustomQuotePage />} />
       </Routes>
     </Router>
