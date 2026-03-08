@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import { PortfolioGrid, ServiceBento } from './components/Portfolio';
 import { db } from './src/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from 'react-router-dom';
 import { AdminPanel } from './components/AdminPanel';
@@ -105,6 +105,42 @@ const MainSite: React.FC = () => {
   const WHATSAPP_LINK = getWhatsAppLink();
   const BUSINESS_PLAN_LINK = getWhatsAppLink("Hi Editorfriend. i am intrested in Business plan");
   const CREATOR_PLAN_LINK = getWhatsAppLink("Hi editorfrind i am intrested in Creator trend plan");
+
+  const FeaturedVideo = () => {
+    const [videoUrl, setVideoUrl] = useState('');
+
+    useEffect(() => {
+      const unsub = onSnapshot(doc(db, "websiteData", "video"), (doc) => {
+        if (doc.exists()) {
+          setVideoUrl(doc.data().url || '');
+        }
+      });
+      return () => unsub();
+    }, []);
+
+    if (!videoUrl) return null;
+
+    return (
+      <section className="py-12 md:py-20 px-6 bg-[#0A0A0A]">
+        <div className="max-w-5xl mx-auto">
+          <motion.div 
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="aspect-video rounded-[2rem] md:rounded-[3rem] overflow-hidden border border-white/10 shadow-2xl bg-zinc-900/50"
+          >
+            <iframe
+              src={videoUrl}
+              className="w-full h-full"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              title="Featured Video"
+            ></iframe>
+          </motion.div>
+        </div>
+      </section>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-[#EDEDED] font-sans selection:bg-[#E50914] selection:text-white antialiased">
@@ -247,6 +283,8 @@ const MainSite: React.FC = () => {
           <span className="text-[10px] uppercase tracking-[0.3em] font-medium">Scroll</span>
         </motion.div>
       </header>
+
+      <FeaturedVideo />
 
       {/* Portfolio Section */}
       <section id="portfolio" className="py-20 md:py-32 px-6 bg-[#080808]">

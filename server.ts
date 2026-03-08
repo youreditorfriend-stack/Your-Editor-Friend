@@ -8,7 +8,7 @@ import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Firebase Configuration
+// Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyBqgmzrNelS701uQ1ngLvcoatUkcBuiRic",
   authDomain: "gen-lang-client-0681082317.firebaseapp.com",
@@ -39,16 +39,27 @@ async function startServer() {
 
   app.get("/api/portfolio", async (req, res) => {
     try {
-      const docRef = doc(db, "app", "data");
+      const docRef = doc(db, "settings", "portfolio");
       const docSnap = await getDoc(docRef);
       
       if (docSnap.exists()) {
         res.json(docSnap.data());
       } else {
-        res.status(404).json({ error: "Portfolio data not found in Firebase" });
+        // Fallback to local file if Firestore is empty (first time setup)
+        try {
+          const fs = await import("fs/promises");
+          const DATA_FILE = path.join(__dirname, "data", "portfolio.json");
+          const data = await fs.readFile(DATA_FILE, "utf-8");
+          const jsonData = JSON.parse(data);
+          // Seed Firestore
+          await setDoc(docRef, jsonData);
+          res.json(jsonData);
+        } catch (fsError) {
+          res.json({ portfolio: [], pricing: [] });
+        }
       }
     } catch (error) {
-      console.error("Firebase read error:", error);
+      console.error("Firebase error:", error);
       res.status(500).json({ error: "Failed to read portfolio data from Firebase" });
     }
   });
@@ -64,10 +75,11 @@ async function startServer() {
       }
 
       const { data: newPortfolio } = req.body;
-      await setDoc(doc(db, "app", "data"), newPortfolio);
+      const docRef = doc(db, "settings", "portfolio");
+      await setDoc(docRef, newPortfolio);
       res.json({ message: "Portfolio updated successfully in Firebase" });
     } catch (error) {
-      console.error("Firebase write error:", error);
+      console.error("Firebase save error:", error);
       res.status(500).json({ error: "Failed to update portfolio data in Firebase" });
     }
   });

@@ -25,8 +25,6 @@ import {
   LogOut
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { db } from '../src/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
 import {
   DndContext,
   closestCenter,
@@ -44,6 +42,9 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+
+import { db } from '../src/firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 interface PortfolioVideo {
   id: string;
@@ -80,23 +81,6 @@ interface AppData {
   portfolio: PortfolioCategory[];
   pricing: PricingCategory[];
 }
-
-const extractYoutubeId = (input: string) => {
-  if (!input) return '';
-  const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
-  const match = input.match(regExp);
-  if (match && match[7].length === 11) return match[7];
-  if (input.includes('/shorts/')) {
-    const parts = input.split('/shorts/');
-    if (parts[1]) return parts[1].split(/[?#&]/)[0];
-  }
-  if (input.includes('/live/')) {
-    const parts = input.split('/live/');
-    if (parts[1]) return parts[1].split(/[?#&]/)[0];
-  }
-  if (input.length === 11 && !input.includes('/') && !input.includes('.')) return input;
-  return input;
-};
 
 export const AdminPanel: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'portfolio' | 'pricing'>('portfolio');
@@ -152,17 +136,19 @@ export const AdminPanel: React.FC = () => {
 
   const fetchData = async () => {
     try {
-      const docRef = doc(db, "app", "data");
+      const docRef = doc(db, 'settings', 'portfolio');
       const docSnap = await getDoc(docRef);
-      
       if (docSnap.exists()) {
         setData(docSnap.data() as AppData);
       } else {
-        setMessage({ text: 'No data found in Firebase', type: 'error' });
+        // Fallback to API if Firestore is empty
+        const res = await fetch('/api/portfolio');
+        const jsonData = await res.json();
+        setData(jsonData);
       }
     } catch (error) {
-      console.error('Failed to fetch data from Firebase:', error);
-      setMessage({ text: 'Failed to load data from Firebase', type: 'error' });
+      console.error('Failed to fetch data:', error);
+      setMessage({ text: 'Failed to load data', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -172,13 +158,13 @@ export const AdminPanel: React.FC = () => {
     if (!data) return;
     setSaving(true);
     try {
-      const docRef = doc(db, "app", "data");
+      const docRef = doc(db, 'settings', 'portfolio');
       await setDoc(docRef, data);
       
       setMessage({ text: 'Changes saved successfully to Firebase!', type: 'success' });
       setTimeout(() => setMessage(null), 3000);
     } catch (error) {
-      console.error('Failed to save to Firebase:', error);
+      console.error('Save error:', error);
       setMessage({ text: 'Failed to save changes to Firebase', type: 'error' });
     } finally {
       setSaving(false);
@@ -779,13 +765,13 @@ const SortableVideoItem = ({ vid, catId, updateVideo, deleteVideo }: any) => {
           />
         </div>
         <div>
-          <label className="text-[8px] font-black uppercase tracking-widest text-zinc-600 mb-1 block">YouTube ID / Link</label>
+          <label className="text-[8px] font-black uppercase tracking-widest text-zinc-600 mb-1 block">YouTube ID</label>
           <input
             type="text"
             value={vid.youtubeId || ''}
-            onChange={(e) => updateVideo(catId, vid.id, 'youtubeId', extractYoutubeId(e.target.value))}
+            onChange={(e) => updateVideo(catId, vid.id, 'youtubeId', e.target.value)}
             className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#E50914]"
-            placeholder="Paste YouTube link or ID"
+            placeholder="e.g. KSoPrGLdUog"
           />
         </div>
       </div>
@@ -975,13 +961,12 @@ const SortableStyleItem = ({ styleData: style, catId, updateStyle, deleteStyle }
                 />
               </div>
               <div>
-                <label className="text-[8px] font-black uppercase tracking-widest text-zinc-600 mb-1 block">YouTube ID / Link</label>
+                <label className="text-[8px] font-black uppercase tracking-widest text-zinc-600 mb-1 block">YouTube ID</label>
                 <input
                   type="text"
                   value={style.videoUrl}
-                  onChange={(e) => updateStyle(catId, style.id, 'videoUrl', extractYoutubeId(e.target.value))}
+                  onChange={(e) => updateStyle(catId, style.id, 'videoUrl', e.target.value)}
                   className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-[#E50914]"
-                  placeholder="Paste YouTube link or ID"
                 />
               </div>
             </div>

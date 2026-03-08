@@ -15,8 +15,6 @@ import {
   Layers,
   MousePointer2
 } from 'lucide-react';
-import { db } from '../src/firebase';
-import { doc, getDoc } from 'firebase/firestore';
 
 export const ServiceBento = () => {
   const services = [
@@ -125,7 +123,7 @@ const PortfolioCard: React.FC<PortfolioCardProps> = ({ work, index }) => {
       onMouseLeave={() => setIsHovered(false)}
       onClick={handleClick}
       className={`relative group overflow-hidden rounded-2xl bg-zinc-900 border border-white/10 cursor-pointer shadow-2xl transition-all duration-500 hover:border-red-500/50 hover:shadow-red-500/10 ${
-        work.category === 'Motion graphics'
+        work.category === 'Motion Graphics'
           ? 'aspect-video' 
           : 'aspect-[9/16]'
       }`}
@@ -190,38 +188,29 @@ export const PortfolioGrid: React.FC<PortfolioGridProps> = ({ activeCategory }) 
   useEffect(() => {
     const fetchPortfolio = async () => {
       try {
-        console.log('Fetching portfolio from Firebase...');
-        const docRef = doc(db, "app", "data");
-        const docSnap = await getDoc(docRef);
+        const res = await fetch('/api/portfolio');
+        const data = await res.json();
         
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          console.log('Firebase data received:', data);
-          // Flatten videos from all enabled categories
-          const categories = data.portfolio || [];
-          const allItems: any[] = [];
-          
-          categories.forEach((cat: any) => {
-            if (cat.enabled !== false) {
-              const vids = cat.videos || [];
-              vids.forEach((vid: any) => {
-                if (vid.enabled !== false) {
-                  allItems.push({
-                    ...vid,
-                    category: cat.name
-                  });
-                }
-              });
-            }
-          });
-          
-          console.log('Processed items:', allItems.length);
-          setAllWorks(allItems);
-        } else {
-          console.warn('No portfolio document found in Firebase');
-        }
+        // Flatten videos from all enabled categories
+        const categories = data.portfolio || [];
+        const allItems: any[] = [];
+        
+        categories.forEach((cat: any) => {
+          if (cat.enabled !== false) {
+            cat.videos.forEach((vid: any) => {
+              if (vid.enabled !== false) {
+                allItems.push({
+                  ...vid,
+                  category: cat.name
+                });
+              }
+            });
+          }
+        });
+        
+        setAllWorks(allItems);
       } catch (error) {
-        console.error('Failed to fetch portfolio from Firebase:', error);
+        console.error('Failed to fetch portfolio:', error);
       } finally {
         setLoading(false);
       }
@@ -241,7 +230,7 @@ export const PortfolioGrid: React.FC<PortfolioGridProps> = ({ activeCategory }) 
 
   return (
     <div className={`grid gap-4 md:gap-6 min-h-[600px] ${
-      activeCategory === 'Motion graphics'
+      activeCategory === 'Motion Graphics'
         ? 'grid-cols-1 md:grid-cols-2'
         : 'grid-cols-2 md:grid-cols-3'
     }`}>

@@ -26,32 +26,6 @@
 </head>
   <body>
     <div id="root"></div>
-    <script type="module">
-      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-      import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
-      const firebaseConfig = {
-        apiKey: "AIzaSyBqgmzrNelS701uQ1ngLvcoatUkcBuiRic",
-        authDomain: "gen-lang-client-0681082317.firebaseapp.com",
-        projectId: "gen-lang-client-0681082317",
-        appId: "1:834918791822:web:ef4b1dc9724967ab64a7df"
-      };
-
-      const app = initializeApp(firebaseConfig);
-      const db = getFirestore(app);
-
-      onSnapshot(doc(db, "websiteData", "video"), (doc) => {
-        if (doc.exists()) {
-          const data = doc.data();
-          if (data.url) {
-            const iframe = document.querySelector('iframe');
-            if (iframe) {
-              iframe.src = data.url;
-            }
-          }
-        }
-      });
-    </script>
     <script type="module" src="/index.tsx"></script>
 </body>
 </html>
