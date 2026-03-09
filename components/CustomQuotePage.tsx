@@ -213,10 +213,13 @@ export const CustomQuotePage: React.FC = () => {
     
     const clientName = sanitize(fullName || 'Valued Client');
     const clientPhone = sanitize(contactNumber || '');
-    const formattedTotal = 'Rs. ' + final.toLocaleString('en-IN');
+    
+    const formattedFinalTotal = 'Rs. ' + final.toLocaleString('en-IN');
+    const formattedOriginalTotal = 'Rs. ' + original.toLocaleString('en-IN');
+    
     const selectedStyle = sanitize(`${activeCategory.label}${selectedSubStyle ? ` (${selectedSubStyle.name})` : ''}`);
     const videoCount = `${quantity} Videos`;
-
+    
     const selectedAddonLabels = QUICK_ADDONS
       .filter(addon => selectedAddons[addon.id])
       .map(addon => sanitize(addon.label));
@@ -225,21 +228,25 @@ export const CustomQuotePage: React.FC = () => {
     const isDiscountApplied = discount > 0;
     const discountText = `${discount}% OFF Applied`;
 
+    // Helper Function for Background
+    const setDarkBackground = () => {
+        doc.setFillColor(15, 15, 15);
+        doc.rect(0, 0, 210, 297, 'F');
+    };
+
     // --- 2. FULL DARK BACKGROUND ---
-    doc.setFillColor(15, 15, 15);
-    doc.rect(0, 0, 210, 297, 'F');
+    setDarkBackground();
 
     // --- 3. HEADER ---
     doc.setTextColor(255, 255, 255);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(32); // Larger Title
+    doc.setFontSize(32); 
     doc.text('QUOTATION', 15, 30);
 
     doc.setFontSize(14);
-    doc.setTextColor(220, 38, 38); // Red Accent
+    doc.setTextColor(220, 38, 38);
     doc.text('YOUR EDITOR FRIEND', 195, 30, { align: 'right' });
 
-    // RED DIVIDER
     doc.setDrawColor(220, 38, 38);
     doc.setLineWidth(0.5);
     doc.line(15, 40, 195, 40);
@@ -250,15 +257,14 @@ export const CustomQuotePage: React.FC = () => {
     doc.setFont("helvetica", "bold");
     doc.text('BILL TO:', 15, 55);
     
-    doc.setFontSize(14); // Larger Client Name
+    doc.setFontSize(14); 
     doc.setTextColor(255, 255, 255);
     doc.text(clientName, 15, 62);
     
-    doc.setFontSize(11); // Larger Phone
+    doc.setFontSize(11); 
     doc.setFont("helvetica", "normal");
     doc.text('Ph: ' + clientPhone, 15, 68);
 
-    // DATE INFO (Right)
     doc.setFontSize(10);
     doc.setTextColor(150, 150, 150);
     doc.text('Date:', 150, 62);
@@ -272,125 +278,106 @@ export const CustomQuotePage: React.FC = () => {
     doc.setTextColor(255, 255, 255);
     doc.text(validTill.toLocaleDateString('en-IN'), 195, 68, { align: 'right' });
 
-    // --- 5. DYNAMIC TABLE ROWS ---
+    // --- 5. DYNAMIC TABLE ROWS (Back to 3 Columns) ---
     const tableBodyRows: any[] = [];
     
     // Main Service Row
     tableBodyRows.push([
         selectedStyle + '\nComplete editing, motion graphics, and captions.', 
         videoCount, 
-        'Rs. ' + original.toLocaleString('en-IN')
+        { content: formattedOriginalTotal, styles: { fontStyle: 'bold' } }
     ]);
 
-    // Add-ons & Ref Link Row (Conditional)
-    const refLinkText = refLink ? `\nRef: ${sanitize(refLink)}` : '';
-    if ((cleanAddons && cleanAddons.length > 0 && cleanAddons.toLowerCase() !== 'none') || refLink) {
+    // Add-ons Row (With Reference Link)
+    if ((cleanAddons && cleanAddons.length > 0) || refLink) {
+        const refText = refLink ? `\nRef: ${sanitize(refLink)}` : '';
         tableBodyRows.push([
-            { 
-              content: `Add-ons: ${cleanAddons || 'None'}${refLinkText}`, 
-              styles: { fontStyle: 'italic', textColor: [180, 180, 180] } 
-            },
+            { content: 'Add-ons: ' + (cleanAddons || 'None') + refText, styles: { fontStyle: 'italic', textColor: [180, 180, 180] } },
             '-', 
-            'Included'
+            { content: 'Included', styles: { fontStyle: 'bold' } }
         ]);
     }
 
-    // Discount Row (Conditional)
+    // Discount Row (Original Price Strike-through)
     if (isDiscountApplied) {
         tableBodyRows.push([
             { content: 'Discount: ' + discountText, styles: { textColor: [220, 38, 38], fontStyle: 'bold' } },
             '-',
-            { 
-              content: `Rs. ${original.toLocaleString('en-IN')}  ${formattedTotal}`, 
-              styles: { textColor: [220, 38, 38], fontStyle: 'bold' } 
-            }
+            { content: formattedOriginalTotal, styles: { textColor: [255, 80, 80] } } // Strike-out old price manually in didDrawCell
         ]);
     }
 
+    // Draw the Table
     autoTable(doc, {
         startY: 85,
         head: [['Description', 'Quantity', 'Amount']],
         body: tableBodyRows,
         theme: 'plain',
-        headStyles: {
-            fillColor: [30, 30, 30],
-            textColor: [255, 255, 255],
-            fontStyle: 'bold',
-            cellPadding: 8
-        },
-        bodyStyles: {
-            fillColor: [20, 20, 20],
-            textColor: [200, 200, 200],
-            cellPadding: 10
-        },
+        margin: { left: 15, right: 15 }, 
+        headStyles: { fillColor: [30, 30, 30], textColor: [255, 255, 255], fontStyle: 'bold', cellPadding: 8, fontSize: 10 },
+        bodyStyles: { fillColor: [20, 20, 20], textColor: [200, 200, 200], cellPadding: 8, fontSize: 10 }, 
         columnStyles: {
-            0: { cellWidth: 100 },
-            1: { halign: 'center' },
-            2: { halign: 'right', fontStyle: 'bold', textColor: [255, 255, 255] }
+            0: { cellWidth: 100 }, // Description
+            1: { halign: 'center', cellWidth: 35 }, // Quantity
+            2: { halign: 'right', cellWidth: 45, fontStyle: 'bold', fontSize: 11, textColor: [255, 255, 255] } // Amount
         },
         didDrawCell: function(data) {
             if (data.row.section === 'body') {
-                // Row bottom border
                 doc.setDrawColor(40, 40, 40);
                 doc.setLineWidth(0.2);
                 doc.line(data.cell.x, data.cell.y + data.cell.height, data.cell.x + data.cell.width, data.cell.y + data.cell.height);
 
-                // Strikethrough for original price in discount row
+                // Manual Strikethrough for original price in discount row (Column 2)
                 if (isDiscountApplied && data.row.index === tableBodyRows.length - 1 && data.column.index === 2) {
-                    const originalPriceStr = `Rs. ${original.toLocaleString('en-IN')}`;
-                    const finalPriceStr = formattedTotal;
-                    const gap = 3;
-                    const oldPriceWidth = doc.getTextWidth(originalPriceStr);
-                    const newPriceWidth = doc.getTextWidth(finalPriceStr);
-                    const totalWidth = oldPriceWidth + gap + newPriceWidth;
+                    const textWidth = doc.getTextWidth(formattedOriginalTotal);
+                    // Right aligned cell: x is start of text
+                    const x = data.cell.x + data.cell.width - data.cell.padding('right') - textWidth;
+                    const y = data.cell.y + (data.cell.height / 2) + 0.5;
                     
-                    // Calculate precise X to align with the right-aligned text
-                    const xStart = data.cell.x + data.cell.width - data.cell.padding('right') - totalWidth;
-                    const yStrike = data.cell.y + (data.cell.height / 2) + 0.5;
-                    
-                    doc.setDrawColor(220, 38, 38);
+                    doc.setDrawColor(255, 80, 80);
                     doc.setLineWidth(0.5);
-                    doc.line(xStart, yStrike, xStart + oldPriceWidth, yStrike);
+                    doc.line(x, y, x + textWidth, y);
                 }
             }
         }
     });
 
-    let currentY = (doc as any).lastAutoTable.finalY + 15;
+    let finalY = (doc as any).lastAutoTable.finalY + 15;
 
-    // Helper to check for page overflow before drawing sections
-    const checkPageBreak = (neededHeight: number) => {
-      if (currentY + neededHeight > 275) {
+    // --- PAGINATION CHECK 1 ---
+    if (finalY > 250) {
         doc.addPage();
-        doc.setFillColor(15, 15, 15);
-        doc.rect(0, 0, 210, 297, 'F');
-        currentY = 20;
-        return true;
-      }
-      return false;
-    };
+        setDarkBackground();
+        finalY = 20;
+    }
 
-    // --- 6. ESTIMATED TOTAL (Red Box) ---
-    checkPageBreak(25);
-    doc.setFillColor(220, 38, 38);
-    doc.roundedRect(100, currentY, 95, 18, 4, 4, 'F'); 
-    
-    doc.setFontSize(14);
-    doc.setTextColor(255, 255, 255);
+    // --- 6. ESTIMATED TOTAL (Right Aligned, Bold) ---
+    doc.setFontSize(10);
+    doc.setTextColor(150, 150, 150);
     doc.setFont("helvetica", "bold");
-    doc.text('ESTIMATED TOTAL:', 105, currentY + 12);
-    
-    doc.setFontSize(16);
-    doc.text(formattedTotal, 190, currentY + 12, { align: 'right' });
+    doc.text('ESTIMATED TOTAL', 195, finalY, { align: 'right' });
+
+    // Final Price (Extra Large & Bold)
+    doc.setFontSize(42); 
+    doc.setTextColor(255, 255, 255);
+    const finalPriceText = `Rs. ${final.toLocaleString('en-IN')}`; 
+    doc.text(finalPriceText, 195, finalY + 18, { align: 'right' });
+
+    // Update finalY for next section
+    finalY += 30;
+
+    // --- PAGINATION CHECK 2 ---
+    finalY += 35;
+    if (finalY > 250) {
+        doc.addPage();
+        setDarkBackground();
+        finalY = 20;
+    }
 
     // --- 7. TERMS & CONDITIONS ---
-    currentY += 35;
-    const termsHeight = 40;
-    checkPageBreak(termsHeight);
-    
     doc.setFontSize(11);
     doc.setTextColor(220, 38, 38);
-    doc.text('TERMS & CONDITIONS', 15, currentY);
+    doc.text('TERMS & CONDITIONS', 15, finalY);
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
@@ -404,7 +391,7 @@ export const CustomQuotePage: React.FC = () => {
         "5. Transfer: Account Transfer / UPI accepted."
     ];
 
-    let termY = currentY + 8;
+    let termY = finalY + 8;
     terms.forEach(term => {
         doc.text(term, 15, termY);
         termY += 6;
@@ -412,7 +399,7 @@ export const CustomQuotePage: React.FC = () => {
 
     // --- 8. NEW FOOTER ---
     doc.setFontSize(9);
-    doc.setTextColor(120, 120, 120);
+    doc.setTextColor(100, 100, 100); 
     doc.text('Email: youreditorfriend@gmail.com  |  Website: youreditorfriend.in  |  WhatsApp: +91 63674343169', 105, 285, { align: 'center' });
 
     // Save PDF
