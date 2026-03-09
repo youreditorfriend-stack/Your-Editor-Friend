@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence, useSpring, useTransform, animate } from 'framer-motion';
-import html2pdf from 'html2pdf.js';
+import { motion, AnimatePresence, animate } from 'framer-motion';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { 
   ArrowLeft, 
   MessageCircle, 
@@ -73,7 +74,6 @@ export const CustomQuotePage: React.FC = () => {
   const [selectedAddons, setSelectedAddons] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const totalContainerRef = useRef<HTMLDivElement>(null);
-  const pdfTemplateRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchStyles = async () => {
@@ -206,98 +206,220 @@ export const CustomQuotePage: React.FC = () => {
   };
 
   const generatePDF = () => {
+    const doc = new jsPDF('p', 'mm', 'a4');
+
+    // --- 1. Fetch & Sanitize Data ---
+    const sanitize = (text: string) => text.replace(/[^\x00-\x7F]/g, "").trim();
+    
+    const clientName = sanitize(fullName || 'Valued Client');
+    const clientPhone = sanitize(contactNumber || '');
+    const formattedTotal = 'Rs. ' + final.toLocaleString('en-IN');
+    const selectedStyle = sanitize(`${activeCategory.label}${selectedSubStyle ? ` (${selectedSubStyle.name})` : ''}`);
+    const videoCount = `${quantity} Videos`;
+
     const selectedAddonLabels = QUICK_ADDONS
       .filter(addon => selectedAddons[addon.id])
-      .map(addon => addon.label);
+      .map(addon => sanitize(addon.label));
+    
+    const cleanAddons = selectedAddonLabels.join(', ');
+    const isDiscountApplied = discount > 0;
+    const discountText = `${discount}% OFF Applied`;
 
-    const styleDescription = `${activeCategory.label} ${selectedSubStyle ? `(${selectedSubStyle.name})` : ''}`;
-    const addonsText = selectedAddonLabels.length > 0 ? ` + ${selectedAddonLabels.join(', ')}` : '';
-    const fullDescription = `${styleDescription}${addonsText}`;
+    // --- 2. FULL DARK BACKGROUND ---
+    doc.setFillColor(15, 15, 15);
+    doc.rect(0, 0, 210, 297, 'F');
 
-    // 1. Create a temporary container
-    const tempDiv = document.createElement('div');
-    tempDiv.id = 'temp-pdf-container';
-    // Position it off-screen but keep it fully visible to the browser engine
-    tempDiv.style.position = 'absolute';
-    tempDiv.style.top = '-10000px';
-    tempDiv.style.left = '0';
-    tempDiv.style.width = '800px';
-    tempDiv.style.backgroundColor = '#ffffff'; // Force strict white background
-    tempDiv.style.padding = '0';
-    tempDiv.style.zIndex = '-999';
+    // --- 3. HEADER ---
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(32); // Larger Title
+    doc.text('QUOTATION', 15, 30);
 
-    // 2. Build the Agency Quotation UI using inline CSS
-    tempDiv.innerHTML = `
-        <div style="padding: 40px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; background-color: #ffffff; min-height: 1130px;">
-            
-            <div style="background-color: #1b3b86; color: #ffffff; padding: 40px; border-radius: 16px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px;">
-                <div>
-                    <h1 style="margin: 0; font-size: 42px; letter-spacing: 2px;">QUOTATION</h1>
-                    <p style="margin: 10px 0 0 0; font-size: 18px; opacity: 0.9;">Your Editor Friend</p>
-                </div>
-                <div style="background-color: #ffffff; color: #1b3b86; padding: 20px 30px; border-radius: 12px; text-align: right;">
-                    <p style="margin: 0; font-size: 14px; font-weight: bold; text-transform: uppercase;">Estimated Total</p>
-                    <h2 style="margin: 5px 0 0 0; font-size: 32px;">₹${final.toLocaleString()}</h2>
-                </div>
-            </div>
+    doc.setFontSize(14);
+    doc.setTextColor(220, 38, 38); // Red Accent
+    doc.text('YOUR EDITOR FRIEND', 195, 30, { align: 'right' });
 
-            <div style="margin-bottom: 40px; padding: 0 10px;">
-                <p style="margin: 5px 0; font-size: 18px;"><strong>To:</strong> ${fullName}</p>
-                <p style="margin: 5px 0; font-size: 18px;"><strong>Contact:</strong> ${contactNumber}</p>
-                <p style="margin: 5px 0; font-size: 16px; color: #666;"><strong>Date:</strong> ${new Date().toLocaleDateString('en-IN')}</p>
-            </div>
+    // RED DIVIDER
+    doc.setDrawColor(220, 38, 38);
+    doc.setLineWidth(0.5);
+    doc.line(15, 40, 195, 40);
 
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 50px;">
-                <thead>
-                    <tr style="background-color: #f3f4f6; color: #1b3b86; text-align: left;">
-                        <th style="padding: 16px; border-radius: 8px 0 0 8px;">Description</th>
-                        <th style="padding: 16px;">Qty</th>
-                        <th style="padding: 16px; border-radius: 0 8px 8px 0;">Amount</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr style="border-bottom: 1px solid #e5e7eb;">
-                        <td style="padding: 20px 16px; font-size: 16px;">${fullDescription}</td>
-                        <td style="padding: 20px 16px; font-size: 16px;">${quantity} Videos</td>
-                        <td style="padding: 20px 16px; font-size: 16px;">₹${final.toLocaleString()}</td>
-                    </tr>
-                </tbody>
-            </table>
+    // --- 4. BILLING INFO ---
+    doc.setFontSize(10);
+    doc.setTextColor(150, 150, 150);
+    doc.setFont("helvetica", "bold");
+    doc.text('BILL TO:', 15, 55);
+    
+    doc.setFontSize(14); // Larger Client Name
+    doc.setTextColor(255, 255, 255);
+    doc.text(clientName, 15, 62);
+    
+    doc.setFontSize(11); // Larger Phone
+    doc.setFont("helvetica", "normal");
+    doc.text('Ph: ' + clientPhone, 15, 68);
 
-            <div style="padding: 20px; background-color: #f8fafc; border-left: 4px solid #1b3b86; border-radius: 0 8px 8px 0;">
-                <h3 style="margin-top: 0; color: #1b3b86; font-size: 18px;">Terms and Conditions</h3>
-                <p style="margin: 5px 0; font-size: 14px; color: #555;">1. Payment Methods: Account Transfer, UPI Transfer.</p>
-                <p style="margin: 5px 0; font-size: 14px; color: #555;">2. 50% advance payment is required to commence work.</p>
-                <p style="margin: 5px 0; font-size: 14px; color: #555;">3. This quote includes up to 2 rounds of minor revisions.</p>
-                <p style="margin: 5px 0; font-size: 14px; color: #555;">4. This quotation is valid for 15 days.</p>
-            </div>
+    // DATE INFO (Right)
+    doc.setFontSize(10);
+    doc.setTextColor(150, 150, 150);
+    doc.text('Date:', 150, 62);
+    doc.setTextColor(255, 255, 255);
+    doc.text(new Date().toLocaleDateString('en-IN'), 195, 62, { align: 'right' });
 
-            <div style="margin-top: 100px; text-align: center;">
-                <p style="margin: 0; font-size: 10px; text-transform: uppercase; letter-spacing: 3px; color: #ccc; font-weight: bold;">Thank you for choosing Your Editor Friend</p>
-            </div>
-        </div>
-    `;
+    const validTill = new Date();
+    validTill.setDate(validTill.getDate() + 15);
+    doc.setTextColor(150, 150, 150);
+    doc.text('Valid Till:', 150, 68);
+    doc.setTextColor(255, 255, 255);
+    doc.text(validTill.toLocaleDateString('en-IN'), 195, 68, { align: 'right' });
 
-    // 3. Append to body so html2canvas can 'see' it
-    document.body.appendChild(tempDiv);
+    // --- 5. DYNAMIC TABLE ROWS ---
+    const tableBodyRows: any[] = [];
+    
+    // Main Service Row
+    tableBodyRows.push([
+        selectedStyle + '\nComplete editing, motion graphics, and captions.', 
+        videoCount, 
+        'Rs. ' + original.toLocaleString('en-IN')
+    ]);
 
-    // 4. Generate PDF
-    const opt = {
-      margin: 0,
-      filename: `Quotation_YourEditorFriend_${fullName.replace(/\s+/g, '_')}.pdf`,
-      image: { type: 'jpeg' as const, quality: 1 },
-      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', scrollY: 0 },
-      jsPDF: { unit: 'px' as const, format: [800, 1130] as [number, number], orientation: 'portrait' as const }
+    // Add-ons & Ref Link Row (Conditional)
+    const refLinkText = refLink ? `\nRef: ${sanitize(refLink)}` : '';
+    if ((cleanAddons && cleanAddons.length > 0 && cleanAddons.toLowerCase() !== 'none') || refLink) {
+        tableBodyRows.push([
+            { 
+              content: `Add-ons: ${cleanAddons || 'None'}${refLinkText}`, 
+              styles: { fontStyle: 'italic', textColor: [180, 180, 180] } 
+            },
+            '-', 
+            'Included'
+        ]);
+    }
+
+    // Discount Row (Conditional)
+    if (isDiscountApplied) {
+        tableBodyRows.push([
+            { content: 'Discount: ' + discountText, styles: { textColor: [220, 38, 38], fontStyle: 'bold' } },
+            '-',
+            { 
+              content: `Rs. ${original.toLocaleString('en-IN')}  ${formattedTotal}`, 
+              styles: { textColor: [220, 38, 38], fontStyle: 'bold' } 
+            }
+        ]);
+    }
+
+    autoTable(doc, {
+        startY: 85,
+        head: [['Description', 'Quantity', 'Amount']],
+        body: tableBodyRows,
+        theme: 'plain',
+        headStyles: {
+            fillColor: [30, 30, 30],
+            textColor: [255, 255, 255],
+            fontStyle: 'bold',
+            cellPadding: 8
+        },
+        bodyStyles: {
+            fillColor: [20, 20, 20],
+            textColor: [200, 200, 200],
+            cellPadding: 10
+        },
+        columnStyles: {
+            0: { cellWidth: 100 },
+            1: { halign: 'center' },
+            2: { halign: 'right', fontStyle: 'bold', textColor: [255, 255, 255] }
+        },
+        didDrawCell: function(data) {
+            if (data.row.section === 'body') {
+                // Row bottom border
+                doc.setDrawColor(40, 40, 40);
+                doc.setLineWidth(0.2);
+                doc.line(data.cell.x, data.cell.y + data.cell.height, data.cell.x + data.cell.width, data.cell.y + data.cell.height);
+
+                // Strikethrough for original price in discount row
+                if (isDiscountApplied && data.row.index === tableBodyRows.length - 1 && data.column.index === 2) {
+                    const originalPriceStr = `Rs. ${original.toLocaleString('en-IN')}`;
+                    const finalPriceStr = formattedTotal;
+                    const gap = 3;
+                    const oldPriceWidth = doc.getTextWidth(originalPriceStr);
+                    const newPriceWidth = doc.getTextWidth(finalPriceStr);
+                    const totalWidth = oldPriceWidth + gap + newPriceWidth;
+                    
+                    // Calculate precise X to align with the right-aligned text
+                    const xStart = data.cell.x + data.cell.width - data.cell.padding('right') - totalWidth;
+                    const yStrike = data.cell.y + (data.cell.height / 2) + 0.5;
+                    
+                    doc.setDrawColor(220, 38, 38);
+                    doc.setLineWidth(0.5);
+                    doc.line(xStart, yStrike, xStart + oldPriceWidth, yStrike);
+                }
+            }
+        }
+    });
+
+    let currentY = (doc as any).lastAutoTable.finalY + 15;
+
+    // Helper to check for page overflow before drawing sections
+    const checkPageBreak = (neededHeight: number) => {
+      if (currentY + neededHeight > 275) {
+        doc.addPage();
+        doc.setFillColor(15, 15, 15);
+        doc.rect(0, 0, 210, 297, 'F');
+        currentY = 20;
+        return true;
+      }
+      return false;
     };
 
-    // 5. Use a small timeout to ensure the DOM is painted before capturing
-    setTimeout(() => {
-      html2pdf().set(opt).from(tempDiv).save().then(() => {
-        // 6. Clean up: Remove the temporary div
-        document.body.removeChild(tempDiv);
-        
-        // 7. Trigger WhatsApp Redirect
-        const message = `Hi Janish! I'm looking for a custom quote:
+    // --- 6. ESTIMATED TOTAL (Red Box) ---
+    checkPageBreak(25);
+    doc.setFillColor(220, 38, 38);
+    doc.roundedRect(100, currentY, 95, 18, 4, 4, 'F'); 
+    
+    doc.setFontSize(14);
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.text('ESTIMATED TOTAL:', 105, currentY + 12);
+    
+    doc.setFontSize(16);
+    doc.text(formattedTotal, 190, currentY + 12, { align: 'right' });
+
+    // --- 7. TERMS & CONDITIONS ---
+    currentY += 35;
+    const termsHeight = 40;
+    checkPageBreak(termsHeight);
+    
+    doc.setFontSize(11);
+    doc.setTextColor(220, 38, 38);
+    doc.text('TERMS & CONDITIONS', 15, currentY);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(170, 170, 170);
+    
+    const terms = [
+        "1. Payment: 50% advance required to commence work. Balance upon completion.",
+        "2. Revisions: Includes up to 2 major revisions. Minor tweaks within 7 days.",
+        "3. Assets: Client must provide high-res raw footage & assets via cloud storage.",
+        "4. Delivery: Standard turnaround is 48-72 hours per video.",
+        "5. Transfer: Account Transfer / UPI accepted."
+    ];
+
+    let termY = currentY + 8;
+    terms.forEach(term => {
+        doc.text(term, 15, termY);
+        termY += 6;
+    });
+
+    // --- 8. NEW FOOTER ---
+    doc.setFontSize(9);
+    doc.setTextColor(120, 120, 120);
+    doc.text('Email: youreditorfriend@gmail.com  |  Website: youreditorfriend.in  |  WhatsApp: +91 63674343169', 105, 285, { align: 'center' });
+
+    // Save PDF
+    doc.save(`Quotation_YourEditorFriend_${fullName.replace(/\s+/g, '_')}.pdf`);
+
+    // Trigger WhatsApp Redirect
+    const message = `Hi Janish! I'm looking for a custom quote:
 - Name: ${fullName}
 - Contact: ${contactNumber}
 - Video Type: ${activeCategory.label} ${selectedSubStyle ? `(${selectedSubStyle.name})` : ''}
@@ -308,11 +430,9 @@ export const CustomQuotePage: React.FC = () => {
 - Estimated Total: ₹${final.toLocaleString()}
 
 I have also downloaded the PDF quotation. Please check it!`;
-        
-        const url = `https://wa.me/916374343169?text=${encodeURIComponent(message)}`;
-        window.open(url, '_blank');
-      });
-    }, 300);
+    
+    const url = `https://wa.me/916374343169?text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
   };
 
   if (loading) {
@@ -324,7 +444,7 @@ I have also downloaded the PDF quotation. Please check it!`;
   }
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-white font-sans selection:bg-[#E50914]">
+    <div className="min-h-screen bg-[#0A0A0A] text-white font-sans selection:bg-[#E50914] custom-quote-container">
       {/* Navigation */}
       <nav className="fixed top-0 w-full z-50 bg-[#0A0A0A]/80 backdrop-blur-xl border-b border-white/10 py-4">
         <div className="max-w-7xl mx-auto px-6 flex justify-between items-center">
@@ -336,13 +456,13 @@ I have also downloaded the PDF quotation. Please check it!`;
         </div>
       </nav>
 
-      <main className="pt-32 pb-[200px] px-6">
+      <main className="pt-24 md:pt-32 pb-[280px] md:pb-[200px] px-4 md:px-6 main-content">
         <div className="max-w-4xl mx-auto">
-          <header className="mb-16 text-center md:text-left">
+          <header className="mb-12 md:mb-16 text-center md:text-left">
             <motion.h1 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="text-4xl md:text-6xl font-black tracking-tighter mb-4"
+              className="text-3xl md:text-6xl font-black tracking-tighter mb-4"
             >
               BUILD YOUR <span className="text-[#E50914]">CUSTOM</span> PLAN
             </motion.h1>
@@ -350,20 +470,20 @@ I have also downloaded the PDF quotation. Please check it!`;
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="text-zinc-500 text-lg max-w-2xl font-light"
+              className="text-zinc-500 text-base md:text-lg max-w-2xl font-light"
             >
               Select your preferred style, tell us your requirements, and get an exact quote tailored to your vision.
             </motion.p>
           </header>
 
-          <div className="space-y-20">
+          <div className="space-y-12 md:space-y-20">
             {/* Style Selection Section */}
-            <section className="space-y-8">
-              <h2 className="text-2xl font-bold flex items-center gap-2">
+            <section className="space-y-6 md:space-y-8">
+              <h2 className="text-xl md:text-2xl font-bold flex items-center gap-2">
                 <Play size={24} className="text-[#E50914]" /> 1. Select Your Style
               </h2>
               
-              <div className="flex flex-wrap gap-2 pb-4">
+              <div className="flex flex-wrap gap-2 pb-2 md:pb-4 overflow-x-auto no-scrollbar category-nav">
                 {dynamicCategories.map((cat) => (
                   <button
                     key={cat.id}
@@ -371,7 +491,7 @@ I have also downloaded the PDF quotation. Please check it!`;
                       setActiveCategory(cat);
                       setSelectedSubStyle(null);
                     }}
-                    className={`px-6 py-3 rounded-full border transition-all whitespace-nowrap text-[10px] font-bold tracking-widest uppercase ${
+                    className={`px-4 md:px-6 py-2 md:py-3 rounded-full border transition-all whitespace-nowrap text-[9px] md:text-[10px] font-bold tracking-widest uppercase category-btn ${
                       activeCategory.id === cat.id 
                         ? 'bg-[#E50914] text-white border-[#E50914]' 
                         : 'bg-zinc-900/50 border-white/5 text-zinc-400 hover:border-white/20'
@@ -382,16 +502,16 @@ I have also downloaded the PDF quotation. Please check it!`;
                 ))}
               </div>
 
-              <div className="grid md:grid-cols-2 gap-8 items-center bg-zinc-900/30 p-8 rounded-[2.5rem] border border-white/5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 items-center bg-zinc-900/30 p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] border border-white/5 style-selection-grid">
                 <AnimatePresence mode="wait">
                   <motion.div
                     key={activeCategory.id + (selectedSubStyle?.id || '')}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -20 }}
-                    className="flex justify-center"
+                    className="flex justify-center video-preview-card"
                   >
-                    <div className="relative aspect-[9/16] w-full max-w-[240px] rounded-3xl overflow-hidden bg-zinc-900 border border-white/10 shadow-2xl">
+                    <div className="relative aspect-[9/16] w-full md:max-w-[240px] rounded-2xl md:rounded-3xl overflow-hidden bg-zinc-900 border border-white/10 shadow-2xl">
                       <iframe
                         className="w-full h-full"
                         src={`https://www.youtube-nocookie.com/embed/${selectedSubStyle?.videoUrl || currentAdminStyle?.videoUrl || 'KSoPrGLdUog'}?autoplay=1&mute=1&controls=0&loop=1&playlist=${selectedSubStyle?.videoUrl || currentAdminStyle?.videoUrl || 'KSoPrGLdUog'}&modestbranding=1&rel=0`}
@@ -403,26 +523,26 @@ I have also downloaded the PDF quotation. Please check it!`;
                   </motion.div>
                 </AnimatePresence>
 
-                <div className="space-y-6">
+                <div className="space-y-4 md:space-y-6 variations-list">
                   <div>
-                    <h3 className="text-2xl font-bold mb-2">{selectedSubStyle?.name || activeCategory.label}</h3>
-                    <p className="text-zinc-400 font-light leading-relaxed">
+                    <h3 className="text-xl md:text-2xl font-bold mb-2">{selectedSubStyle?.name || activeCategory.label}</h3>
+                    <p className="text-zinc-400 text-sm md:text-base font-light leading-relaxed">
                       {selectedSubStyle?.description || currentAdminStyle?.description || 'Premium high-retention video editing.'}
                     </p>
                   </div>
 
                   <div className="pt-4 border-t border-white/5">
                     <div className="flex items-baseline gap-3">
-                      <span className="text-3xl font-black text-white tracking-tighter">
+                      <span className="text-2xl md:text-3xl font-black text-white tracking-tighter">
                         ₹{basePrice.toLocaleString()}
-                        <span className="text-sm text-zinc-500 font-bold ml-2 uppercase tracking-widest">/ video</span>
+                        <span className="text-xs md:text-sm text-zinc-500 font-bold ml-2 uppercase tracking-widest">/ video</span>
                       </span>
                     </div>
                   </div>
 
                   {subStyles.length > 0 && (
                     <div className="space-y-3">
-                      <label className="text-[10px] uppercase tracking-[0.2em] font-bold text-zinc-500 block">Variations</label>
+                      <label className="text-[9px] md:text-[10px] uppercase tracking-[0.2em] font-bold text-zinc-500 block">Variations</label>
                       <div className="grid grid-cols-1 gap-2">
                         {subStyles.map((style: any) => (
                           <button
@@ -446,17 +566,17 @@ I have also downloaded the PDF quotation. Please check it!`;
             </section>
 
             {/* Requirements Section */}
-            <section className="space-y-12">
-              <h2 className="text-2xl font-bold flex items-center gap-2">
+            <section className="space-y-8 md:space-y-12">
+              <h2 className="text-xl md:text-2xl font-bold flex items-center gap-2">
                 <Zap size={24} className="text-[#E50914]" /> 2. Tell us what you need
               </h2>
 
-              <div className="space-y-12">
+              <div className="space-y-8 md:space-y-12">
                 {/* Quantity Slider */}
-                <div className="bg-zinc-900/30 p-8 rounded-[2.5rem] border border-white/5">
+                <div className="bg-zinc-900/30 p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] border border-white/5">
                   <div className="flex justify-between items-end mb-6">
-                    <label className="text-[10px] uppercase tracking-[0.2em] font-bold text-zinc-500">Videos needed per month</label>
-                    <span className="text-[#E50914] font-black text-4xl">{quantity}</span>
+                    <label className="text-[9px] md:text-[10px] uppercase tracking-[0.2em] font-bold text-zinc-500">Videos needed per month</label>
+                    <span className="text-[#E50914] font-black text-3xl md:text-4xl">{quantity}</span>
                   </div>
                   <input 
                     type="range" 
@@ -466,7 +586,7 @@ I have also downloaded the PDF quotation. Please check it!`;
                     onChange={(e) => setQuantity(Number(e.target.value))}
                     className="w-full h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-[#E50914]"
                   />
-                  <div className="flex justify-between mt-4 text-[10px] uppercase tracking-widest text-zinc-700 font-bold">
+                  <div className="flex justify-between mt-4 text-[9px] md:text-[10px] uppercase tracking-widest text-zinc-700 font-bold">
                       <span>1 Video</span>
                       <span>30 Videos</span>
                   </div>
@@ -474,8 +594,8 @@ I have also downloaded the PDF quotation. Please check it!`;
 
                 {/* Add-ons */}
                 <div className="space-y-4">
-                  <label className="text-[10px] uppercase tracking-[0.2em] font-bold text-zinc-500 block">Quick Add-ons</label>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <label className="text-[9px] md:text-[10px] uppercase tracking-[0.2em] font-bold text-zinc-500 block">Quick Add-ons</label>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 addons-grid">
                     {QUICK_ADDONS.map((addon) => (
                       <button
                         key={addon.id}
@@ -495,9 +615,9 @@ I have also downloaded the PDF quotation. Please check it!`;
 
                 {/* Input Fields */}
                 <div className="grid gap-6">
-                  <div className="grid md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 input-group">
                     <div>
-                      <label className="text-[10px] uppercase tracking-[0.2em] font-bold text-zinc-500 mb-3 block flex items-center gap-2">
+                      <label className="text-[9px] md:text-[10px] uppercase tracking-[0.2em] font-bold text-zinc-500 mb-3 block flex items-center gap-2">
                         <LinkIcon size={12} /> Reference Video Link
                       </label>
                       <input 
@@ -509,7 +629,7 @@ I have also downloaded the PDF quotation. Please check it!`;
                       />
                     </div>
                     <div>
-                      <label className="text-[10px] uppercase tracking-[0.2em] font-bold text-zinc-500 mb-3 block">Specific Requirements</label>
+                      <label className="text-[9px] md:text-[10px] uppercase tracking-[0.2em] font-bold text-zinc-500 mb-3 block">Specific Requirements</label>
                       <textarea 
                         rows={1}
                         placeholder="Tell us more about your vision..."
@@ -520,9 +640,9 @@ I have also downloaded the PDF quotation. Please check it!`;
                     </div>
                   </div>
 
-                  <div className="grid md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 input-group">
                     <div>
-                      <label className="text-[10px] uppercase tracking-[0.2em] font-bold text-zinc-500 mb-3 block flex items-center gap-2">
+                      <label className="text-[9px] md:text-[10px] uppercase tracking-[0.2em] font-bold text-zinc-500 mb-3 block flex items-center gap-2">
                         <User size={12} /> Full Name *
                       </label>
                       <input 
@@ -535,7 +655,7 @@ I have also downloaded the PDF quotation. Please check it!`;
                       />
                     </div>
                     <div>
-                      <label className="text-[10px] uppercase tracking-[0.2em] font-bold text-zinc-500 mb-3 block flex items-center gap-2">
+                      <label className="text-[9px] md:text-[10px] uppercase tracking-[0.2em] font-bold text-zinc-500 mb-3 block flex items-center gap-2">
                         <Phone size={12} /> WhatsApp Number *
                       </label>
                       <input 
@@ -563,26 +683,43 @@ I have also downloaded the PDF quotation. Please check it!`;
       >
         <canvas id="confetti-canvas" className="absolute inset-0 w-full h-full pointer-events-none" />
         
-        <div className="max-w-7xl mx-auto px-6 py-6 md:py-8 relative z-10">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6 md:gap-12">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 py-4 md:py-8 relative z-10 pricing-bar-content">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 md:gap-12">
             
             {/* Left Side: Estimated Total */}
-            <div className="flex flex-col items-center md:items-start">
-              <span className="text-[10px] uppercase tracking-[0.3em] text-zinc-500 font-bold mb-1">Estimated Total</span>
-              <div className="flex items-baseline gap-4">
-                <div className="text-4xl md:text-6xl font-black text-white tracking-tighter">
-                  <NumberCounter value={final} />
-                </div>
-                {discount > 0 && (
-                  <div className="text-zinc-500 text-lg line-through decoration-red-500/50 font-medium hidden md:block">
-                    ₹{original.toLocaleString()}
+            <div className="w-full md:w-auto flex flex-row md:flex-col items-center md:items-start justify-between md:justify-start gap-2">
+              <div className="flex flex-col items-start">
+                <span className="text-[8px] md:text-[10px] uppercase tracking-[0.3em] text-zinc-500 font-bold mb-0 md:mb-1">Estimated Total</span>
+                <div className="flex items-baseline gap-2 md:gap-4">
+                  <div className="text-2xl md:text-6xl font-black text-white tracking-tighter price-display">
+                    <NumberCounter value={final} />
                   </div>
-                )}
+                  {discount > 0 && (
+                    <div className="text-zinc-500 text-sm md:text-lg line-through decoration-red-500/50 font-medium">
+                      ₹{original.toLocaleString()}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Mobile Discount Badge */}
+              <div className="md:hidden">
+                <AnimatePresence>
+                  {discount > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.5 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="bg-[#E50914] text-white text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full"
+                    >
+                      {discount}% OFF
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
 
-            {/* Middle: Discount Badge */}
-            <div className="flex-1 flex justify-center">
+            {/* Middle: Discount Badge (Desktop) */}
+            <div className="hidden md:flex flex-1 justify-center">
               <AnimatePresence>
                 {discount > 0 && (
                   <motion.div
@@ -613,13 +750,13 @@ I have also downloaded the PDF quotation. Please check it!`;
               <button 
                 onClick={handleSendWhatsApp}
                 disabled={!isFormValid}
-                className={`w-full md:w-auto px-12 py-5 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 transition-all transform hover:scale-[1.02] active:scale-95 shadow-2xl ${
+                className={`w-full md:w-auto px-8 md:px-12 py-4 md:py-5 rounded-xl md:rounded-2xl font-bold text-base md:text-lg flex items-center justify-center gap-3 transition-all transform hover:scale-[1.02] active:scale-95 shadow-2xl get-quote-btn ${
                   isFormValid 
                     ? 'bg-[#E50914] text-white hover:bg-red-700 shadow-red-900/20' 
                     : 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
                 }`}
               >
-                Get Custom Quote <ChevronRight size={24} />
+                Get Custom Quote <ChevronRight size={20} className="md:w-6 md:h-6" />
               </button>
             </div>
 
@@ -632,7 +769,71 @@ I have also downloaded the PDF quotation. Please check it!`;
         &copy; 2024 YOUR EDITOR FRIEND &bull; PREMIUM VIDEO EDITING
       </footer>
 
-      {/* Hidden PDF Template Container removed as we use Dynamic DOM Injection */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media (max-width: 768px) {
+          .custom-quote-container {
+            padding: 15px !important;
+          }
+          
+          h1 { font-size: 1.8rem !important; }
+          h2 { font-size: 1.4rem !important; }
+          
+          .category-nav {
+            flex-wrap: wrap !important;
+            gap: 8px !important;
+            justify-content: center !important;
+          }
+          
+          .category-btn {
+            padding: 8px 16px !important;
+            font-size: 0.85rem !important;
+          }
+          
+          .style-selection-grid {
+            grid-template-columns: 1fr !important;
+          }
+          
+          .video-preview-card {
+            width: 100% !important;
+          }
+          
+          .variations-list {
+            width: 100% !important;
+            margin-top: 15px !important;
+          }
+          
+          .addons-grid {
+            grid-template-columns: 1fr !important;
+          }
+          
+          .input-group {
+            grid-template-columns: 1fr !important;
+          }
+          
+          .pricing-bar-content {
+            padding: 15px !important;
+            text-align: center !important;
+          }
+
+          .pricing-bar-content > div {
+            flex-direction: column !important;
+            gap: 15px !important;
+          }
+          
+          .price-display {
+            font-size: 1.8rem !important;
+          }
+          
+          .get-quote-btn {
+            width: 100% !important;
+            padding: 12px !important;
+          }
+          
+          .main-content {
+            padding-bottom: 220px !important;
+          }
+        }
+      `}} />
     </div>
   );
 };
