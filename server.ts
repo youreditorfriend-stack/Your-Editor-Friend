@@ -37,6 +37,18 @@ async function startServer() {
     }
   });
 
+  app.post("/api/portfolio", async (req, res) => {
+    try {
+      const { data: newPortfolio } = req.body;
+      const DATA_FILE = path.join(__dirname, "data", "portfolio.json");
+      await fs.writeFile(DATA_FILE, JSON.stringify(newPortfolio, null, 2));
+      res.json({ message: "Portfolio updated successfully" });
+    } catch (error) {
+      console.error("File save error:", error);
+      res.status(500).json({ error: "Failed to update portfolio data" });
+    }
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({

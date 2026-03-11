@@ -24,6 +24,7 @@ import { PortfolioGrid, ServiceBento } from './components/Portfolio';
 
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from 'react-router-dom';
 import { CustomQuotePage } from './components/CustomQuotePage';
+import Admin from './src/components/Admin';
 
 interface PricingConfig {
   price: number;
@@ -394,6 +395,7 @@ const App: React.FC = () => {
       <Routes>
         <Route path="/" element={<MainSite />} />
         <Route path="/custom-quote" element={<CustomQuotePage />} />
+        <Route path="/admin" element={<Admin />} />
       </Routes>
     </Router>
   );
