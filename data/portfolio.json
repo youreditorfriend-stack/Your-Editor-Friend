@@ -143,7 +143,7 @@
           "name": "Style A - Basic Captions",
           "description": "High-retention talking head videos with dynamic captions and pop-up text.",
           "videoUrl": "KSoPrGLdUog",
-          "basePrice": 1500,
+          "basePrice": 3000,
           "enabled": true
         },
         {
@@ -151,7 +151,7 @@
           "name": "Style B - Advanced Graphics",
           "description": "Premium graphics and motion elements for higher engagement.",
           "videoUrl": "Dratplxyl8s",
-          "basePrice": 2500,
+          "basePrice": 2000,
           "enabled": true
         },
         {
@@ -159,7 +159,7 @@
           "name": "Style C - Cinematic Storytelling",
           "description": "Deep storytelling with cinematic color grading and sound design.",
           "videoUrl": "cg--ED8zNDk",
-          "basePrice": 3500,
+          "basePrice": 2500,
           "enabled": true
         }
       ]
@@ -174,7 +174,7 @@
           "name": "Style A - Premium Property Tour",
           "description": "Cinematic property tours and agent branding with smooth transitions.",
           "videoUrl": "r-dFqVZqWww",
-          "basePrice": 2000,
+          "basePrice": 2500,
           "enabled": true
         },
         {
@@ -205,7 +205,7 @@
           "name": "Style A - AI Product Ad",
           "description": "AI-generated visuals for high-converting product ads and creative storytelling.",
           "videoUrl": "NgUHikVfDNs",
-          "basePrice": 1800,
+          "basePrice": 4500,
           "enabled": true
         },
         {
@@ -213,7 +213,7 @@
           "name": "Style B - AI Avatar",
           "description": "Realistic AI avatars for personalized brand messaging.",
           "videoUrl": "YIe_WVTpSd8",
-          "basePrice": 2800,
+          "basePrice": 3000,
           "enabled": true
         },
         {
@@ -221,7 +221,7 @@
           "name": "Style C - AI VFX",
           "description": "Cutting-edge AI visual effects for mind-bending advertisements.",
           "videoUrl": "hLh0h6Vj6w8",
-          "basePrice": 4000,
+          "basePrice": 5001,
           "enabled": true
         }
       ]
@@ -236,7 +236,7 @@
           "name": "Style A - Dynamic Motion",
           "description": "Complex animations, data visualizations, and premium text effects.",
           "videoUrl": "NGMXnfw2QSw",
-          "basePrice": 2500,
+          "basePrice": 5000,
           "enabled": true
         },
         {
@@ -244,7 +244,7 @@
           "name": "Style B - 3D Motion",
           "description": "Immersive 3D motion graphics for a high-end feel.",
           "videoUrl": "aPpVQ63XM7g",
-          "basePrice": 4000,
+          "basePrice": 7000,
           "enabled": true
         },
         {
@@ -252,7 +252,7 @@
           "name": "Style C - Explainer Video",
           "description": "Comprehensive motion-based explainer videos for complex concepts.",
           "videoUrl": "HI50vxdp5es",
-          "basePrice": 6000,
+          "basePrice": 5998,
           "enabled": true
         }
       ]

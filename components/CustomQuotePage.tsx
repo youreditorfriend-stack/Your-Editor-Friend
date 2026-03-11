@@ -541,7 +541,10 @@ I have also downloaded the PDF quotation. Please check it!`;
                                 : 'bg-zinc-900/50 border-white/5 hover:border-white/10'
                             }`}
                           >
-                            <span className="text-xs font-bold">{style.name}</span>
+                            <span className="text-xs font-bold">
+                              {style.name} 
+                              <span className="text-zinc-500 font-normal ml-2">| ₹{style.basePrice.toLocaleString()}</span>
+                            </span>
                             {selectedSubStyle?.id === style.id && <CheckCircle2 size={14} className="text-[#E50914]" />}
                           </button>
                         ))}
