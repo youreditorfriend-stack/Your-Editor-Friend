@@ -140,7 +140,7 @@
       "styles": [
         {
           "id": "style-1",
-          "name": "Style A - Basic Captions",
+          "name": "Style A - Basic Captions | ₹3,000",
           "description": "High-retention talking head videos with dynamic captions and pop-up text.",
           "videoUrl": "KSoPrGLdUog",
           "basePrice": 3000,
@@ -148,7 +148,7 @@
         },
         {
           "id": "style-1-b",
-          "name": "Style B - Advanced Graphics",
+          "name": "Style B - Advanced Graphics | ₹2,000",
           "description": "Premium graphics and motion elements for higher engagement.",
           "videoUrl": "Dratplxyl8s",
           "basePrice": 2000,
@@ -156,7 +156,7 @@
         },
         {
           "id": "style-1-c",
-          "name": "Style C - Cinematic Storytelling",
+          "name": "Style C - Cinematic Storytelling | ₹2,500",
           "description": "Deep storytelling with cinematic color grading and sound design.",
           "videoUrl": "cg--ED8zNDk",
           "basePrice": 2500,
@@ -171,7 +171,7 @@
       "styles": [
         {
           "id": "style-2",
-          "name": "Style A - Premium Property Tour",
+          "name": "Style A - Premium Property Tour | ₹2,500",
           "description": "Cinematic property tours and agent branding with smooth transitions.",
           "videoUrl": "r-dFqVZqWww",
           "basePrice": 2500,
@@ -179,7 +179,7 @@
         },
         {
           "id": "style-2-b",
-          "name": "Style B - Aerial & Drone",
+          "name": "Style B - Aerial & Drone | ₹3,000",
           "description": "Stunning drone shots and aerial perspectives of the property.",
           "videoUrl": "wk4ezLigQ0Y",
           "basePrice": 3000,
@@ -187,7 +187,7 @@
         },
         {
           "id": "style-2-c",
-          "name": "Style C - Virtual Staging",
+          "name": "Style C - Virtual Staging | ₹4,500",
           "description": "Advanced virtual staging to showcase the full potential of the space.",
           "videoUrl": "oEoeevc1QNM",
           "basePrice": 4500,
@@ -202,7 +202,7 @@
       "styles": [
         {
           "id": "style-3",
-          "name": "Style A - AI Product Ad",
+          "name": "Style A - AI Product Ad | ₹4,500",
           "description": "AI-generated visuals for high-converting product ads and creative storytelling.",
           "videoUrl": "NgUHikVfDNs",
           "basePrice": 4500,
@@ -210,7 +210,7 @@
         },
         {
           "id": "style-3-b",
-          "name": "Style B - AI Avatar",
+          "name": "Style B - AI Avatar | ₹3,000",
           "description": "Realistic AI avatars for personalized brand messaging.",
           "videoUrl": "YIe_WVTpSd8",
           "basePrice": 3000,
@@ -218,7 +218,7 @@
         },
         {
           "id": "style-3-c",
-          "name": "Style C - AI VFX",
+          "name": "Style C - AI VFX | ₹5,001",
           "description": "Cutting-edge AI visual effects for mind-bending advertisements.",
           "videoUrl": "hLh0h6Vj6w8",
           "basePrice": 5001,
@@ -233,7 +233,7 @@
       "styles": [
         {
           "id": "style-4",
-          "name": "Style A - Dynamic Motion",
+          "name": "Style A - Dynamic Motion | ₹5,000",
           "description": "Complex animations, data visualizations, and premium text effects.",
           "videoUrl": "NGMXnfw2QSw",
           "basePrice": 5000,
@@ -241,7 +241,7 @@
         },
         {
           "id": "style-4-b",
-          "name": "Style B - 3D Motion",
+          "name": "Style B - 3D Motion | ₹7,000",
           "description": "Immersive 3D motion graphics for a high-end feel.",
           "videoUrl": "aPpVQ63XM7g",
           "basePrice": 7000,
@@ -249,7 +249,7 @@
         },
         {
           "id": "style-4-c",
-          "name": "Style C - Explainer Video",
+          "name": "Style C - Explainer Video | ₹5,998",
           "description": "Comprehensive motion-based explainer videos for complex concepts.",
           "videoUrl": "HI50vxdp5es",
           "basePrice": 5998,

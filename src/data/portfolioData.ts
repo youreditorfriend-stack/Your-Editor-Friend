@@ -77,7 +77,7 @@ export const PRICING_DATA: PricingCategory[] = [
     styles: [
       {
         id: 'style1',
-        name: 'Cinematic Storytelling',
+        name: 'Style A - Cinematic Storytelling',
         description: 'High-end edits with color grading and sound design.',
         basePrice: 2500,
         videoUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
@@ -85,9 +85,17 @@ export const PRICING_DATA: PricingCategory[] = [
       },
       {
         id: 'style2',
-        name: 'Fast-Paced Viral',
+        name: 'Style B - Fast-Paced Viral',
         description: 'Dynamic cuts and captions for maximum engagement.',
         basePrice: 1500,
+        videoUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
+        enabled: true
+      },
+      {
+        id: 'style1-c',
+        name: 'Style C - Dynamic Captions',
+        description: 'Engaging captions with custom text animations and emojis.',
+        basePrice: 1800,
         videoUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
         enabled: true
       }

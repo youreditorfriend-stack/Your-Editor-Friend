@@ -543,7 +543,6 @@ I have also downloaded the PDF quotation. Please check it!`;
                           >
                             <span className="text-xs font-bold">
                               {style.name} 
-                              <span className="text-zinc-500 font-normal ml-2">| ₹{style.basePrice.toLocaleString()}</span>
                             </span>
                             {selectedSubStyle?.id === style.id && <CheckCircle2 size={14} className="text-[#E50914]" />}
                           </button>
@@ -762,65 +761,54 @@ I have also downloaded the PDF quotation. Please check it!`;
       <style dangerouslySetInnerHTML={{ __html: `
         @media (max-width: 768px) {
           .custom-quote-container {
-            padding: 15px !important;
+            padding: 10px !important;
           }
           
-          h1 { font-size: 1.8rem !important; }
-          h2 { font-size: 1.4rem !important; }
+          h1 { font-size: 1.5rem !important; margin-bottom: 0.5rem !important; }
+          h2 { font-size: 1.1rem !important; }
           
+          .main-content {
+            padding-top: 5rem !important;
+            padding-bottom: 180px !important;
+          }
+
           .category-nav {
-            flex-wrap: wrap !important;
-            gap: 8px !important;
-            justify-content: center !important;
+            flex-wrap: nowrap !important;
+            gap: 6px !important;
+            justify-content: flex-start !important;
           }
           
           .category-btn {
-            padding: 8px 16px !important;
-            font-size: 0.85rem !important;
+            padding: 6px 12px !important;
+            font-size: 0.6rem !important;
           }
           
           .style-selection-grid {
-            grid-template-columns: 1fr !important;
+            padding: 1rem !important;
+            border-radius: 1.5rem !important;
           }
           
           .video-preview-card {
             width: 100% !important;
+            max-width: 180px !important;
+            margin: 0 auto !important;
           }
           
           .variations-list {
-            width: 100% !important;
-            margin-top: 15px !important;
-          }
-          
-          .addons-grid {
-            grid-template-columns: 1fr !important;
-          }
-          
-          .input-group {
-            grid-template-columns: 1fr !important;
+            margin-top: 10px !important;
           }
           
           .pricing-bar-content {
-            padding: 15px !important;
-            text-align: center !important;
-          }
-
-          .pricing-bar-content > div {
-            flex-direction: column !important;
-            gap: 15px !important;
+            padding: 10px !important;
           }
           
           .price-display {
-            font-size: 1.8rem !important;
+            font-size: 1.5rem !important;
           }
           
           .get-quote-btn {
-            width: 100% !important;
             padding: 12px !important;
-          }
-          
-          .main-content {
-            padding-bottom: 220px !important;
+            font-size: 0.9rem !important;
           }
         }
       `}} />

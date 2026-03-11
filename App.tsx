@@ -21,11 +21,8 @@ import {
   Phone
 } from 'lucide-react';
 import { PortfolioGrid, ServiceBento } from './components/Portfolio';
-import { db } from './src/firebase';
-import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from 'react-router-dom';
-import { AdminPanel } from './components/AdminPanel';
 import { CustomQuotePage } from './components/CustomQuotePage';
 
 interface PricingConfig {
@@ -47,28 +44,25 @@ const MainSite: React.FC = () => {
     // Fetch settings to filter categories
     const fetchSettings = async () => {
       try {
-        console.log('Fetching settings from Firebase...');
-        const docRef = doc(db, "app", "data");
-        const docSnap = await getDoc(docRef);
+        console.log('Fetching settings from API...');
+        const response = await fetch('/api/portfolio');
+        if (!response.ok) {
+          throw new Error('Failed to fetch portfolio data');
+        }
+        const data = await response.json();
+        console.log('Settings data received:', data);
+        const portfolio = data.portfolio || [];
+        const enabledCats = portfolio
+          .filter((cat: any) => cat.enabled !== false)
+          .map((cat: any) => cat.name);
         
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          console.log('Settings data received:', data);
-          const portfolio = data.portfolio || [];
-          const enabledCats = portfolio
-            .filter((cat: any) => cat.enabled !== false)
-            .map((cat: any) => cat.name);
-          
-          console.log('Enabled categories:', enabledCats);
-          setVisibleCategories(enabledCats);
-          if (enabledCats.length > 0 && !enabledCats.includes(activeCategory)) {
-            setActiveCategory(enabledCats[0]);
-          }
-        } else {
-          console.warn('No settings document found in Firebase');
+        console.log('Enabled categories:', enabledCats);
+        setVisibleCategories(enabledCats);
+        if (enabledCats.length > 0 && !enabledCats.includes(activeCategory)) {
+          setActiveCategory(enabledCats[0]);
         }
       } catch (error) {
-        console.error('Failed to fetch settings from Firebase:', error);
+        console.error('Failed to fetch settings:', error);
       }
     };
     fetchSettings();
@@ -85,12 +79,16 @@ const MainSite: React.FC = () => {
   const navLinks = [
     { name: 'Services', href: '#services' },
     { name: 'Portfolio', href: '#portfolio' },
-    { name: 'Pricing', href: '#pricing' },
+    { name: 'Pricing', href: '/custom-quote' },
   ];
 
   const scrollTo = (id: string) => {
     setIsMenuOpen(false);
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+    if (id.startsWith('/')) {
+      navigate(id);
+    } else {
+      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+    }
   };
 
   const WHATSAPP_NUMBER = "916374343169"; 
@@ -105,42 +103,6 @@ const MainSite: React.FC = () => {
   const WHATSAPP_LINK = getWhatsAppLink();
   const BUSINESS_PLAN_LINK = getWhatsAppLink("Hi Editorfriend. i am intrested in Business plan");
   const CREATOR_PLAN_LINK = getWhatsAppLink("Hi editorfrind i am intrested in Creator trend plan");
-
-  const FeaturedVideo = () => {
-    const [videoUrl, setVideoUrl] = useState('');
-
-    useEffect(() => {
-      const unsub = onSnapshot(doc(db, "websiteData", "video"), (doc) => {
-        if (doc.exists()) {
-          setVideoUrl(doc.data().url || '');
-        }
-      });
-      return () => unsub();
-    }, []);
-
-    if (!videoUrl) return null;
-
-    return (
-      <section className="py-12 md:py-20 px-6 bg-[#0A0A0A]">
-        <div className="max-w-5xl mx-auto">
-          <motion.div 
-            initial={{ opacity: 0, y: 40 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="aspect-video rounded-[2rem] md:rounded-[3rem] overflow-hidden border border-white/10 shadow-2xl bg-zinc-900/50"
-          >
-            <iframe
-              src={videoUrl}
-              className="w-full h-full"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              title="Featured Video"
-            ></iframe>
-          </motion.div>
-        </div>
-      </section>
-    );
-  };
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-[#EDEDED] font-sans selection:bg-[#E50914] selection:text-white antialiased">
@@ -284,8 +246,6 @@ const MainSite: React.FC = () => {
         </motion.div>
       </header>
 
-      <FeaturedVideo />
-
       {/* Portfolio Section */}
       <section id="portfolio" className="py-20 md:py-32 px-6 bg-[#080808]">
         <div className="max-w-7xl mx-auto">
@@ -324,99 +284,7 @@ const MainSite: React.FC = () => {
             <p className="text-zinc-500 max-w-xl mx-auto font-light">Choose the plan that fits your content goals. No hidden fees.</p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
-            {/* Card 1: Basic Business Plan */}
-            <a 
-              href={BUSINESS_PLAN_LINK}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="relative p-8 rounded-3xl border bg-zinc-900/50 border-white/5 hover:border-white/10 transition-all duration-300 flex flex-col group cursor-pointer"
-            >
-              <div className="mb-8">
-                <h3 className="text-xl font-semibold mb-2">Basic Business Plan</h3>
-                <div className="flex items-baseline gap-2 mb-4">
-                  <span className="text-4xl font-bold">₹10,000</span>
-                  <span className="text-zinc-500 text-sm line-through">₹12,000</span>
-                  <span className="text-zinc-500 text-sm">/month</span>
-                </div>
-                <p className="text-zinc-400 text-sm font-light">Small shops, regular uploaders.</p>
-              </div>
-              <div className="space-y-4 mb-8 flex-1">
-                <div className="flex items-center gap-3 text-sm font-bold text-white">
-                  <CheckCircle2 size={16} className="text-[#E50914] shrink-0" />
-                  15 Short-form videos
-                </div>
-                {[
-                  'Basic cuts & transitions',
-                  'Background music & standard SFX',
-                  'Standard B-roll integration',
-                  'Templated text animations',
-                  '24-hour delivery',
-                  'Maximum 1 revision',
-                  'Bulk submission required'
-                ].map((feature, idx) => (
-                  <div key={idx} className="flex items-center gap-3 text-sm font-light text-zinc-400">
-                    <CheckCircle2 size={16} className="text-[#E50914] shrink-0" />
-                    {feature}
-                  </div>
-                ))}
-                <p className="text-[10px] text-zinc-600 italic mt-4">
-                  * Not for intense storytelling, flashy edits, or heavy creative work.
-                </p>
-              </div>
-              <div 
-                className="w-full py-3 rounded-xl text-sm font-semibold bg-white text-black group-hover:bg-zinc-200 transition-all flex items-center justify-center gap-2"
-              >
-                Get Started <ArrowRight size={16} />
-              </div>
-            </a>
-
-            {/* Card 2: Creator Trend Plan */}
-            <a 
-              href={CREATOR_PLAN_LINK}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="relative p-8 rounded-3xl border bg-zinc-900 border-[#E50914] scale-105 z-10 flex flex-col group cursor-pointer"
-            >
-              <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-[#E50914] text-white text-[10px] font-bold uppercase tracking-widest px-4 py-1 rounded-full">
-                Most Popular
-              </div>
-              <div className="mb-8">
-                <h3 className="text-xl font-semibold mb-2">Creator Trend Plan</h3>
-                <div className="flex items-baseline gap-2 mb-4">
-                  <span className="text-4xl font-bold">₹22,000</span>
-                  <span className="text-zinc-500 text-sm line-through">₹24,000</span>
-                  <span className="text-zinc-500 text-sm">/month</span>
-                </div>
-                <p className="text-zinc-400 text-sm font-light">Content creators and growing brands.</p>
-              </div>
-              <div className="space-y-4 mb-8 flex-1">
-                <div className="flex items-center gap-3 text-sm font-bold text-white">
-                  <CheckCircle2 size={16} className="text-[#E50914] shrink-0" />
-                  8 Short-form videos
-                </div>
-                {[
-                  'Market trend editing style',
-                  'Personalized video approach',
-                  'Creative & modern text animations',
-                  'Medium motion graphics',
-                  'Unlimited revisions',
-                  '48-hour delivery',
-                  'Thumbnail design'
-                ].map((feature, idx) => (
-                  <div key={idx} className="flex items-center gap-3 text-sm font-light text-zinc-300">
-                    <CheckCircle2 size={16} className="text-[#E50914] shrink-0" />
-                    {feature}
-                  </div>
-                ))}
-              </div>
-              <div 
-                className="w-full py-3 rounded-xl text-sm font-semibold bg-[#E50914] text-white group-hover:bg-red-700 transition-all flex items-center justify-center gap-2"
-              >
-                Choose Creator Plan <ArrowRight size={16} />
-              </div>
-            </a>
-
+          <div className="grid md:grid-cols-1 gap-8 max-w-md mx-auto">
             {/* Card 3: Build Your Own Plan (Teaser) */}
             <Link 
               to="/custom-quote"
@@ -525,7 +393,6 @@ const App: React.FC = () => {
     <Router>
       <Routes>
         <Route path="/" element={<MainSite />} />
-        <Route path="/admin" element={<AdminPanel />} />
         <Route path="/custom-quote" element={<CustomQuotePage />} />
       </Routes>
     </Router>
