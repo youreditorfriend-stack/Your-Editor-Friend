@@ -25,6 +25,8 @@ import { PortfolioGrid, ServiceBento } from './components/Portfolio';
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from 'react-router-dom';
 import { CustomQuotePage } from './components/CustomQuotePage';
 import Admin from './src/components/Admin';
+import { db } from "./src/firebase";
+import { doc, getDoc } from "firebase/firestore";
 
 interface PricingConfig {
   price: number;
@@ -45,22 +47,23 @@ const MainSite: React.FC = () => {
     // Fetch settings to filter categories
     const fetchSettings = async () => {
       try {
-        console.log('Fetching settings from API...');
-        const response = await fetch('/api/portfolio');
-        if (!response.ok) {
-          throw new Error('Failed to fetch portfolio data');
-        }
-        const data = await response.json();
-        console.log('Settings data received:', data);
-        const portfolio = data.portfolio || [];
-        const enabledCats = portfolio
-          .filter((cat: any) => cat.enabled !== false)
-          .map((cat: any) => cat.name);
+        console.log('Fetching settings from Firestore...');
+        const docRef = doc(db, "portfolio", "data");
+        const docSnap = await getDoc(docRef);
         
-        console.log('Enabled categories:', enabledCats);
-        setVisibleCategories(enabledCats);
-        if (enabledCats.length > 0 && !enabledCats.includes(activeCategory)) {
-          setActiveCategory(enabledCats[0]);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          console.log('Settings data received:', data);
+          const portfolio = data.portfolio || [];
+          const enabledCats = portfolio
+            .filter((cat: any) => cat.enabled !== false)
+            .map((cat: any) => cat.label); // Assuming label is the name to display
+          
+          console.log('Enabled categories:', enabledCats);
+          setVisibleCategories(enabledCats);
+          if (enabledCats.length > 0 && !enabledCats.includes(activeCategory)) {
+            setActiveCategory(enabledCats[0]);
+          }
         }
       } catch (error) {
         console.error('Failed to fetch settings:', error);

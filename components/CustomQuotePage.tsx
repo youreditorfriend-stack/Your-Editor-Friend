@@ -21,6 +21,8 @@ import {
   Briefcase
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { db } from "../src/firebase";
+import { doc, getDoc } from "firebase/firestore";
 
 interface CustomStyle {
   id: string;
@@ -76,51 +78,58 @@ export const CustomQuotePage: React.FC = () => {
   const totalContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const fetchStyles = async () => {
+    const fetchData = async () => {
       try {
-        const res = await fetch('/api/portfolio');
-        const data = await res.json();
+        const docRef = doc(db, "portfolio", "data");
+        const docSnap = await getDoc(docRef);
         
-        // Flatten styles from all enabled pricing categories
-        const pricingCategories = data.pricing || [];
-        const allStyles: any[] = [];
-        const settings: Record<string, boolean> = {};
-        
-        pricingCategories.forEach((cat: any) => {
-          settings[cat.name] = cat.enabled !== false;
-          if (cat.enabled !== false) {
-            cat.styles.forEach((style: any) => {
-              if (style.enabled !== false) {
-                allStyles.push({
-                  ...style,
-                  category: cat.name,
-                  // Map basePrice to singlePrice for compatibility
-                  singlePrice: style.basePrice
-                });
-              }
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          
+          // Flatten styles from all enabled pricing categories
+          const pricingCategories = data.pricing || [];
+          const allStyles: any[] = [];
+          const settings: Record<string, boolean> = {};
+          
+          pricingCategories.forEach((cat: any) => {
+            settings[cat.name] = cat.enabled !== false;
+            if (cat.enabled !== false) {
+              cat.styles.forEach((style: any) => {
+                if (style.enabled !== false) {
+                  allStyles.push({
+                    ...style,
+                    category: cat.name,
+                    // Map basePrice to singlePrice for compatibility
+                    singlePrice: style.basePrice
+                  });
+                }
+              });
+            }
+          });
+          
+          setCustomStyles(allStyles);
+          setCategorySettings(settings);
+          setRawPricing(pricingCategories);
+          
+          if (allStyles.length > 0) {
+            const firstStyle = allStyles[0];
+            setActiveCategory({ 
+              id: firstStyle.category, 
+              label: firstStyle.category, 
+              icon: CATEGORIES.find(c => c.id === firstStyle.category)?.icon || <Smartphone size={18} /> 
             });
           }
-        });
-        
-        setCustomStyles(allStyles);
-        setCategorySettings(settings);
-        
-        if (allStyles.length > 0) {
-          const firstStyle = allStyles[0];
-          setActiveCategory({ 
-            id: firstStyle.category, 
-            label: firstStyle.category, 
-            icon: CATEGORIES.find(c => c.id === firstStyle.category)?.icon || <Smartphone size={18} /> 
-          });
         }
       } catch (error) {
-        console.error('Failed to fetch styles:', error);
+        console.error('Failed to fetch data:', error);
       } finally {
         setLoading(false);
       }
     };
-    fetchStyles();
+    fetchData();
   }, []);
+
+  const [rawPricing, setRawPricing] = useState<any[]>([]);
 
   // Use admin styles to build the category list, filtered by visibility settings
   const dynamicCategories = customStyles
@@ -138,17 +147,6 @@ export const CustomQuotePage: React.FC = () => {
   // Get active style data from admin or defaults
   const currentAdminStyle = customStyles.find(s => s.category === activeCategory.id);
   
-  // Get sub-styles for the active category from the raw data
-  const [rawPricing, setRawPricing] = useState<any[]>([]);
-  useEffect(() => {
-    const fetchRaw = async () => {
-      const res = await fetch('/api/portfolio');
-      const data = await res.json();
-      setRawPricing(data.pricing || []);
-    };
-    fetchRaw();
-  }, []);
-
   const activePricingCategory = rawPricing.find(cat => cat.name === activeCategory.id);
   const subStyles = activePricingCategory?.styles?.filter((s: any) => s.enabled !== false) || [];
 

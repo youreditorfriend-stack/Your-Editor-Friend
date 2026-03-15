@@ -15,6 +15,8 @@ import {
   Layers,
   MousePointer2
 } from 'lucide-react';
+import { db } from "../src/firebase";
+import { doc, getDoc } from "firebase/firestore";
 
 export const ServiceBento = () => {
   const services = [
@@ -182,33 +184,36 @@ const PortfolioCard: React.FC<PortfolioCardProps> = ({ work, index }) => {
 
 export const PortfolioGrid: React.FC<PortfolioGridProps> = ({ activeCategory }) => {
   const [allWorks, setAllWorks] = useState<any[]>([]);
-  const [categorySettings, setCategorySettings] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchPortfolio = async () => {
       try {
-        const res = await fetch('/api/portfolio');
-        const data = await res.json();
+        const docRef = doc(db, "portfolio", "data");
+        const docSnap = await getDoc(docRef);
         
-        // Flatten videos from all enabled categories
-        const categories = data.portfolio || [];
-        const allItems: any[] = [];
-        
-        categories.forEach((cat: any) => {
-          if (cat.enabled !== false) {
-            cat.videos.forEach((vid: any) => {
-              if (vid.enabled !== false) {
-                allItems.push({
-                  ...vid,
-                  category: cat.name
-                });
-              }
-            });
-          }
-        });
-        
-        setAllWorks(allItems);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          
+          // Flatten videos from all enabled categories
+          const categories = data.portfolio || [];
+          const allItems: any[] = [];
+          
+          categories.forEach((cat: any) => {
+            if (cat.enabled !== false) {
+              cat.projects.forEach((proj: any) => {
+                if (proj.enabled !== false) {
+                  allItems.push({
+                    ...proj,
+                    category: cat.label // Using label as category name
+                  });
+                }
+              });
+            }
+          });
+          
+          setAllWorks(allItems);
+        }
       } catch (error) {
         console.error('Failed to fetch portfolio:', error);
       } finally {

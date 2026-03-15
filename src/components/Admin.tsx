@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect } from "react";
+import { db } from "../firebase";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 
 // ─── INITIAL DATA ─────────────────────────────────────────────────────────────
 const INIT_PROJECTS = [
@@ -176,6 +178,26 @@ export default function Admin() {
   const [modal,      setModal]      = useState(null);
   const [editMap,    setEditMap]    = useState({});
 
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const docRef = doc(db, "portfolio", "data");
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setCategories(data.portfolio);
+          setProjects(data.portfolio.flatMap(c => c.projects));
+          setStyles(data.styles);
+          setAddons(data.addons);
+          setFormFields(data.formFields);
+        }
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      }
+    };
+    fetchData();
+  }, []);
+
   const openModal = (type, data=null) => setModal({ type, data });
   const closeModal = () => setModal(null);
 
@@ -247,22 +269,15 @@ export default function Admin() {
 
   const handleSave = async () => {
     try {
-      const response = await fetch("/api/portfolio", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          data: {
-            portfolio: categories.map(c => ({
-              ...c,
-              projects: projects.filter(p => p.category === c.id)
-            })),
-            styles: styles,
-            addons: addons,
-            formFields: formFields
-          }
-        })
+      await setDoc(doc(db, "portfolio", "data"), {
+        portfolio: categories.map(c => ({
+          ...c,
+          projects: projects.filter(p => p.category === c.id)
+        })),
+        styles: styles,
+        addons: addons,
+        formFields: formFields
       });
-      if (!response.ok) throw new Error("Failed to save");
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     } catch (error) {
