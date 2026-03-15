@@ -101,12 +101,37 @@ interface PortfolioCardProps {
   index: number;
 }
 
+const getVideoMetadata = (work: any) => {
+  const url = work.url || (work.youtubeId ? `https://www.youtube.com/watch?v=${work.youtubeId}` : '');
+  
+  // Detect orientation from URL if not explicitly set
+  let orientation = work.orientation;
+  if (!orientation) {
+    const isShort = url.includes('/shorts/') || url.includes('/reel/');
+    orientation = isShort ? 'vertical' : 'horizontal';
+  }
+  
+  const isVertical = orientation === 'vertical';
+  const aspectClass = isVertical ? 'aspect-[9/16]' : 'aspect-video';
+  
+  let embedUrl = '';
+  if (work.youtubeId) {
+    embedUrl = `https://www.youtube-nocookie.com/embed/${work.youtubeId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${work.youtubeId}&modestbranding=1&rel=0&enablejsapi=1&playsinline=1&iv_load_policy=3&fs=0`;
+  } else if (url.includes('instagram.com/reel/')) {
+    embedUrl = `${url.split('?')[0]}embed/`;
+  }
+
+  return { isVertical, aspectClass, embedUrl };
+};
+
 const PortfolioCard: React.FC<PortfolioCardProps> = ({ work, index }) => {
   const [isHovered, setIsHovered] = useState(false);
+  const { aspectClass, embedUrl } = getVideoMetadata(work);
 
   const handleClick = () => {
-    if (work.youtubeId) {
-      window.open(`https://www.youtube.com/watch?v=${work.youtubeId}`, '_blank');
+    const url = work.url || (work.youtubeId ? `https://www.youtube.com/watch?v=${work.youtubeId}` : '');
+    if (url) {
+      window.open(url, '_blank');
     }
   };
 
@@ -124,30 +149,24 @@ const PortfolioCard: React.FC<PortfolioCardProps> = ({ work, index }) => {
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onClick={handleClick}
-      className={`relative group overflow-hidden rounded-2xl bg-zinc-900 border border-white/10 cursor-pointer shadow-2xl transition-all duration-500 hover:border-red-500/50 hover:shadow-red-500/10 ${
-        work.category === 'Motion Graphics'
-          ? 'aspect-video' 
-          : 'aspect-[9/16]'
-      }`}
+      className={`relative group overflow-hidden rounded-2xl bg-zinc-900 border border-white/10 cursor-pointer shadow-2xl transition-all duration-500 hover:border-red-500/50 hover:shadow-red-500/10 ${aspectClass}`}
     >
       {/* Thumbnail / Placeholder */}
-      <div className={`absolute inset-0 z-0 transition-opacity duration-500 ${isHovered && work.youtubeId ? 'opacity-0' : 'opacity-100'}`}>
+      <div className={`absolute inset-0 z-0 transition-opacity duration-500 ${isHovered && embedUrl ? 'opacity-0' : 'opacity-100'}`}>
         <img 
           src={work.youtubeId 
-            ? `https://img.youtube.com/vi/${work.youtubeId}/maxresdefault.jpg` 
+            ? `https://img.youtube.com/vi/${work.youtubeId}/hqdefault.jpg` 
             : `https://images.unsplash.com/photo-${work.imgId}?auto=format&fit=crop&q=80&w=800&h=1200`
           } 
           className="w-full h-full object-cover opacity-100 group-hover:opacity-90 transition-all duration-700"
           alt={work.title}
-          onError={(e) => {
-            if(work.youtubeId) (e.target as HTMLImageElement).src = `https://img.youtube.com/vi/${work.youtubeId}/hqdefault.jpg`;
-          }}
+          referrerPolicy="no-referrer"
         />
       </div>
 
-      {/* Video Overlay / Player - Only plays if youtubeId exists and hovered */}
+      {/* Video Overlay / Player */}
       <AnimatePresence>
-        {isHovered && work.youtubeId && (
+        {isHovered && embedUrl && (
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -157,7 +176,7 @@ const PortfolioCard: React.FC<PortfolioCardProps> = ({ work, index }) => {
             <iframe
               className="w-full h-full"
               style={{ transform: 'scale(1.01)', transformOrigin: 'center' }}
-              src={`https://www.youtube-nocookie.com/embed/${work.youtubeId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${work.youtubeId}&modestbranding=1&rel=0&enablejsapi=1&playsinline=1&iv_load_policy=3&fs=0`}
+              src={embedUrl}
               title={work.title}
               frameBorder="0"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"

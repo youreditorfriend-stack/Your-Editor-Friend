@@ -4,12 +4,12 @@ import { doc, getDoc, setDoc } from "firebase/firestore";
 
 // ─── INITIAL DATA ─────────────────────────────────────────────────────────────
 const INIT_PROJECTS = [
-  { id: 1, category: "personal_branding", title: "If You Fulfill This Need",  link: "https://youtube.com/shorts/ex1", enabled: true },
-  { id: 2, category: "personal_branding", title: "Ram Music x Pink Floyd",    link: "https://youtube.com/shorts/ex2", enabled: true },
-  { id: 3, category: "personal_branding", title: "Content Creator Tips",      link: "https://youtube.com/shorts/ex3", enabled: true },
-  { id: 4, category: "ai_advertisement",  title: "AI Ad Campaign Vol 1",      link: "https://youtube.com/shorts/ex4", enabled: true },
-  { id: 5, category: "real_estate",       title: "Luxury Villa Tour",         link: "https://youtube.com/shorts/ex5", enabled: false },
-  { id: 6, category: "motion_graphics",   title: "Brand Identity Reel",       link: "https://youtube.com/shorts/ex6", enabled: true },
+  { id: 1, category: "personal_branding", title: "If You Fulfill This Need",  link: "https://youtube.com/shorts/ex1", enabled: true, orientation: 'vertical' },
+  { id: 2, category: "personal_branding", title: "Ram Music x Pink Floyd",    link: "https://youtube.com/shorts/ex2", enabled: true, orientation: 'vertical' },
+  { id: 3, category: "personal_branding", title: "Content Creator Tips",      link: "https://youtube.com/shorts/ex3", enabled: true, orientation: 'vertical' },
+  { id: 4, category: "ai_advertisement",  title: "AI Ad Campaign Vol 1",      link: "https://youtube.com/shorts/ex4", enabled: true, orientation: 'vertical' },
+  { id: 5, category: "real_estate",       title: "Luxury Villa Tour",         link: "https://youtube.com/shorts/ex5", enabled: false, orientation: 'vertical' },
+  { id: 6, category: "motion_graphics",   title: "Brand Identity Reel",       link: "https://youtube.com/shorts/ex6", enabled: true, orientation: 'vertical' },
 ];
 const INIT_CATEGORIES = [
   { id: "personal_branding", label: "PERSONAL BRANDING", enabled: true },
@@ -430,6 +430,11 @@ export default function Admin() {
                       )}
                     </div>
                     <Toggle value={p.enabled} onChange={v=>updateProj(p.id,{enabled:v})}/>
+                    <div style={{ display: 'flex', gap: 4, marginLeft: 4 }}>
+                      <button onClick={()=>updateProj(p.id,{orientation: p.orientation === 'horizontal' ? 'vertical' : 'horizontal'})} style={{ background:p.orientation==='horizontal'?"#3b82f618":"#1a1a1a",color:p.orientation==='horizontal'?"#3b82f6":"#555",border:`1px solid ${p.orientation==='horizontal'?"#3b82f6":"#2a2a2a"}`,borderRadius:7,padding:"4px 8px",cursor:"pointer",fontSize:11,fontWeight:700 }}>
+                        {p.orientation === 'horizontal' ? '16:9' : '9:16'}
+                      </button>
+                    </div>
                     <button onClick={()=>{startEdit(`pv_t_${p.id}`,p.title);startEdit(`pv_l_${p.id}`,p.link);}} style={{ background:"#1a1a2a",color:"#3b82f6",border:"none",borderRadius:7,width:30,height:30,cursor:"pointer",fontSize:13,marginLeft:4 }}>✏️</button>
                     <button onClick={()=>deleteProj(p.id)} style={{ background:"#2a0a0a",color:"#e63027",border:"none",borderRadius:7,width:30,height:30,cursor:"pointer",fontSize:13 }}>🗑</button>
                   </DragRow>
@@ -582,7 +587,7 @@ export default function Admin() {
 
 // ─── ADD VIDEO MODAL ──────────────────────────────────────────────────────────
 const AddVideoModal = ({ categories, onAdd, onClose }) => {
-  const [form, setForm] = useState({ title:"",link:"",category:categories[0]?.id||"",enabled:true });
+  const [form, setForm] = useState({ title:"",link:"",category:categories[0]?.id||"",enabled:true, orientation: 'vertical' });
   const [err,  setErr]  = useState("");
   const inpS: React.CSSProperties = { background:"#0d0d0d",border:"1px solid #2a2a2a",borderRadius:10,padding:"10px 14px",color:"#fff",fontSize:14,width:"100%",outline:"none",boxSizing:"border-box" };
   const submit = () => {
@@ -610,6 +615,21 @@ const AddVideoModal = ({ categories, onAdd, onClose }) => {
             color:form.category===c.id?"#e63027":"#555",fontSize:12,fontWeight:700,textAlign:"left",
           }}>{form.category===c.id?"✓ ":""}{c.label}</button>
         ))}
+      </div>
+      <MLabel>ORIENTATION</MLabel>
+      <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:7,marginBottom:14 }}>
+        <button onClick={()=>setForm(f=>({...f,orientation:'vertical'}))} style={{
+          background:form.orientation==='vertical'?"#e6302718":"#0d0d0d",
+          border:`1px solid ${form.orientation==='vertical'?"#e63027":"#2a2a2a"}`,
+          borderRadius:9,padding:"9px 12px",cursor:"pointer",
+          color:form.orientation==='vertical'?"#e63027":"#555",fontSize:12,fontWeight:700,textAlign:"center",
+        }}>Vertical (9:16)</button>
+        <button onClick={()=>setForm(f=>({...f,orientation:'horizontal'}))} style={{
+          background:form.orientation==='horizontal'?"#e6302718":"#0d0d0d",
+          border:`1px solid ${form.orientation==='horizontal'?"#e63027":"#2a2a2a"}`,
+          borderRadius:9,padding:"9px 12px",cursor:"pointer",
+          color:form.orientation==='horizontal'?"#e63027":"#555",fontSize:12,fontWeight:700,textAlign:"center",
+        }}>Horizontal (16:9)</button>
       </div>
       <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",background:"#0d0d0d",border:"1px solid #222",borderRadius:9,padding:"10px 14px" }}>
         <span style={{ color:"#ccc",fontSize:13 }}>{form.enabled?"Visible":"Hidden"} on website</span>
