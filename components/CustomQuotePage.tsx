@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence, animate } from 'framer-motion';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -10,30 +10,16 @@ import {
   Link as LinkIcon, 
   Smartphone, 
   TrendingUp, 
-  Play, 
-  Layers,
-  ChevronRight,
-  CheckCircle2,
   Info,
   User,
   Phone,
   ShoppingBag,
-  Briefcase
+  Briefcase,
+  Layers,
+  CheckCircle2,
+  ChevronRight
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { db } from "../src/firebase";
-import { doc, getDoc } from "firebase/firestore";
-
-interface CustomStyle {
-  id: string;
-  name: string;
-  videoUrl: string;
-  description: string;
-  singlePrice: number;
-  discount6to15: number;
-  discount16plus: number;
-  category: string;
-}
 
 const CATEGORIES = [
   { id: 'Personal Branding', label: 'Personal Branding', icon: <Smartphone size={18} /> },
@@ -63,94 +49,58 @@ const NumberCounter = ({ value }: { value: number }) => {
   return <span>₹{displayValue.toLocaleString()}</span>;
 };
 
+interface CustomStyle {
+  id: string;
+  name: string;
+  price: string;
+  priceNum: number;
+  desc: string;
+}
+
+interface StyleCategory {
+  id: string;
+  label: string;
+  styles: CustomStyle[];
+}
+
 export const CustomQuotePage: React.FC = () => {
-  const [customStyles, setCustomStyles] = useState<CustomStyle[]>([]);
-  const [categorySettings, setCategorySettings] = useState<Record<string, boolean>>({});
-  const [activeCategory, setActiveCategory] = useState(CATEGORIES[0]);
-  const [selectedSubStyle, setSelectedSubStyle] = useState<any>(null);
+  const [categories, setCategories] = useState<StyleCategory[]>([]);
+  const [activeCategory, setActiveCategory] = useState<StyleCategory | null>(null);
+  const [selectedStyle, setSelectedStyle] = useState<CustomStyle | null>(null);
   const [quantity, setQuantity] = useState(5);
   const [refLink, setRefLink] = useState('');
   const [requirements, setRequirements] = useState('');
   const [fullName, setFullName] = useState('');
   const [contactNumber, setContactNumber] = useState('');
   const [selectedAddons, setSelectedAddons] = useState<Record<string, boolean>>({});
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const totalContainerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const docRef = doc(db, "portfolio", "data");
-        const docSnap = await getDoc(docRef);
-        
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          
-          // Flatten styles from all enabled pricing categories
-          const pricingCategories = data.pricing || [];
-          const allStyles: any[] = [];
-          const settings: Record<string, boolean> = {};
-          
-          pricingCategories.forEach((cat: any) => {
-            settings[cat.name] = cat.enabled !== false;
-            if (cat.enabled !== false) {
-              cat.styles.forEach((style: any) => {
-                if (style.enabled !== false) {
-                  allStyles.push({
-                    ...style,
-                    category: cat.name,
-                    // Map basePrice to singlePrice for compatibility
-                    singlePrice: style.basePrice
-                  });
-                }
-              });
-            }
-          });
-          
-          setCustomStyles(allStyles);
-          setCategorySettings(settings);
-          setRawPricing(pricingCategories);
-          
-          if (allStyles.length > 0) {
-            const firstStyle = allStyles[0];
-            setActiveCategory({ 
-              id: firstStyle.category, 
-              label: firstStyle.category, 
-              icon: CATEGORIES.find(c => c.id === firstStyle.category)?.icon || <Smartphone size={18} /> 
-            });
-          }
-        }
-      } catch (error) {
-        console.error('Failed to fetch data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
 
   const [rawPricing, setRawPricing] = useState<any[]>([]);
 
-  // Use admin styles to build the category list, filtered by visibility settings
-  const dynamicCategories = customStyles
-    .reduce((acc: any[], style: any) => {
-      if (!acc.find(c => c.id === style.category)) {
-        acc.push({
-          id: style.category,
-          label: style.category,
-          icon: CATEGORIES.find(c => c.id === style.category)?.icon || <Smartphone size={18} />
-        });
-      }
-      return acc;
-    }, []);
+  useEffect(() => {
+    // Mocking data fetching
+    const mockData: StyleCategory[] = [
+      {
+        id: 'branding',
+        label: 'Personal Branding',
+        styles: [
+          { id: 'styleA', name: 'Style A - Basic Captions', price: '₹3,000', priceNum: 3000, desc: 'Simple captions and basic cuts.' },
+          { id: 'styleB', name: 'Style B - Advanced Graphics', price: '₹2,000', priceNum: 2000, desc: 'Premium graphics and motion elements for higher engagement.' },
+          { id: 'styleC', name: 'Style C - Cinematic Storytelling', price: '₹2,500', priceNum: 2500, desc: 'Color grading, sound design, and cinematic cuts.' }
+        ]
+      },
+      { id: 'realestate', label: 'Real Estate', styles: [] },
+      { id: 'ai', label: 'AI Advertisement', styles: [] },
+      { id: 'motion', label: 'Motion Graphics', styles: [] }
+    ];
+    setCategories(mockData);
+    setActiveCategory(mockData[0]);
+    setSelectedStyle(mockData[0].styles[1]);
+  }, []);
 
-  // Get active style data from admin or defaults
-  const currentAdminStyle = customStyles.find(s => s.category === activeCategory.id);
-  
-  const activePricingCategory = rawPricing.find(cat => cat.name === activeCategory.id);
-  const subStyles = activePricingCategory?.styles?.filter((s: any) => s.enabled !== false) || [];
-
-  const basePrice = selectedSubStyle?.basePrice || currentAdminStyle?.singlePrice || 1500;
+  // Default base price
+  const basePrice = selectedStyle ? selectedStyle.priceNum : 1500;
 
   const calculateQuote = () => {
     const original = basePrice * quantity;
@@ -196,7 +146,7 @@ export const CustomQuotePage: React.FC = () => {
     }));
   };
 
-  const isFormValid = fullName.trim() !== '' && contactNumber.trim() !== '' && (subStyles.length === 0 || selectedSubStyle);
+  const isFormValid = fullName.trim() !== '' && contactNumber.trim() !== '';
 
   const handleSendWhatsApp = () => {
     if (!isFormValid) return;
@@ -215,7 +165,7 @@ export const CustomQuotePage: React.FC = () => {
     const formattedFinalTotal = 'Rs. ' + final.toLocaleString('en-IN');
     const formattedOriginalTotal = 'Rs. ' + original.toLocaleString('en-IN');
     
-    const selectedStyle = sanitize(`${activeCategory.label}${selectedSubStyle ? ` (${selectedSubStyle.name})` : ''}`);
+    const selectedStyleLabel = 'Custom Selection';
     const videoCount = `${quantity} Videos`;
     
     const selectedAddonLabels = QUICK_ADDONS
@@ -281,7 +231,7 @@ export const CustomQuotePage: React.FC = () => {
     
     // Main Service Row
     tableBodyRows.push([
-        selectedStyle + '\nComplete editing, motion graphics, and captions.', 
+        selectedStyleLabel + '\nComplete editing, motion graphics, and captions.', 
         videoCount, 
         { content: formattedOriginalTotal, styles: { fontStyle: 'bold' } }
     ]);
@@ -407,7 +357,6 @@ export const CustomQuotePage: React.FC = () => {
     const message = `Hi Janish! I'm looking for a custom quote:
 - Name: ${fullName}
 - Contact: ${contactNumber}
-- Video Type: ${activeCategory.label} ${selectedSubStyle ? `(${selectedSubStyle.name})` : ''}
 - Quantity: ${quantity} videos/month
 - Add-ons: ${selectedAddonLabels.length > 0 ? selectedAddonLabels.join(', ') : 'None'}
 - Reference Link: ${refLink || 'Not provided'}
@@ -463,23 +412,20 @@ I have also downloaded the PDF quotation. Please check it!`;
 
           <div className="space-y-12 md:space-y-20">
             {/* Style Selection Section */}
-            <section className="space-y-6 md:space-y-8">
+            <section className="space-y-8">
               <h2 className="text-xl md:text-2xl font-bold flex items-center gap-2">
-                <Play size={24} className="text-[#E50914]" /> 1. Select Your Style
+                <Smartphone size={24} className="text-[#E50914]" /> 1. Select Your Style
               </h2>
               
-              <div className="flex flex-wrap gap-2 pb-2 md:pb-4 overflow-x-auto no-scrollbar category-nav">
-                {dynamicCategories.map((cat) => (
+              <div className="flex flex-wrap gap-3">
+                {categories.map((cat) => (
                   <button
                     key={cat.id}
-                    onClick={() => {
-                      setActiveCategory(cat);
-                      setSelectedSubStyle(null);
-                    }}
-                    className={`px-4 md:px-6 py-2 md:py-3 rounded-full border transition-all whitespace-nowrap text-[9px] md:text-[10px] font-bold tracking-widest uppercase category-btn ${
-                      activeCategory.id === cat.id 
-                        ? 'bg-[#E50914] text-white border-[#E50914]' 
-                        : 'bg-zinc-900/50 border-white/5 text-zinc-400 hover:border-white/20'
+                    onClick={() => { setActiveCategory(cat); setSelectedStyle(cat.styles[0] || null); }}
+                    className={`px-5 py-2 rounded-full text-sm font-bold uppercase tracking-wide transition-all ${
+                      activeCategory?.id === cat.id
+                        ? 'bg-[#E50914] text-white'
+                        : 'bg-zinc-900 text-zinc-400 border border-zinc-800 hover:text-white'
                     }`}
                   >
                     {cat.label}
@@ -487,69 +433,42 @@ I have also downloaded the PDF quotation. Please check it!`;
                 ))}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 items-center bg-zinc-900/30 p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] border border-white/5 style-selection-grid">
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={activeCategory.id + (selectedSubStyle?.id || '')}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                    className="flex justify-center video-preview-card"
-                  >
-                    <div className="relative aspect-[9/16] w-full md:max-w-[240px] rounded-2xl md:rounded-3xl overflow-hidden bg-zinc-900 border border-white/10 shadow-2xl">
-                      <iframe
-                        className="w-full h-full"
-                        src={`https://www.youtube-nocookie.com/embed/${selectedSubStyle?.videoUrl || currentAdminStyle?.videoUrl || 'KSoPrGLdUog'}?autoplay=1&mute=1&controls=0&loop=1&playlist=${selectedSubStyle?.videoUrl || currentAdminStyle?.videoUrl || 'KSoPrGLdUog'}&modestbranding=1&rel=0`}
-                        title={activeCategory.label}
-                        frameBorder="0"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      ></iframe>
-                    </div>
-                  </motion.div>
-                </AnimatePresence>
-
-                <div className="space-y-4 md:space-y-6 variations-list">
-                  <div>
-                    <h3 className="text-xl md:text-2xl font-bold mb-2">{selectedSubStyle?.name || activeCategory.label}</h3>
-                    <p className="text-zinc-400 text-sm md:text-base font-light leading-relaxed">
-                      {selectedSubStyle?.description || currentAdminStyle?.description || 'Premium high-retention video editing.'}
-                    </p>
-                  </div>
-
-                  <div className="pt-4 border-t border-white/5">
-                    <div className="flex items-baseline gap-3">
-                      <span className="text-2xl md:text-3xl font-black text-white tracking-tighter">
-                        ₹{basePrice.toLocaleString()}
-                        <span className="text-xs md:text-sm text-zinc-500 font-bold ml-2 uppercase tracking-widest">/ video</span>
-                      </span>
+              {activeCategory && activeCategory.styles.length > 0 && (
+                <div className="bg-[#121212] border border-zinc-800 rounded-3xl p-6 md:p-10 flex flex-col md:flex-row gap-10">
+                  <div className="w-full md:w-5/12 flex justify-center">
+                    <div className="relative w-full max-w-[280px] aspect-[9/16] bg-zinc-800 rounded-2xl overflow-hidden shadow-2xl border border-zinc-700">
+                      <img src="https://via.placeholder.com/280x500/333/fff?text=Video+Preview" alt="Video Preview" className="w-full h-full object-cover opacity-80" />
                     </div>
                   </div>
 
-                  {subStyles.length > 0 && (
-                    <div className="space-y-3">
-                      <label className="text-[9px] md:text-[10px] uppercase tracking-[0.2em] font-bold text-zinc-500 block">Variations</label>
-                      <div className="grid grid-cols-1 gap-2">
-                        {subStyles.map((style: any) => (
-                          <button
-                            key={style.id}
-                            onClick={() => setSelectedSubStyle(style)}
-                            className={`p-3 rounded-xl border transition-all text-left flex items-center justify-between group ${
-                              selectedSubStyle?.id === style.id 
-                                ? 'bg-white/10 border-[#E50914]' 
-                                : 'bg-zinc-900/50 border-white/5 hover:border-white/10'
-                            }`}
-                          >
-                            <span className="text-xs font-bold">
-                              {style.name} 
-                            </span>
-                            {selectedSubStyle?.id === style.id && <CheckCircle2 size={14} className="text-[#E50914]" />}
-                          </button>
-                        ))}
-                      </div>
+                  <div className="w-full md:w-7/12 flex flex-col justify-center">
+                    <div id="dynamic-content">
+                      <h1 className="text-3xl font-bold mb-3">{selectedStyle?.name} | {selectedStyle?.price}</h1>
+                      <p className="text-zinc-400 mb-6 text-sm md:text-base">{selectedStyle?.desc}</p>
+                      <div className="text-4xl font-extrabold mb-1">{selectedStyle?.price} <span className="text-sm font-medium text-zinc-500 tracking-widest uppercase">/ Video</span></div>
                     </div>
-                  )}
+
+                    <div className="w-full h-px bg-zinc-800 my-8"></div>
+
+                    <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-4">Variations</h3>
+                    
+                    <div className="flex flex-col gap-3">
+                      {activeCategory.styles.map((style) => (
+                        <div
+                          key={style.id}
+                          onClick={() => setSelectedStyle(style)}
+                          className={`p-4 rounded-xl border cursor-pointer transition-all duration-200 flex justify-between items-center ${
+                            selectedStyle?.id === style.id ? 'border-[#E50914] bg-[#1a1a1a]' : 'border-zinc-800 bg-[#121212] hover:border-zinc-600'
+                          }`}
+                        >
+                          <span className="font-semibold text-sm">{style.name} | {style.price}</span>
+                          {selectedStyle?.id === style.id && <CheckCircle2 size={16} className="text-[#E50914]" />}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
             </section>
 
             {/* Requirements Section */}

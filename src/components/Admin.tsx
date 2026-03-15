@@ -17,38 +17,18 @@ const INIT_CATEGORIES = [
   { id: "real_estate",       label: "REAL ESTATE",       enabled: true },
   { id: "motion_graphics",   label: "MOTION GRAPHICS",   enabled: true },
 ];
-const INIT_STYLES = [
-  { id: "personal_branding", label: "PERSONAL BRANDING", enabled: true, title: "Personal Branding",
-    description: "High-retention talking head videos with dynamic captions.", basePrice: 3000,
-    previewLink: "https://youtube.com/shorts/ex1",
-    variations: [
-      { id: "v1", label: "Style A - Basic Captions",        price: 3000,  enabled: true },
-      { id: "v2", label: "Style B - Advanced Graphics",     price: 5000,  enabled: true },
-      { id: "v3", label: "Style C - Cinematic Storytelling",price: 8000,  enabled: true },
+const INIT_STYLE_CATEGORIES = [
+  { id: "personal_branding", label: "PERSONAL BRANDING", enabled: true,
+    styles: [
+      { id: "v1", label: "Style A - Basic Captions",        price: 3000,  enabled: true, videoUrl: "https://youtube.com/shorts/ex1", description: "Basic captions" },
+      { id: "v2", label: "Style B - Advanced Graphics",     price: 5000,  enabled: true, videoUrl: "https://youtube.com/shorts/ex2", description: "Advanced graphics" },
+      { id: "v3", label: "Style C - Cinematic Storytelling",price: 8000,  enabled: true, videoUrl: "https://youtube.com/shorts/ex3", description: "Cinematic storytelling" },
     ]},
-  { id: "real_estate", label: "REAL ESTATE", enabled: true, title: "Real Estate",
-    description: "Property showcase with smooth transitions and overlays.", basePrice: 4000,
-    previewLink: "https://youtube.com/shorts/ex2",
-    variations: [
-      { id: "v1", label: "Style A - Basic Tour",        price: 4000,  enabled: true },
-      { id: "v2", label: "Style B - Aerial + Ground",   price: 7000,  enabled: true },
-      { id: "v3", label: "Style C - Luxury Cinematic",  price: 12000, enabled: true },
-    ]},
-  { id: "ai_advertisement", label: "AI ADVERTISEMENT", enabled: true, title: "AI Advertisement",
-    description: "AI-powered ad creatives with motion graphics.", basePrice: 5000,
-    previewLink: "https://youtube.com/shorts/ex3",
-    variations: [
-      { id: "v1", label: "Style A - Basic AI Ad",     price: 5000,  enabled: true },
-      { id: "v2", label: "Style B - AI + VFX",        price: 8000,  enabled: true },
-      { id: "v3", label: "Style C - Full Production", price: 15000, enabled: true },
-    ]},
-  { id: "motion_graphics", label: "MOTION GRAPHICS", enabled: true, title: "Motion Graphics",
-    description: "Animated explainers, logo reveals, kinetic typography.", basePrice: 6000,
-    previewLink: "https://youtube.com/shorts/ex4",
-    variations: [
-      { id: "v1", label: "Style A - Logo Animation",   price: 6000,  enabled: true },
-      { id: "v2", label: "Style B - Explainer Video",  price: 10000, enabled: true },
-      { id: "v3", label: "Style C - Full Motion Reel", price: 18000, enabled: true },
+  { id: "real_estate", label: "REAL ESTATE", enabled: true,
+    styles: [
+      { id: "v1", label: "Style A - Basic Tour",        price: 4000,  enabled: true, videoUrl: "https://youtube.com/shorts/ex4", description: "Basic tour" },
+      { id: "v2", label: "Style B - Aerial + Ground",   price: 7000,  enabled: true, videoUrl: "https://youtube.com/shorts/ex5", description: "Aerial + Ground" },
+      { id: "v3", label: "Style C - Luxury Cinematic",  price: 12000, enabled: true, videoUrl: "https://youtube.com/shorts/ex6", description: "Luxury cinematic" },
     ]},
 ];
 const INIT_ADDONS = [
@@ -170,7 +150,7 @@ export default function Admin() {
   const [tab, setTab]               = useState("overview");
   const [projects,   setProjects]   = useState(INIT_PROJECTS);
   const [categories, setCategories] = useState(INIT_CATEGORIES);
-  const [styles,     setStyles]     = useState(INIT_STYLES);
+  const [styleCategories, setStyleCategories] = useState(INIT_STYLE_CATEGORIES);
   const [addons,     setAddons]     = useState(INIT_ADDONS);
   const [formFields, setFormFields] = useState(INIT_FORM_FIELDS);
   const [adminPassword, setAdminPassword] = useState("");
@@ -188,7 +168,7 @@ export default function Admin() {
           const data = docSnap.data();
           setCategories(data.portfolio);
           setProjects(data.portfolio.flatMap(c => c.projects));
-          setStyles(data.styles);
+          setStyleCategories(data.styleCategories || INIT_STYLE_CATEGORIES);
           setAddons(data.addons);
           setFormFields(data.formFields);
           setAdminPassword(data.adminPassword || "");
@@ -235,25 +215,25 @@ export default function Admin() {
   const addCat    = (c)       => setCategories(cs=>[...cs,{...c,enabled:true}]);
 
   // ── Styles ────────────────────────────────────────────────────────────────
-  const styleDrag   = useDragList(styles, setStyles);
-  const updateStyle = (id, ch) => setStyles(ss => ss.map(s=>s.id===id?{...s,...ch}:s));
-  const deleteStyle = (id)     => setStyles(ss => ss.filter(s=>s.id!==id));
-  const addStyle    = (s)      => setStyles(ss => [...ss, {...s, enabled:true, variations:[]}]);
+  const styleDrag = useDragList(styleCategories, setStyleCategories);
+  const updateStyleCat = (id, ch) => setStyleCategories(ss => ss.map(s => s.id === id ? { ...s, ...ch } : s));
+  const deleteStyleCat = (id) => setStyleCategories(ss => ss.filter(s => s.id !== id));
+  const addStyleCat = (s) => setStyleCategories(ss => [...ss, { ...s, enabled: true, styles: [] }]);
 
-  // ── Variations ────────────────────────────────────────────────────────────
-  const varDragFrom = useRef({});
-  const addVariation = (sid) => setStyles(ss=>ss.map(s=>s.id!==sid?s:{...s,variations:[...s.variations,{id:Date.now().toString(),label:"New Variation",price:0,enabled:true}]}));
-  const updateVar    = (sid, vid, ch) => setStyles(ss=>ss.map(s=>s.id!==sid?s:{...s,variations:s.variations.map(v=>v.id===vid?{...v,...ch}:v)}));
-  const deleteVar    = (sid, vid)     => setStyles(ss=>ss.map(s=>s.id!==sid?s:{...s,variations:s.variations.filter(v=>v.id!==vid)}));
-  const varDrop      = (sid, dropIdx) => {
-    const fi=varDragFrom.current[sid];
-    if(fi===undefined||fi===dropIdx){varDragFrom.current[sid]=undefined;return;}
-    setStyles(ss=>ss.map(s=>{
-      if(s.id!==sid)return s;
-      const vs=[...s.variations];
-      const [item]=vs.splice(fi,1); vs.splice(dropIdx,0,item);
-      varDragFrom.current[sid]=undefined;
-      return {...s,variations:vs};
+  // ── Styles (formerly Variations) ──────────────────────────────────────────
+  const styleItemDragFrom = useRef({});
+  const addStyleItem = (cid) => setStyleCategories(ss => ss.map(s => s.id !== cid ? s : { ...s, styles: [...s.styles, { id: Date.now().toString(), label: "New Style", price: 0, enabled: true, videoUrl: "", description: "" }] }));
+  const updateStyleItem = (cid, sid, ch) => setStyleCategories(ss => ss.map(s => s.id !== cid ? s : { ...s, styles: s.styles.map(v => v.id === sid ? { ...v, ...ch } : v) }));
+  const deleteStyleItem = (cid, sid) => setStyleCategories(ss => ss.map(s => s.id !== cid ? s : { ...s, styles: s.styles.filter(v => v.id !== sid) }));
+  const styleItemDrop = (cid, dropIdx) => {
+    const fi = styleItemDragFrom.current[cid];
+    if (fi === undefined || fi === dropIdx) { styleItemDragFrom.current[cid] = undefined; return; }
+    setStyleCategories(ss => ss.map(s => {
+      if (s.id !== cid) return s;
+      const vs = [...s.styles];
+      const [item] = vs.splice(fi, 1); vs.splice(dropIdx, 0, item);
+      styleItemDragFrom.current[cid] = undefined;
+      return { ...s, styles: vs };
     }));
   };
 
@@ -276,7 +256,7 @@ export default function Admin() {
           ...c,
           projects: projects.filter(p => p.category === c.id)
         })),
-        styles: styles,
+        styleCategories: styleCategories,
         addons: addons,
         formFields: formFields,
         adminPassword: adminPassword
@@ -301,7 +281,7 @@ export default function Admin() {
       {/* MODALS */}
       {modal?.type==="add_video" && <AddVideoModal categories={categories} onAdd={p=>{addProj(p);closeModal();}} onClose={closeModal}/>}
       {modal?.type==="add_cat"   && <AddCatModal   onAdd={c=>{addCat(c);closeModal();}}   onClose={closeModal}/>}
-      {modal?.type==="add_style" && <AddStyleModal  onAdd={s=>{addStyle(s);closeModal();}} onClose={closeModal}/>}
+      {modal?.type==="add_style" && <AddStyleCategoryModal  onAdd={s=>{addStyleCat(s);closeModal();}} onClose={closeModal}/>}
 
       {/* NAV */}
       <div style={{ background:"#0d0d0d",borderBottom:"1px solid #1a1a1a",padding:"0 28px",display:"flex",alignItems:"center",justifyContent:"space-between",height:60,position:"sticky",top:0,zIndex:100 }}>
@@ -344,7 +324,7 @@ export default function Admin() {
                 {[
                   { label:"Total Videos",  v:projects.length,                       icon:"🎬",c:"#e63027"},
                   { label:"Active Videos", v:projects.filter(p=>p.enabled).length,  icon:"✅",c:"#22c55e"},
-                  { label:"Active Styles", v:styles.filter(s=>s.enabled).length,    icon:"🎨",c:"#3b82f6"},
+                  { label:"Active Styles", v:styleCategories.filter(s=>s.enabled).length,    icon:"🎨",c:"#3b82f6"},
                   { label:"Form Sections", v:formFields.filter(f=>f.enabled).length,icon:"📋",c:"#f59e0b"},
                 ].map(s=>(
                   <div key={s.label} style={{ background:"#111",border:"1px solid #1e1e1e",borderRadius:14,padding:"18px 20px" }}>
@@ -502,71 +482,61 @@ export default function Admin() {
               </SectionCard>
 
               {/* STYLES */}
-              <SectionCard title="STYLE CONFIGURATIONS" icon="🎨" action={<Btn onClick={()=>openModal("add_style")} color="#e63027">+ Add Style</Btn>}>
-                <p style={{ color:"#555",fontSize:12,marginBottom:14 }}>Drag styles to reorder tabs • Expand each to edit pricing, variations</p>
-                {styles.map((s,si)=>(
-                  <div key={s.id}
-                    draggable onDragStart={()=>styleDrag.onDragStart(si)} onDragOver={styleDrag.onDragOver} onDrop={()=>styleDrag.onDrop(si)}
-                    style={{ background:"#0d0d0d",border:`1px solid ${s.enabled?"#252525":"#1a1a1a"}`,borderRadius:14,padding:18,marginBottom:14,opacity:s.enabled?1:0.6,cursor:"grab" }}>
+              <SectionCard title="STYLE CONFIGURATIONS" icon="🎨" action={<Btn onClick={()=>openModal("add_style")} color="#e63027">+ Add Category</Btn>}>
+                <p style={{ color:"#555",fontSize:12,marginBottom:14 }}>Drag categories to reorder • Expand each to edit styles</p>
+                {styleCategories.map((cat, ci) => (
+                  <div key={cat.id}
+                    draggable onDragStart={()=>styleDrag.onDragStart(ci)} onDragOver={styleDrag.onDragOver} onDrop={()=>styleDrag.onDrop(ci)}
+                    style={{ background:"#0d0d0d",border:`1px solid ${cat.enabled?"#252525":"#1a1a1a"}`,borderRadius:14,padding:18,marginBottom:14,opacity:cat.enabled?1:0.6,cursor:"grab" }}>
 
                     {/* Header row */}
                     <div style={{ display:"flex",alignItems:"center",gap:9,marginBottom:14 }}>
-                      <DragHandle/><Num n={si+1}/>
+                      <DragHandle/><Num n={ci+1}/>
                       <div style={{ flex:1 }}>
-                        <div style={{ fontFamily:"'Bebas Neue',cursive",fontSize:17,letterSpacing:2,color:"#fff" }}>{s.label}</div>
-                        <div style={{ color:"#555",fontSize:12 }}>{s.variations.length} variations</div>
+                        <div style={{ fontFamily:"'Bebas Neue',cursive",fontSize:17,letterSpacing:2,color:"#fff" }}>{cat.label}</div>
+                        <div style={{ color:"#555",fontSize:12 }}>{cat.styles.length} styles</div>
                       </div>
-                      <Toggle value={s.enabled} onChange={v=>updateStyle(s.id,{enabled:v})}/>
-                      <button onClick={()=>deleteStyle(s.id)} style={{ background:"#2a0a0a",color:"#e63027",border:"none",borderRadius:7,width:30,height:30,cursor:"pointer",fontSize:13 }}>🗑</button>
+                      <Toggle value={cat.enabled} onChange={v=>updateStyleCat(cat.id,{enabled:v})}/>
+                      <button onClick={()=>deleteStyleCat(cat.id)} style={{ background:"#2a0a0a",color:"#e63027",border:"none",borderRadius:7,width:30,height:30,cursor:"pointer",fontSize:13 }}>🗑</button>
                     </div>
 
-                    {/* Fields */}
-                    <div style={{ display:"grid",gridTemplateColumns:"150px 1fr",gap:10,marginBottom:12 }}>
-                      <div>
-                        <MLabel>BASE PRICE (₹)</MLabel>
-                        <input type="number" value={s.basePrice} onChange={e=>updateStyle(s.id,{basePrice:Number(e.target.value)})}
-                          style={{...IS,width:"100%",fontWeight:700,color:"#e63027",fontSize:16}}/>
-                      </div>
-                      <div>
-                        <MLabel>PREVIEW VIDEO LINK</MLabel>
-                        <input value={s.previewLink} onChange={e=>updateStyle(s.id,{previewLink:e.target.value})}
-                          placeholder="YouTube / Instagram link" style={{...IS,width:"100%"}}/>
-                      </div>
-                    </div>
-                    <div style={{ marginBottom:14 }}>
-                      <MLabel>DESCRIPTION</MLabel>
-                      <input value={s.description} onChange={e=>updateStyle(s.id,{description:e.target.value})}
-                        placeholder="Short description for clients" style={{...IS,width:"100%"}}/>
-                    </div>
-
-                    {/* Variations */}
+                    {/* Styles */}
                     <div style={{ background:"#111",borderRadius:10,padding:14 }}>
                       <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10 }}>
-                        <MLabel>VARIATIONS ({s.variations.length})</MLabel>
-                        <Btn onClick={()=>addVariation(s.id)} color="#22c55e" style={{ padding:"4px 10px",fontSize:12 }}>+ Add Variation</Btn>
+                        <MLabel>STYLES ({cat.styles.length})</MLabel>
+                        <Btn onClick={()=>addStyleItem(cat.id)} color="#22c55e" style={{ padding:"4px 10px",fontSize:12 }}>+ Add Style</Btn>
                       </div>
-                      {s.variations.map((v,vi)=>(
-                        <div key={v.id}
+                      {cat.styles.map((s, si)=>(
+                        <div key={s.id}
                           draggable
-                          onDragStart={e=>{e.stopPropagation();varDragFrom.current[s.id]=vi;}}
+                          onDragStart={e=>{e.stopPropagation();styleItemDragFrom.current[cat.id]=si;}}
                           onDragOver={e=>e.preventDefault()}
-                          onDrop={e=>{e.stopPropagation();varDrop(s.id,vi);}}
-                          style={{ display:"flex",alignItems:"center",gap:8,background:"#161616",border:"1px solid #1e1e1e",borderRadius:8,padding:"8px 10px",marginBottom:6,cursor:"grab" }}>
-                          <DragHandle/><Num n={vi+1}/>
-                          <input value={v.label} onChange={e=>updateVar(s.id,v.id,{label:e.target.value})}
-                            style={{ flex:1,background:"transparent",border:"none",color:v.enabled?"#ccc":"#444",fontSize:13,outline:"none"}}/>
-                          <span style={{ color:"#e63027",fontWeight:700,fontSize:13 }}>₹</span>
-                          <input type="number" value={v.price} onChange={e=>updateVar(s.id,v.id,{price:Number(e.target.value)})}
-                            style={{ width:80,background:"#0a0a0a",border:"1px solid #2a2a2a",borderRadius:6,padding:"4px 8px",color:"#e63027",fontSize:13,fontWeight:700,outline:"none"}}/>
-                          <Toggle value={v.enabled} onChange={val=>updateVar(s.id,v.id,{enabled:val})}/>
-                          <button onClick={()=>deleteVar(s.id,v.id)} style={{ background:"#2a0a0a",color:"#e63027",border:"none",borderRadius:6,width:26,height:26,cursor:"pointer",fontSize:12 }}>✕</button>
+                          onDrop={e=>{e.stopPropagation();styleItemDrop(cat.id,si);}}
+                          style={{ background:"#161616",border:"1px solid #1e1e1e",borderRadius:8,padding:"10px",marginBottom:6,cursor:"grab" }}>
+                          
+                          <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:8 }}>
+                            <DragHandle/><Num n={si+1}/>
+                            <input value={s.label} onChange={e=>updateStyleItem(cat.id,s.id,{label:e.target.value})}
+                              style={{ flex:1,background:"transparent",border:"none",color:s.enabled?"#ccc":"#444",fontSize:13,outline:"none"}}/>
+                            <span style={{ color:"#e63027",fontWeight:700,fontSize:13 }}>₹</span>
+                            <input type="number" value={s.price} onChange={e=>updateStyleItem(cat.id,s.id,{price:Number(e.target.value)})}
+                              style={{ width:80,background:"#0a0a0a",border:"1px solid #2a2a2a",borderRadius:6,padding:"4px 8px",color:"#e63027",fontSize:13,fontWeight:700,outline:"none"}}/>
+                            <Toggle value={s.enabled} onChange={val=>updateStyleItem(cat.id,s.id,{enabled:val})}/>
+                            <button onClick={()=>deleteStyleItem(cat.id,s.id)} style={{ background:"#2a0a0a",color:"#e63027",border:"none",borderRadius:6,width:26,height:26,cursor:"pointer",fontSize:12 }}>✕</button>
+                          </div>
+                          <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:8 }}>
+                            <input value={s.videoUrl} onChange={e=>updateStyleItem(cat.id,s.id,{videoUrl:e.target.value})}
+                              placeholder="Video Link" style={{...IS,fontSize:12}}/>
+                            <input value={s.description} onChange={e=>updateStyleItem(cat.id,s.id,{description:e.target.value})}
+                              placeholder="Description" style={{...IS,fontSize:12}}/>
+                          </div>
                         </div>
                       ))}
-                      {s.variations.length===0 && <Empty>No variations — click + Add Variation</Empty>}
+                      {cat.styles.length===0 && <Empty>No styles — click + Add Style</Empty>}
                     </div>
                   </div>
                 ))}
-                {styles.length===0 && <Empty>No styles — click + Add Style</Empty>}
+                {styleCategories.length===0 && <Empty>No categories — click + Add Category</Empty>}
               </SectionCard>
             </div>
           )}
@@ -665,35 +635,24 @@ const AddCatModal = ({ onAdd, onClose }) => {
   );
 };
 
-// ─── ADD STYLE MODAL ──────────────────────────────────────────────────────────
-const AddStyleModal = ({ onAdd, onClose }) => {
-  const [form,setForm] = useState({ label:"",description:"",basePrice:3000,previewLink:"" });
-  const [err, setErr]  = useState("");
+// ─── ADD STYLE CATEGORY MODAL ──────────────────────────────────────────────────
+const AddStyleCategoryModal = ({ onAdd, onClose }) => {
+  const [label, setLabel] = useState("");
+  const [err,   setErr]   = useState("");
   const toId = s => s.toLowerCase().trim().replace(/\s+/g,"_").replace(/[^a-z0-9_]/g,"");
-  const inpS: React.CSSProperties = { background:"#0d0d0d",border:"1px solid #2a2a2a",borderRadius:10,padding:"10px 14px",color:"#fff",fontSize:14,width:"100%",outline:"none",boxSizing:"border-box",marginBottom:14 };
-  const submit = () => { if(!form.label.trim()){setErr("Style name is required");return;} onAdd({...form,id:toId(form.label),label:form.label.toUpperCase().trim(),title:form.label}); };
+  const submit = () => { if(!label.trim()){setErr("Category name is required");return;} onAdd({id:toId(label),label:label.toUpperCase().trim()}); };
   return (
-    <Modal title="ADD NEW STYLE" icon="🎨" onClose={onClose}
+    <Modal title="ADD STYLE CATEGORY" icon="🎨" onClose={onClose} maxWidth={420}
       footer={<>
         <button onClick={onClose} style={{ background:"#1a1a1a",color:"#666",border:"1px solid #2a2a2a",borderRadius:9,padding:"9px 20px",cursor:"pointer",fontWeight:600 }}>Cancel</button>
-        <button onClick={submit}  style={{ background:"#e63027",color:"#fff",border:"none",borderRadius:9,padding:"9px 24px",cursor:"pointer",fontWeight:700 }}>+ Add Style</button>
+        <button onClick={submit}  style={{ background:"#e63027",color:"#fff",border:"none",borderRadius:9,padding:"9px 24px",cursor:"pointer",fontWeight:700 }}>+ Add Category</button>
       </>}>
-      <MLabel>STYLE NAME *</MLabel>
-      <input autoFocus value={form.label} onChange={e=>{setForm(f=>({...f,label:e.target.value}));setErr("");}} placeholder="e.g. Podcast Editing" style={inpS}/>
-      <MLabel>DESCRIPTION</MLabel>
-      <input value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} placeholder="Short description for clients" style={inpS}/>
-      <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:10 }}>
-        <div>
-          <MLabel>BASE PRICE (₹)</MLabel>
-          <input type="number" value={form.basePrice} onChange={e=>setForm(f=>({...f,basePrice:Number(e.target.value)}))} style={{...inpS,color:"#e63027",fontWeight:700}}/>
-        </div>
-        <div>
-          <MLabel>PREVIEW LINK</MLabel>
-          <input value={form.previewLink} onChange={e=>setForm(f=>({...f,previewLink:e.target.value}))} placeholder="YouTube / Instagram" style={inpS}/>
-        </div>
-      </div>
-      <div style={{ color:"#555",fontSize:12,marginTop:-8 }}>Variations can be added after creating the style.</div>
-      {err && <div style={{ background:"#2a0a0a",border:"1px solid #e6302744",borderRadius:8,padding:"9px 13px",color:"#e63027",fontSize:13,marginTop:10 }}>⚠ {err}</div>}
+      <MLabel>CATEGORY NAME *</MLabel>
+      <input autoFocus value={label} onChange={e=>{setLabel(e.target.value);setErr("");}} onKeyDown={e=>{if(e.key==="Enter")submit();}}
+        placeholder="e.g. Personal Branding"
+        style={{ background:"#0d0d0d",border:"1px solid #2a2a2a",borderRadius:10,padding:"11px 14px",color:"#fff",fontSize:15,width:"100%",outline:"none",boxSizing:"border-box",marginBottom:10 }}/>
+      {label && <div style={{ color:"#555",fontSize:12,marginBottom:6 }}>ID: <span style={{ fontFamily:"monospace",color:"#777" }}>{toId(label)}</span></div>}
+      {err && <div style={{ background:"#2a0a0a",border:"1px solid #e6302744",borderRadius:8,padding:"9px 13px",color:"#e63027",fontSize:13 }}>⚠ {err}</div>}
     </Modal>
   );
 };

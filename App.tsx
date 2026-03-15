@@ -20,7 +20,8 @@ import {
   MessageCircle,
   Phone
 } from 'lucide-react';
-import { PortfolioGrid, ServiceBento } from './components/Portfolio';
+import { ServiceBento } from './components/Portfolio';
+import { PortfolioGridNew } from './components/PortfolioGridNew';
 
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from 'react-router-dom';
 import { CustomQuotePage } from './components/CustomQuotePage';
@@ -270,7 +271,7 @@ const MainSite: React.FC = () => {
               ))}
             </div>
           </div>
-          <PortfolioGrid activeCategory={activeCategory} />
+          <PortfolioGridNew activeCategory={activeCategory} />
         </div>
       </section>
 
