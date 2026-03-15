@@ -173,6 +173,7 @@ export default function Admin() {
   const [styles,     setStyles]     = useState(INIT_STYLES);
   const [addons,     setAddons]     = useState(INIT_ADDONS);
   const [formFields, setFormFields] = useState(INIT_FORM_FIELDS);
+  const [adminPassword, setAdminPassword] = useState("");
   const [filterCat,  setFilterCat]  = useState("all");
   const [saved,      setSaved]      = useState(false);
   const [modal,      setModal]      = useState(null);
@@ -190,6 +191,7 @@ export default function Admin() {
           setStyles(data.styles);
           setAddons(data.addons);
           setFormFields(data.formFields);
+          setAdminPassword(data.adminPassword || "");
         }
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -276,7 +278,8 @@ export default function Admin() {
         })),
         styles: styles,
         addons: addons,
-        formFields: formFields
+        formFields: formFields,
+        adminPassword: adminPassword
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);

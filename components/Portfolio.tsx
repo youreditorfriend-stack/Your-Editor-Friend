@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { db } from "../src/firebase";
 import { doc, getDoc } from "firebase/firestore";
+import { CustomVideoPlayer } from './CustomVideoPlayer';
 
 export const ServiceBento = () => {
   const services = [
@@ -102,7 +103,7 @@ interface PortfolioCardProps {
 }
 
 const getVideoMetadata = (work: any) => {
-  const url = work.url || (work.youtubeId ? `https://www.youtube.com/watch?v=${work.youtubeId}` : '');
+  const url = work.url || work.link || (work.youtubeId ? `https://www.youtube.com/watch?v=${work.youtubeId}` : '');
   
   // Detect orientation from URL if not explicitly set
   let orientation = work.orientation;
@@ -116,7 +117,7 @@ const getVideoMetadata = (work: any) => {
   
   let embedUrl = '';
   if (work.youtubeId) {
-    embedUrl = `https://www.youtube-nocookie.com/embed/${work.youtubeId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${work.youtubeId}&modestbranding=1&rel=0&enablejsapi=1&playsinline=1&iv_load_policy=3&fs=0`;
+    embedUrl = `https://www.youtube-nocookie.com/embed/${work.youtubeId}?autoplay=1&mute=0&controls=1&loop=1&playlist=${work.youtubeId}&modestbranding=1&rel=0&enablejsapi=1&playsinline=1&iv_load_policy=3&fs=1`;
   } else if (url.includes('instagram.com/reel/')) {
     embedUrl = `${url.split('?')[0]}embed/`;
   }
@@ -125,15 +126,34 @@ const getVideoMetadata = (work: any) => {
 };
 
 const PortfolioCard: React.FC<PortfolioCardProps> = ({ work, index }) => {
-  const [isHovered, setIsHovered] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
   const { aspectClass, embedUrl } = getVideoMetadata(work);
+  const url = work.url || work.link || (work.youtubeId ? `https://www.youtube.com/watch?v=${work.youtubeId}` : '');
+  const isDirectVideo = url.endsWith('.mp4') || url.endsWith('.webm');
 
-  const handleClick = () => {
-    const url = work.url || (work.youtubeId ? `https://www.youtube.com/watch?v=${work.youtubeId}` : '');
-    if (url) {
-      window.open(url, '_blank');
-    }
-  };
+  if (isDirectVideo) {
+    return (
+      <motion.div
+        layout
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 10 }}
+        transition={{ duration: 0.3, delay: index * 0.05, ease: "easeOut" }}
+        className={`relative group overflow-hidden rounded-2xl bg-zinc-900 border border-white/10 shadow-2xl transition-all duration-500 hover:border-red-500/50 hover:shadow-red-500/10 ${aspectClass}`}
+      >
+        <CustomVideoPlayer src={url} aspectClass={aspectClass} />
+        {/* Info UI */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20 flex flex-col justify-end p-4 md:p-8 pointer-events-none">
+          <div className="flex justify-between items-end">
+            <div>
+              <p className="text-[8px] md:text-[10px] font-black tracking-widest text-red-500 uppercase mb-1">{work.category}</p>
+              <h4 className="text-sm md:text-xl font-bold text-white leading-tight">{work.title}</h4>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div
@@ -146,44 +166,20 @@ const PortfolioCard: React.FC<PortfolioCardProps> = ({ work, index }) => {
         delay: index * 0.05,
         ease: "easeOut"
       }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      onClick={handleClick}
-      className={`relative group overflow-hidden rounded-2xl bg-zinc-900 border border-white/10 cursor-pointer shadow-2xl transition-all duration-500 hover:border-red-500/50 hover:shadow-red-500/10 ${aspectClass}`}
+      className={`relative group overflow-hidden rounded-2xl bg-zinc-900 border border-white/10 shadow-2xl transition-all duration-500 hover:border-red-500/50 hover:shadow-red-500/10 ${aspectClass}`}
     >
-      {/* Thumbnail / Placeholder */}
-      <div className={`absolute inset-0 z-0 transition-opacity duration-500 ${isHovered && embedUrl ? 'opacity-0' : 'opacity-100'}`}>
-        <img 
-          src={work.youtubeId 
-            ? `https://img.youtube.com/vi/${work.youtubeId}/hqdefault.jpg` 
-            : `https://images.unsplash.com/photo-${work.imgId}?auto=format&fit=crop&q=80&w=800&h=1200`
-          } 
-          className="w-full h-full object-cover opacity-100 group-hover:opacity-90 transition-all duration-700"
-          alt={work.title}
-          referrerPolicy="no-referrer"
-        />
+      {/* Video Player */}
+      <div className="absolute inset-0 z-0">
+        <iframe
+          className="w-full h-full"
+          style={{ transform: 'scale(1.01)', transformOrigin: 'center' }}
+          src={embedUrl.replace('mute=0', 'mute=1')}
+          title={work.title}
+          frameBorder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+        ></iframe>
       </div>
-
-      {/* Video Overlay / Player */}
-      <AnimatePresence>
-        {isHovered && embedUrl && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 z-10 bg-black overflow-hidden pointer-events-none"
-          >
-            <iframe
-              className="w-full h-full"
-              style={{ transform: 'scale(1.01)', transformOrigin: 'center' }}
-              src={embedUrl}
-              title={work.title}
-              frameBorder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            ></iframe>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Info UI */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20 flex flex-col justify-end p-4 md:p-8 pointer-events-none">
