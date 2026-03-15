@@ -25,6 +25,7 @@ import { PortfolioGrid, ServiceBento } from './components/Portfolio';
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from 'react-router-dom';
 import { CustomQuotePage } from './components/CustomQuotePage';
 import Admin from './src/components/Admin';
+import { Login } from './src/components/Login';
 import { db } from "./src/firebase";
 import { doc, getDoc } from "firebase/firestore";
 
@@ -393,12 +394,13 @@ const MainSite: React.FC = () => {
 };
 
 const App: React.FC = () => {
+  const [isAdmin, setIsAdmin] = useState(false);
   return (
     <Router>
       <Routes>
         <Route path="/" element={<MainSite />} />
         <Route path="/custom-quote" element={<CustomQuotePage />} />
-        <Route path="/admin" element={<Admin />} />
+        <Route path="/admin" element={isAdmin ? <Admin /> : <Login onLogin={() => setIsAdmin(true)} />} />
       </Routes>
     </Router>
   );
