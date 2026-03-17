@@ -10,12 +10,14 @@ interface Project {
   name: string;
   url: string;
   category: string;
+  orientation: 'vertical' | 'horizontal';
 }
 
 const PortfolioCard: React.FC<{ project: Project }> = ({ project }) => {
   const [isMuted, setIsMuted] = useState(true);
   const videoRef = useRef<HTMLVideoElement>(null);
 
+  const isHorizontal = project.orientation === 'horizontal';
   const isDirectVideo = project.url.endsWith('.mp4') || project.url.endsWith('.webm');
   const youtubeId = project.url.includes('youtube.com') || project.url.includes('youtu.be') 
     ? project.url.split('/').pop()?.split('?')[0] 
@@ -28,10 +30,21 @@ const PortfolioCard: React.FC<{ project: Project }> = ({ project }) => {
     }
   };
 
+  // Horizontal videos span 2 columns and use 16:9 aspect ratio
+  // Vertical videos use 9:16 aspect ratio in a single column
+  const wrapperClass = isHorizontal
+    ? `col-span-2 aspect-video`
+    : `col-span-1 aspect-[9/16]`;
+
+  // For YouTube horizontal embeds, we need a scaled iframe to fill properly
+  const iframeWrapperStyle: React.CSSProperties = isHorizontal
+    ? { position: 'relative', width: '100%', height: '100%' }
+    : { position: 'relative', width: '177.78%', height: '177.78%', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' };
+
   return (
     <div 
       onClick={toggleMute}
-      className={`relative group overflow-hidden rounded-xl bg-zinc-900 border border-white/5 shadow-lg transition-all duration-300 hover:border-red-500/30 aspect-[9/16] cursor-pointer`}
+      className={`relative group overflow-hidden rounded-xl bg-zinc-900 border border-white/5 shadow-lg transition-all duration-300 hover:border-red-500/30 cursor-pointer ${wrapperClass}`}
     >
       {isDirectVideo ? (
         <video
@@ -44,14 +57,17 @@ const PortfolioCard: React.FC<{ project: Project }> = ({ project }) => {
           className="w-full h-full object-cover pointer-events-none"
         />
       ) : (
-        <iframe
-          className="w-full h-full pointer-events-none"
-          src={`https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&mute=${isMuted ? 1 : 0}&loop=1&playlist=${youtubeId}&controls=0&modestbranding=1&rel=0&playsinline=1`}
-          title={project.name}
-          frameBorder="0"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowFullScreen
-        />
+        <div style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
+          <div style={iframeWrapperStyle}>
+            <iframe
+              style={{ width: '100%', height: '100%', pointerEvents: 'none', border: 'none' }}
+              src={`https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&mute=${isMuted ? 1 : 0}&loop=1&playlist=${youtubeId}&controls=0&modestbranding=1&rel=0&playsinline=1`}
+              title={project.name}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; compute-pressure"
+              allowFullScreen
+            />
+          </div>
+        </div>
       )}
 
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent z-10 flex flex-col justify-end p-4 pointer-events-none">
@@ -92,7 +108,8 @@ export const PortfolioGridNew: React.FC<{ activeCategory: string }> = ({ activeC
                     tag: cat.label,
                     name: proj.title,
                     url: proj.url || proj.link || (proj.youtubeId ? `https://www.youtube.com/watch?v=${proj.youtubeId}` : ''),
-                    category: cat.label
+                    category: cat.label,
+                    orientation: proj.orientation || 'vertical'
                   });
                 }
               });
@@ -123,7 +140,7 @@ export const PortfolioGridNew: React.FC<{ activeCategory: string }> = ({ activeC
   }
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
       {filteredProjects.map((p, i) => (
         <PortfolioCard key={i} project={p} />
       ))}
