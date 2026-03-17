@@ -32,9 +32,13 @@ const INIT_STYLE_CATEGORIES = [
     ]},
 ];
 const INIT_ADDONS = [
-  { id: "fast_delivery", label: "Need fast delivery ⚡", enabled: true },
-  { id: "thumbnails",    label: "Provide Thumbnails 🖼️", enabled: true },
+  { id: "fast_delivery", label: "Need fast delivery ⚡", enabled: true, price: 500 },
+  { id: "thumbnails",    label: "Provide Thumbnails 🖼️", enabled: true, price: 300 },
 ];
+const INIT_DISCOUNT_SETTINGS = {
+  tier1: { minVideos: 6,  maxVideos: 15, discountPercent: 5  },
+  tier2: { minVideos: 16, maxVideos: 30, discountPercent: 10 },
+};
 const INIT_FORM_FIELDS = [
   { id: "slider",      label: "Videos Per Month Slider", enabled: true },
   { id: "addons_blk",  label: "Quick Add-ons Block",     enabled: true },
@@ -153,6 +157,7 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
   const [styleCategories, setStyleCategories] = useState(INIT_STYLE_CATEGORIES);
   const [addons,     setAddons]     = useState(INIT_ADDONS);
   const [formFields, setFormFields] = useState(INIT_FORM_FIELDS);
+  const [discountSettings, setDiscountSettings] = useState(INIT_DISCOUNT_SETTINGS);
   const [adminPassword, setAdminPassword] = useState("");
   const [filterCat,  setFilterCat]  = useState("all");
   const [saved,      setSaved]      = useState(false);
@@ -171,6 +176,7 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
           setStyleCategories(data.styleCategories || INIT_STYLE_CATEGORIES);
           setAddons(data.addons);
           setFormFields(data.formFields);
+          setDiscountSettings(data.discountSettings || INIT_DISCOUNT_SETTINGS);
           setAdminPassword(data.adminPassword || "");
         }
       } catch (error) {
@@ -241,7 +247,7 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
   const addonDrag   = useDragList(addons, setAddons);
   const updateAddon = (id, ch) => setAddons(a=>a.map(x=>x.id===id?{...x,...ch}:x));
   const deleteAddon = (id)     => setAddons(a=>a.filter(x=>x.id!==id));
-  const addAddon    = ()       => setAddons(a=>[...a,{id:Date.now().toString(),label:"New Add-on",enabled:true}]);
+  const addAddon    = ()       => setAddons(a=>[...a,{id:Date.now().toString(),label:"New Add-on",enabled:true,price:0}]);
 
   // ── Form Fields ───────────────────────────────────────────────────────────
   const fieldDrag   = useDragList(formFields, setFormFields);
@@ -259,6 +265,7 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
         styleCategories: styleCategories,
         addons: addons,
         formFields: formFields,
+        discountSettings: discountSettings,
         adminPassword: adminPassword
       });
       setSaved(true);
@@ -436,6 +443,74 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
               <h1 style={{ fontFamily:"'Bebas Neue',cursive",fontSize:30,letterSpacing:3,margin:"0 0 4px" }}>CUSTOM <span style={{ color:"#e63027" }}>QUOTE</span> PAGE</h1>
               <p style={{ color:"#555",fontSize:13,marginBottom:22 }}>Drag ⠿ to reorder • Add / Delete • Toggle on/off • Edit inline</p>
 
+              {/* DISCOUNT SETTINGS */}
+              <SectionCard title="DISCOUNT SETTINGS" icon="🏷️">
+                <p style={{ color:"#555",fontSize:12,marginBottom:16 }}>Set bulk discount tiers based on video count. Applied only on video cost (not add-ons).</p>
+                <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:14 }}>
+                  {/* Tier 1 */}
+                  <div style={{ background:"#0d0d0d",border:"1px solid #2a2a2a",borderRadius:12,padding:16 }}>
+                    <div style={{ color:"#f59e0b",fontWeight:700,fontSize:13,marginBottom:12,letterSpacing:1 }}>TIER 1 DISCOUNT</div>
+                    <div style={{ display:"flex",flexDirection:"column",gap:10 }}>
+                      <div style={{ display:"flex",alignItems:"center",gap:8 }}>
+                        <span style={{ color:"#555",fontSize:12,width:110 }}>Min Videos</span>
+                        <input type="number" value={discountSettings.tier1.minVideos}
+                          onChange={e=>setDiscountSettings(d=>({...d,tier1:{...d.tier1,minVideos:Number(e.target.value)}}))}
+                          style={{ ...IS,width:70,textAlign:"center" }}/>
+                      </div>
+                      <div style={{ display:"flex",alignItems:"center",gap:8 }}>
+                        <span style={{ color:"#555",fontSize:12,width:110 }}>Max Videos</span>
+                        <input type="number" value={discountSettings.tier1.maxVideos}
+                          onChange={e=>setDiscountSettings(d=>({...d,tier1:{...d.tier1,maxVideos:Number(e.target.value)}}))}
+                          style={{ ...IS,width:70,textAlign:"center" }}/>
+                      </div>
+                      <div style={{ display:"flex",alignItems:"center",gap:8 }}>
+                        <span style={{ color:"#555",fontSize:12,width:110 }}>Discount %</span>
+                        <div style={{ display:"flex",alignItems:"center",gap:4,background:"#0a0a0a",border:"1px solid #2a2a2a",borderRadius:7,padding:"4px 8px" }}>
+                          <input type="number" value={discountSettings.tier1.discountPercent}
+                            onChange={e=>setDiscountSettings(d=>({...d,tier1:{...d.tier1,discountPercent:Number(e.target.value)}}))}
+                            style={{ width:50,background:"transparent",border:"none",color:"#f59e0b",fontSize:14,fontWeight:700,outline:"none",textAlign:"center" }}/>
+                          <span style={{ color:"#f59e0b",fontWeight:700 }}>%</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ marginTop:10,background:"#1a1500",border:"1px solid #f59e0b22",borderRadius:8,padding:"8px 12px",color:"#f59e0b",fontSize:11 }}>
+                      {discountSettings.tier1.minVideos}–{discountSettings.tier1.maxVideos} videos → {discountSettings.tier1.discountPercent}% OFF
+                    </div>
+                  </div>
+
+                  {/* Tier 2 */}
+                  <div style={{ background:"#0d0d0d",border:"1px solid #2a2a2a",borderRadius:12,padding:16 }}>
+                    <div style={{ color:"#22c55e",fontWeight:700,fontSize:13,marginBottom:12,letterSpacing:1 }}>TIER 2 DISCOUNT</div>
+                    <div style={{ display:"flex",flexDirection:"column",gap:10 }}>
+                      <div style={{ display:"flex",alignItems:"center",gap:8 }}>
+                        <span style={{ color:"#555",fontSize:12,width:110 }}>Min Videos</span>
+                        <input type="number" value={discountSettings.tier2.minVideos}
+                          onChange={e=>setDiscountSettings(d=>({...d,tier2:{...d.tier2,minVideos:Number(e.target.value)}}))}
+                          style={{ ...IS,width:70,textAlign:"center" }}/>
+                      </div>
+                      <div style={{ display:"flex",alignItems:"center",gap:8 }}>
+                        <span style={{ color:"#555",fontSize:12,width:110 }}>Max Videos</span>
+                        <input type="number" value={discountSettings.tier2.maxVideos}
+                          onChange={e=>setDiscountSettings(d=>({...d,tier2:{...d.tier2,maxVideos:Number(e.target.value)}}))}
+                          style={{ ...IS,width:70,textAlign:"center" }}/>
+                      </div>
+                      <div style={{ display:"flex",alignItems:"center",gap:8 }}>
+                        <span style={{ color:"#555",fontSize:12,width:110 }}>Discount %</span>
+                        <div style={{ display:"flex",alignItems:"center",gap:4,background:"#0a0a0a",border:"1px solid #2a2a2a",borderRadius:7,padding:"4px 8px" }}>
+                          <input type="number" value={discountSettings.tier2.discountPercent}
+                            onChange={e=>setDiscountSettings(d=>({...d,tier2:{...d.tier2,discountPercent:Number(e.target.value)}}))}
+                            style={{ width:50,background:"transparent",border:"none",color:"#22c55e",fontSize:14,fontWeight:700,outline:"none",textAlign:"center" }}/>
+                          <span style={{ color:"#22c55e",fontWeight:700 }}>%</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ marginTop:10,background:"#0d1a0d",border:"1px solid #22c55e22",borderRadius:8,padding:"8px 12px",color:"#22c55e",fontSize:11 }}>
+                      {discountSettings.tier2.minVideos}+ videos → {discountSettings.tier2.discountPercent}% OFF
+                    </div>
+                  </div>
+                </div>
+              </SectionCard>
+
               {/* FORM FIELDS */}
               <SectionCard title="FORM FIELDS" icon="📋" action={<Btn onClick={addField} color="#f59e0b">+ Add Field</Btn>}>
                 <p style={{ color:"#555",fontSize:12,marginBottom:12 }}>Drag to reorder fields shown on the quote form</p>
@@ -462,7 +537,7 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
 
               {/* QUICK ADD-ONS */}
               <SectionCard title="QUICK ADD-ONS" icon="➕" action={<Btn onClick={addAddon} color="#a78bfa">+ Add Add-on</Btn>}>
-                <p style={{ color:"#555",fontSize:12,marginBottom:12 }}>Drag to reorder add-on buttons on the form</p>
+                <p style={{ color:"#555",fontSize:12,marginBottom:12 }}>Drag to reorder • Set price per video for each add-on</p>
                 {addons.map((a,i)=>(
                   <DragRow key={a.id} index={i} drag={addonDrag}>
                     <DragHandle/><Num n={i+1}/>
@@ -475,6 +550,18 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
                       ) : (
                         <span style={{ color:a.enabled?"#ccc":"#444",fontSize:14 }}>{a.label}</span>
                       )}
+                    </div>
+                    {/* Price per video input */}
+                    <div style={{ display:"flex",alignItems:"center",gap:4,background:"#0a0a0a",border:"1px solid #2a2a2a",borderRadius:7,padding:"4px 8px" }}>
+                      <span style={{ color:"#e63027",fontWeight:700,fontSize:12 }}>₹</span>
+                      <input
+                        type="number"
+                        value={a.price ?? 0}
+                        onChange={e=>updateAddon(a.id,{price:Number(e.target.value)})}
+                        placeholder="0"
+                        style={{ width:60,background:"transparent",border:"none",color:"#e63027",fontSize:13,fontWeight:700,outline:"none",textAlign:"right" }}
+                      />
+                      <span style={{ color:"#555",fontSize:10,whiteSpace:"nowrap" }}>/video</span>
                     </div>
                     <Toggle value={a.enabled} onChange={v=>updateAddon(a.id,{enabled:v})}/>
                     <button onClick={()=>startEdit(`ao_${a.id}`,a.label)} style={{ background:"#1a1a2a",color:"#3b82f6",border:"none",borderRadius:7,width:30,height:30,cursor:"pointer",fontSize:13 }}>✏️</button>
