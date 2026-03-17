@@ -65,20 +65,22 @@ const PortfolioCard: React.FC<{ project: Project; index: number }> = ({ project,
 
   const wrapperClass = isHorizontal ? 'col-span-2 aspect-video' : 'col-span-1 aspect-[9/16]';
 
-  // For vertical YouTube videos: iframe must be taller & wider than container
-  // YouTube adds black bars unless we scale the iframe to fill
-  // Vertical (9:16): iframe at 56.25% width of a 16:9 box = use inverse scaling
-  // We scale iframe so it fills the 9:16 container without black bars
-  const iframeContainerStyle: React.CSSProperties = isHorizontal
-    ? { position: 'absolute', inset: 0 }
-    : {
-        position: 'absolute',
-        // Scale up iframe to crop YouTube's black letterbox bars
-        top: '50%', left: '50%',
-        width: '300%', height: '300%',
-        transform: 'translate(-50%, -50%)',
-        pointerEvents: 'none',
-      };
+  // For vertical shorts: use /shorts/ embed path so YouTube renders 9:16 natively
+  // For horizontal: use standard /embed/ path
+  const embedUrl = youtubeId
+    ? isHorizontal
+      ? `https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&mute=${isMuted ? 1 : 0}&loop=1&playlist=${youtubeId}&controls=0&modestbranding=1&rel=0&playsinline=1`
+      : `https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&mute=${isMuted ? 1 : 0}&loop=1&playlist=${youtubeId}&controls=0&modestbranding=1&rel=0&playsinline=1`
+    : '';
+
+  // Vertical: iframe fills container fully — no scaling needed when using correct aspect container
+  const iframeContainerStyle: React.CSSProperties = {
+    position: 'absolute',
+    inset: 0,
+    width: '100%',
+    height: '100%',
+    pointerEvents: 'none',
+  };
 
   return (
     <div
@@ -118,8 +120,8 @@ const PortfolioCard: React.FC<{ project: Project; index: number }> = ({ project,
         ) : youtubeId ? (
           <div style={{ ...iframeContainerStyle, zIndex: 2 }}>
             <iframe
-              style={{ width: '100%', height: '100%', border: 'none', pointerEvents: 'none' }}
-              src={`https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&mute=${isMuted ? 1 : 0}&loop=1&playlist=${youtubeId}&controls=0&modestbranding=1&rel=0&playsinline=1&enablejsapi=0`}
+              style={{ width: '100%', height: '100%', border: 'none', pointerEvents: 'none', display: 'block' }}
+              src={embedUrl}
               title={project.name}
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; compute-pressure"
               allowFullScreen
