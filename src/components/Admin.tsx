@@ -146,7 +146,7 @@ const Modal = ({ title, icon, onClose, children, footer, maxWidth=480 }: { title
 };
 
 // ─── MAIN ADMIN ───────────────────────────────────────────────────────────────
-export default function Admin() {
+export default function Admin({ onLogout }: { onLogout?: () => void }) {
   const [tab, setTab]               = useState("overview");
   const [projects,   setProjects]   = useState(INIT_PROJECTS);
   const [categories, setCategories] = useState(INIT_CATEGORIES);
@@ -292,6 +292,9 @@ export default function Admin() {
         <div style={{ display:"flex",gap:8,alignItems:"center" }}>
           {saved && <span style={{ background:"#0d2a0d",border:"1px solid #22c55e44",color:"#22c55e",borderRadius:7,padding:"5px 14px",fontSize:13,fontWeight:600 }}>✓ Saved!</span>}
           <button onClick={handleSave} style={{ background:"#e63027",color:"#fff",border:"none",borderRadius:8,padding:"7px 20px",cursor:"pointer",fontWeight:700,fontSize:14 }}>Save Changes</button>
+          {onLogout && (
+            <button onClick={onLogout} style={{ background:"#1a1a1a",color:"#666",border:"1px solid #2a2a2a",borderRadius:8,padding:"7px 16px",cursor:"pointer",fontWeight:600,fontSize:13 }}>Logout</button>
+          )}
         </div>
       </div>
 
