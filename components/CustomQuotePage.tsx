@@ -72,6 +72,10 @@ export const CustomQuotePage: React.FC = () => {
 
   const [rawPricing, setRawPricing] = useState<any[]>([]);
   const [addons, setAddons] = useState(QUICK_ADDONS_DEFAULT);
+  const [discountSettings, setDiscountSettings] = useState({
+    tier1: { minVideos: 6,  maxVideos: 15, discountPercent: 5  },
+    tier2: { minVideos: 16, maxVideos: 30, discountPercent: 10 },
+  });
 
   useEffect(() => {
     const fetchFromFirebase = async () => {
@@ -112,6 +116,11 @@ export const CustomQuotePage: React.FC = () => {
           if (data.addons && data.addons.length > 0) {
             setAddons(data.addons.filter((a: any) => a.enabled !== false));
           }
+
+          // Load discount settings from Firebase
+          if (data.discountSettings) {
+            setDiscountSettings(data.discountSettings);
+          }
         }
       } catch (error) {
         console.error('Firebase fetch error:', error);
@@ -124,22 +133,30 @@ export const CustomQuotePage: React.FC = () => {
   // Default base price
   const basePrice = selectedStyle ? selectedStyle.priceNum : 1500;
 
+  // Calculate total addon cost per video × quantity
+  const addonCostPerVideo = addons
+    .filter((a: any) => selectedAddons[a.id])
+    .reduce((sum: number, a: any) => sum + (Number(a.price) || 0), 0);
+
   const calculateQuote = () => {
-    const original = basePrice * quantity;
+    const videoSubtotal = basePrice * quantity;
+    const addonSubtotal = addonCostPerVideo * quantity;
+    const original = videoSubtotal;
     let discountPercent = 0;
-    
-    // Use admin defined discounts if available, else fallback to defaults
-    const d6to15 = 5; // Default discount
-    const d16plus = 10; // Default discount
 
-    if (quantity >= 16) discountPercent = d16plus;
-    else if (quantity >= 6) discountPercent = d6to15;
+    // Use admin-defined discount tiers from Firebase
+    if (quantity >= discountSettings.tier2.minVideos) {
+      discountPercent = discountSettings.tier2.discountPercent;
+    } else if (quantity >= discountSettings.tier1.minVideos) {
+      discountPercent = discountSettings.tier1.discountPercent;
+    }
 
-    const final = original * (1 - discountPercent / 100);
-    return { original, final, discount: discountPercent };
+    const discountedVideo = videoSubtotal * (1 - discountPercent / 100);
+    const final = discountedVideo + addonSubtotal;
+    return { original, videoSubtotal, addonSubtotal, discountedVideo, final, discount: discountPercent };
   };
 
-  const { original, final, discount } = calculateQuote();
+  const { original, videoSubtotal, addonSubtotal, discountedVideo, final, discount } = calculateQuote();
 
   useEffect(() => {
     if (discount >= 10) {
@@ -190,11 +207,15 @@ export const CustomQuotePage: React.FC = () => {
     const selectedStyleLabel = 'Custom Selection';
     const videoCount = `${quantity} Videos`;
     
-    const selectedAddonLabels = addons
+    const selectedAddonItems = addons
       .filter((addon: any) => selectedAddons[addon.id])
-      .map((addon: any) => sanitize(addon.label));
-    
-    const cleanAddons = selectedAddonLabels.join(', ');
+      .map((addon: any) => ({
+        label: sanitize(addon.label),
+        price: Number(addon.price) || 0,
+        total: (Number(addon.price) || 0) * quantity,
+      }));
+
+    const cleanAddons = selectedAddonItems.map(a => a.label).join(', ');
     const isDiscountApplied = discount > 0;
     const discountText = `${discount}% OFF Applied`;
 
@@ -248,32 +269,40 @@ export const CustomQuotePage: React.FC = () => {
     doc.setTextColor(255, 255, 255);
     doc.text(validTill.toLocaleDateString('en-IN'), 195, 68, { align: 'right' });
 
-    // --- 5. DYNAMIC TABLE ROWS (Back to 3 Columns) ---
+    // --- 5. DYNAMIC TABLE ROWS ---
     const tableBodyRows: any[] = [];
     
     // Main Service Row
     tableBodyRows.push([
         selectedStyleLabel + '\nComplete editing, motion graphics, and captions.', 
         videoCount, 
-        { content: formattedOriginalTotal, styles: { fontStyle: 'bold' } }
+        { content: 'Rs. ' + videoSubtotal.toLocaleString('en-IN'), styles: { fontStyle: 'bold' } }
     ]);
 
-    // Add-ons Row (With Reference Link)
-    if ((cleanAddons && cleanAddons.length > 0) || refLink) {
-        const refText = refLink ? `\nRef: ${sanitize(refLink)}` : '';
-        tableBodyRows.push([
-            { content: 'Add-ons: ' + (cleanAddons || 'None') + refText, styles: { fontStyle: 'italic', textColor: [180, 180, 180] } },
-            '-', 
-            { content: 'Included', styles: { fontStyle: 'bold' } }
-        ]);
-    }
-
-    // Discount Row (Original Price Strike-through)
+    // Discount Row
     if (isDiscountApplied) {
         tableBodyRows.push([
             { content: 'Discount: ' + discountText, styles: { textColor: [220, 38, 38], fontStyle: 'bold' } },
             '-',
-            { content: formattedOriginalTotal, styles: { textColor: [255, 80, 80] } } // Strike-out old price manually in didDrawCell
+            { content: '- Rs. ' + (videoSubtotal - discountedVideo).toLocaleString('en-IN'), styles: { textColor: [255, 80, 80], fontStyle: 'bold' } }
+        ]);
+    }
+
+    // Individual Addon Rows
+    selectedAddonItems.forEach(addon => {
+      tableBodyRows.push([
+        { content: addon.label, styles: { fontStyle: 'italic', textColor: [180, 180, 180] } },
+        { content: `Rs.${addon.price.toLocaleString('en-IN')} x ${quantity}`, styles: { textColor: [180, 180, 180], halign: 'center' } },
+        { content: 'Rs. ' + addon.total.toLocaleString('en-IN'), styles: { fontStyle: 'bold', textColor: [255, 255, 255] } }
+      ]);
+    });
+
+    // Reference link row
+    if (refLink) {
+        tableBodyRows.push([
+            { content: 'Reference: ' + sanitize(refLink), styles: { fontStyle: 'italic', textColor: [120, 120, 120], fontSize: 8 } },
+            '-',
+            { content: 'Included', styles: { textColor: [120, 120, 120] } }
         ]);
     }
 
@@ -296,18 +325,6 @@ export const CustomQuotePage: React.FC = () => {
                 doc.setDrawColor(40, 40, 40);
                 doc.setLineWidth(0.2);
                 doc.line(data.cell.x, data.cell.y + data.cell.height, data.cell.x + data.cell.width, data.cell.y + data.cell.height);
-
-                // Manual Strikethrough for original price in discount row (Column 2)
-                if (isDiscountApplied && data.row.index === tableBodyRows.length - 1 && data.column.index === 2) {
-                    const textWidth = doc.getTextWidth(formattedOriginalTotal);
-                    // Right aligned cell: x is start of text
-                    const x = data.cell.x + data.cell.width - data.cell.padding('right') - textWidth;
-                    const y = data.cell.y + (data.cell.height / 2) + 0.5;
-                    
-                    doc.setDrawColor(255, 80, 80);
-                    doc.setLineWidth(0.5);
-                    doc.line(x, y, x + textWidth, y);
-                }
             }
         }
     });
@@ -321,11 +338,20 @@ export const CustomQuotePage: React.FC = () => {
         finalY = 20;
     }
 
-    // --- 6. ESTIMATED TOTAL (Right Aligned, Bold) ---
+    // --- 6. ESTIMATED TOTAL ---
     doc.setFontSize(10);
     doc.setTextColor(150, 150, 150);
     doc.setFont("helvetica", "bold");
     doc.text('ESTIMATED TOTAL', 195, finalY, { align: 'right' });
+
+    // Show addon subtotal if any
+    if (addonSubtotal > 0) {
+      doc.setFontSize(9);
+      doc.setTextColor(150, 150, 150);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Video cost: Rs. ${discountedVideo.toLocaleString('en-IN')}  +  Add-ons: Rs. ${addonSubtotal.toLocaleString('en-IN')}`, 195, finalY + 7, { align: 'right' });
+      finalY += 5;
+    }
 
     // Final Price (Extra Large & Bold)
     doc.setFontSize(42); 
@@ -569,17 +595,31 @@ I have also downloaded the PDF quotation. Please check it!`;
                       <button
                         key={addon.id}
                         onClick={() => toggleAddon(addon.id)}
-                        className={`p-4 rounded-2xl border text-[10px] font-bold text-left transition-all flex items-center gap-3 ${
+                        className={`p-4 rounded-2xl border text-[10px] font-bold text-left transition-all flex flex-col gap-2 ${
                           selectedAddons[addon.id]
                             ? 'bg-[#E50914]/20 border-[#E50914] text-white'
                             : 'bg-zinc-900/50 border-white/5 text-zinc-400 hover:bg-white/5 hover:border-white/10'
                         }`}
                       >
-                        {selectedAddons[addon.id] ? <CheckCircle2 size={14} className="text-[#E50914]" /> : <div className="w-3.5 h-3.5 rounded-full border border-white/10" />}
-                        {addon.label}
+                        <div className="flex items-center gap-3">
+                          {selectedAddons[addon.id] ? <CheckCircle2 size={14} className="text-[#E50914]" /> : <div className="w-3.5 h-3.5 rounded-full border border-white/10" />}
+                          <span>{addon.label}</span>
+                        </div>
+                        {addon.price > 0 && (
+                          <div className={`text-[11px] font-black tracking-wide ${selectedAddons[addon.id] ? 'text-[#E50914]' : 'text-zinc-500'}`}>
+                            + ₹{Number(addon.price).toLocaleString('en-IN')} / video
+                          </div>
+                        )}
                       </button>
                     ))}
                   </div>
+                  {/* Addon subtotal indicator */}
+                  {addonCostPerVideo > 0 && Object.values(selectedAddons).some(Boolean) && (
+                    <div className="text-[10px] text-zinc-500 font-medium">
+                      Add-ons total: <span className="text-[#E50914] font-bold">₹{(addonCostPerVideo * quantity).toLocaleString('en-IN')}</span>
+                      <span className="text-zinc-600"> (₹{addonCostPerVideo.toLocaleString('en-IN')} × {quantity} videos)</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Input Fields */}
