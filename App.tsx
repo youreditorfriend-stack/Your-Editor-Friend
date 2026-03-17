@@ -524,7 +524,27 @@ const MainSite: React.FC = () => {
                       })()}
                       target="_blank"
                       rel="noopener noreferrer"
-                      onClick={() => setShowProjectModal(false)}
+                      onClick={() => {
+                        setShowProjectModal(false);
+                        // Save to Google Sheets
+                        fetch('https://script.google.com/macros/s/AKfycbw1TaSQ3vk2tnj7_ciI6Nb0pJES3w-CPYd5CLPqfBh68VFEIXfcGXstCg5yURo6yQpy/exec', {
+                          method: 'POST',
+                          mode: 'no-cors',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            source: 'Start Your Project Modal',
+                            name: projectForm.name,
+                            whatsapp: '',
+                            style: '',
+                            quantity: '',
+                            budget: projectForm.budget || '',
+                            refLink: projectForm.refLink || '',
+                            requirements: '',
+                            total: '',
+                            addons: '',
+                          }),
+                        }).catch(() => {});
+                      }}
                       className="flex-[2] bg-[#25D366] hover:bg-green-600 text-white py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 transition-all"
                     >
                       <MessageCircle size={18} fill="currentColor" /> Send on WhatsApp
