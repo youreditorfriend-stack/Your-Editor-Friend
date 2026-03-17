@@ -188,12 +188,49 @@ export const CustomQuotePage: React.FC = () => {
 
   const isFormValid = fullName.trim() !== '' && contactNumber.trim() !== '';
 
-  const handleSendWhatsApp = () => {
-    if (!isFormValid) return;
-    generatePDF();
+  // Detect Instagram / Facebook in-app browser (no file download support)
+  const isInAppBrowser = () => {
+    const ua = navigator.userAgent || '';
+    return /Instagram|FBAN|FBAV|FB_IAB|FB4A|FBIOS|Twitter|TikTok/i.test(ua);
   };
 
-  const generatePDF = () => {
+  const buildWhatsAppMessage = () => {
+    const selectedAddonLines = addons
+      .filter((a: any) => selectedAddons[a.id])
+      .map((a: any) => `  • ${a.label} (₹${Number(a.price).toLocaleString('en-IN')} x ${quantity} = ₹${(Number(a.price) * quantity).toLocaleString('en-IN')})`)
+      .join('\n');
+
+    return `Hi Janish! 👋 I'd like a Custom Quote.
+
+*Name:* ${fullName}
+*WhatsApp:* ${contactNumber}
+*Style:* ${selectedStyle?.name || 'Not selected'}
+*Videos / Month:* ${quantity}
+*Price per Video:* ₹${(selectedStyle?.priceNum || 0).toLocaleString('en-IN')}
+${selectedAddonLines ? `*Add-ons:*\n${selectedAddonLines}` : '*Add-ons:* None'}
+${discount > 0 ? `*Discount:* ${discount}% OFF` : ''}
+*Estimated Total:* ₹${final.toLocaleString('en-IN')}
+${refLink ? `*Reference Link:* ${refLink}` : ''}
+${requirements ? `*Requirements:* ${requirements}` : ''}
+
+Looking forward to working with you! 🎬`;
+  };
+
+  const handleSendWhatsApp = () => {
+    if (!isFormValid) return;
+
+    const waUrl = `https://wa.me/916374343169?text=${encodeURIComponent(buildWhatsAppMessage())}`;
+
+    if (isInAppBrowser()) {
+      // Instagram/Facebook browser can't download PDF — go directly to WhatsApp
+      window.open(waUrl, '_blank');
+    } else {
+      // Normal browser — generate PDF then open WhatsApp
+      generatePDF(waUrl);
+    }
+  };
+
+  const generatePDF = (waUrl: string) => {
     const doc = new jsPDF('p', 'mm', 'a4');
 
     // --- 1. Fetch & Sanitize Data ---
@@ -402,20 +439,8 @@ export const CustomQuotePage: React.FC = () => {
     // Save PDF
     doc.save(`Quotation_YourEditorFriend_${fullName.replace(/\s+/g, '_')}.pdf`);
 
-    // Trigger WhatsApp Redirect
-    const message = `Hi Janish! I'm looking for a custom quote:
-- Name: ${fullName}
-- Contact: ${contactNumber}
-- Quantity: ${quantity} videos/month
-- Add-ons: ${selectedAddonLabels.length > 0 ? selectedAddonLabels.join(', ') : 'None'}
-- Reference Link: ${refLink || 'Not provided'}
-- Requirements: ${requirements || 'None'}
-- Estimated Total: ₹${final.toLocaleString()}
-
-I have also downloaded the PDF quotation. Please check it!`;
-    
-    const url = `https://wa.me/916374343169?text=${encodeURIComponent(message)}`;
-    window.open(url, '_blank');
+    // Open WhatsApp with formatted message
+    setTimeout(() => window.open(waUrl, '_blank'), 500);
   };
 
   if (loading) {
@@ -791,8 +816,15 @@ I have also downloaded the PDF quotation. Please check it!`;
                     : 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
                 }`}
               >
-                Get Custom Quote <ChevronRight size={20} className="md:w-6 md:h-6" />
+                <MessageCircle size={20} fill="currentColor" />
+                {isInAppBrowser() ? 'Send via WhatsApp' : 'Get Quote & WhatsApp'}
+                <ChevronRight size={20} className="md:w-6 md:h-6" />
               </button>
+              {isInAppBrowser() && (
+                <p className="text-[10px] text-zinc-600 text-center mt-2">
+                  Open in browser for PDF download
+                </p>
+              )}
             </div>
 
           </div>
