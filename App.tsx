@@ -527,7 +527,7 @@ const MainSite: React.FC = () => {
                       onClick={() => {
                         setShowProjectModal(false);
                         // Save to Google Sheets
-                        fetch('https://script.google.com/macros/s/AKfycbw1TaSQ3vk2tnj7_ciI6Nb0pJES3w-CPYd5CLPqfBh68VFEIXfcGXstCg5yURo6yQpy/exec', {
+                        fetch('https://script.google.com/macros/s/AKfycbwqoWI2NEtCJIWxLIgWuSPRW6zk2C-14VYsvXyazbifRSiDCag9sziXHDac5rbCedST/exec', {
                           method: 'POST',
                           mode: 'no-cors',
                           headers: { 'Content-Type': 'application/json' },
