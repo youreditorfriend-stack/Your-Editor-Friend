@@ -55,11 +55,10 @@ const MainSite: React.FC = () => {
         
         if (docSnap.exists()) {
           const data = docSnap.data();
-          console.log('Settings data received:', data);
           const portfolio = data.portfolio || [];
           const enabledCats = portfolio
             .filter((cat: any) => cat.enabled !== false)
-            .map((cat: any) => cat.label); // Assuming label is the name to display
+            .map((cat: any) => cat.label);
           
           console.log('Enabled categories:', enabledCats);
           setVisibleCategories(enabledCats);
@@ -395,13 +394,24 @@ const MainSite: React.FC = () => {
 };
 
 const App: React.FC = () => {
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(() => sessionStorage.getItem('isAdmin') === 'true');
+
+  const handleLogin = () => {
+    sessionStorage.setItem('isAdmin', 'true');
+    setIsAdmin(true);
+  };
+
+  const handleLogout = () => {
+    sessionStorage.removeItem('isAdmin');
+    setIsAdmin(false);
+  };
+
   return (
     <Router>
       <Routes>
         <Route path="/" element={<MainSite />} />
         <Route path="/custom-quote" element={<CustomQuotePage />} />
-        <Route path="/admin" element={isAdmin ? <Admin /> : <Login onLogin={() => setIsAdmin(true)} />} />
+        <Route path="/admin" element={isAdmin ? <Admin onLogout={handleLogout} /> : <Login onLogin={handleLogin} />} />
       </Routes>
     </Router>
   );
