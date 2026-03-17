@@ -110,7 +110,9 @@ export const PortfolioGridNew: React.FC<{ activeCategory: string }> = ({ activeC
     fetchPortfolio();
   }, []);
 
-  const filteredProjects = activeCategory === 'All' ? allWorks : allWorks.filter(p => p.category === activeCategory);
+  const filteredProjects = activeCategory === 'All'
+    ? allWorks
+    : allWorks.filter(p => p.category.toUpperCase() === activeCategory.toUpperCase());
 
   if (loading) {
     return (
