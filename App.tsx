@@ -41,6 +41,9 @@ const MainSite: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState('Personal Branding');
   const [visibleCategories, setVisibleCategories] = useState<string[]>([]);
+  const [showProjectModal, setShowProjectModal] = useState(false);
+  const [projectForm, setProjectForm] = useState({ name: '', refLink: '', budget: '' });
+  const [projectFormStep, setProjectFormStep] = useState(0);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
@@ -146,14 +149,12 @@ const MainSite: React.FC = () => {
                 {link.name}
               </button>
             ))}
-            <a 
-              href={WHATSAPP_LINK}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              onClick={() => { setShowProjectModal(true); setProjectFormStep(0); setProjectForm({ name: '', refLink: '', budget: '' }); }}
               className="bg-white text-black px-6 py-2 rounded-full text-sm font-medium hover:bg-zinc-200 transition-all active:scale-95 flex items-center gap-2"
             >
               Let's Talk <MessageCircle size={16} />
-            </a>
+            </button>
           </div>
 
           <button className="md:hidden text-white" onClick={() => setIsMenuOpen(!isMenuOpen)}>
@@ -175,9 +176,12 @@ const MainSite: React.FC = () => {
           </button>
         ))}
         <div className="flex flex-col gap-4 mt-8 w-full px-12">
-          <a href={WHATSAPP_LINK} className="bg-[#25D366] text-white py-3 rounded-full text-lg font-semibold text-center flex items-center justify-center gap-3">
-            <MessageCircle size={20} fill="currentColor" /> {WHATSAPP_DISPLAY}
-          </a>
+          <button
+            onClick={() => { setIsMenuOpen(false); setShowProjectModal(true); setProjectFormStep(0); setProjectForm({ name: '', refLink: '', budget: '' }); }}
+            className="bg-[#25D366] text-white py-3 rounded-full text-lg font-semibold text-center flex items-center justify-center gap-3"
+          >
+            <MessageCircle size={20} fill="currentColor" /> Let's Talk
+          </button>
           <a href="mailto:youreditorfriend@gmail.com" className="bg-[#E50914] text-white py-3 rounded-full text-lg font-semibold text-center flex items-center justify-center gap-3">
             <Mail size={20} /> Email Me
           </a>
@@ -364,14 +368,12 @@ const MainSite: React.FC = () => {
               </a>
             </div>
 
-            <a 
-              href={WHATSAPP_LINK} 
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              onClick={() => { setShowProjectModal(true); setProjectFormStep(0); setProjectForm({ name: '', refLink: '', budget: '' }); }}
               className="bg-[#E50914] hover:bg-red-700 text-white px-10 md:px-12 py-4 md:py-5 rounded-full text-lg md:text-xl font-bold inline-flex items-center gap-3 transition-all transform hover:scale-105 active:scale-95 shadow-2xl shadow-red-900/20"
             >
               Start Your Project <ArrowRight className="w-5 h-5 md:w-6 md:h-6" />
-            </a>
+            </button>
           </motion.div>
           
           <div className="mt-32 pt-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-8 text-zinc-500 text-[11px] uppercase tracking-[0.2em] font-medium">
@@ -389,6 +391,151 @@ const MainSite: React.FC = () => {
           </div>
         </div>
       </footer>
+      {/* Project Start Modal */}
+      <AnimatePresence>
+        {showProjectModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+            style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)' }}
+            onClick={(e) => { if (e.target === e.currentTarget) setShowProjectModal(false); }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92, y: 30 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.92, y: 30 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="w-full max-w-md bg-[#111] border border-white/10 rounded-3xl overflow-hidden shadow-2xl"
+            >
+              {/* Modal Header */}
+              <div className="relative px-8 pt-8 pb-6 border-b border-white/5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-[10px] uppercase tracking-[0.25em] text-[#E50914] font-bold mb-1">Let's Work Together</div>
+                    <h3 className="text-2xl font-black tracking-tight text-white">Start Your Project</h3>
+                  </div>
+                  <button onClick={() => setShowProjectModal(false)} className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 transition-all">
+                    <X size={16} />
+                  </button>
+                </div>
+                {/* Step indicator */}
+                <div className="flex gap-2 mt-5">
+                  {[0,1,2].map(i => (
+                    <div key={i} className={`h-1 flex-1 rounded-full transition-all duration-300 ${i <= projectFormStep ? 'bg-[#E50914]' : 'bg-white/10'}`} />
+                  ))}
+                </div>
+              </div>
+
+              {/* Step 0 — Name */}
+              {projectFormStep === 0 && (
+                <motion.div key="step0" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="px-8 py-8">
+                  <div className="w-14 h-14 rounded-2xl bg-[#E50914]/10 border border-[#E50914]/20 flex items-center justify-center mb-6">
+                    <span className="text-2xl">👋</span>
+                  </div>
+                  <label className="block text-[10px] uppercase tracking-[0.2em] text-zinc-500 font-bold mb-3">Your Name *</label>
+                  <input
+                    autoFocus
+                    type="text"
+                    placeholder="உங்கள் பெயர் / Your name"
+                    value={projectForm.name}
+                    onChange={e => setProjectForm(f => ({ ...f, name: e.target.value }))}
+                    onKeyDown={e => { if (e.key === 'Enter' && projectForm.name.trim()) setProjectFormStep(1); }}
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white text-base outline-none focus:border-[#E50914] transition-all placeholder:text-zinc-700"
+                  />
+                  <button
+                    onClick={() => { if (projectForm.name.trim()) setProjectFormStep(1); }}
+                    disabled={!projectForm.name.trim()}
+                    className="mt-6 w-full bg-[#E50914] disabled:opacity-30 disabled:cursor-not-allowed hover:bg-red-700 text-white py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 transition-all"
+                  >
+                    Continue <ArrowRight size={18} />
+                  </button>
+                </motion.div>
+              )}
+
+              {/* Step 1 — Reference Reel */}
+              {projectFormStep === 1 && (
+                <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="px-8 py-8">
+                  <div className="w-14 h-14 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center mb-6">
+                    <span className="text-2xl">🎬</span>
+                  </div>
+                  <label className="block text-[10px] uppercase tracking-[0.2em] text-zinc-500 font-bold mb-1">Reference Reel Link</label>
+                  <p className="text-zinc-600 text-xs mb-3">Optional — share a video you love as style reference</p>
+                  <input
+                    autoFocus
+                    type="url"
+                    placeholder="https://instagram.com/... or YouTube link"
+                    value={projectForm.refLink}
+                    onChange={e => setProjectForm(f => ({ ...f, refLink: e.target.value }))}
+                    onKeyDown={e => { if (e.key === 'Enter') setProjectFormStep(2); }}
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white text-base outline-none focus:border-purple-500 transition-all placeholder:text-zinc-700"
+                  />
+                  <div className="flex gap-3 mt-6">
+                    <button onClick={() => setProjectFormStep(0)} className="flex-1 bg-white/5 border border-white/10 text-zinc-400 py-4 rounded-2xl font-bold text-sm hover:bg-white/10 transition-all">
+                      ← Back
+                    </button>
+                    <button onClick={() => setProjectFormStep(2)} className="flex-[2] bg-purple-600 hover:bg-purple-700 text-white py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 transition-all">
+                      Continue <ArrowRight size={18} />
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Step 2 — Budget */}
+              {projectFormStep === 2 && (
+                <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="px-8 py-8">
+                  <div className="w-14 h-14 rounded-2xl bg-green-500/10 border border-green-500/20 flex items-center justify-center mb-6">
+                    <span className="text-2xl">💰</span>
+                  </div>
+                  <label className="block text-[10px] uppercase tracking-[0.2em] text-zinc-500 font-bold mb-1">Your Budget</label>
+                  <p className="text-zinc-600 text-xs mb-3">Optional — helps us suggest the right plan for you</p>
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {['Under ₹5,000', '₹5,000–₹10,000', '₹10,000–₹20,000', '₹20,000+', 'Not sure yet'].map(b => (
+                      <button key={b} onClick={() => setProjectForm(f => ({ ...f, budget: b }))}
+                        className={`px-4 py-2 rounded-full text-xs font-bold border transition-all ${projectForm.budget === b ? 'bg-[#25D366]/20 border-[#25D366] text-white' : 'bg-white/5 border-white/10 text-zinc-400 hover:border-white/20'}`}>
+                        {b}
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Or type your budget..."
+                    value={['Under ₹5,000','₹5,000–₹10,000','₹10,000–₹20,000','₹20,000+','Not sure yet'].includes(projectForm.budget) ? '' : projectForm.budget}
+                    onChange={e => setProjectForm(f => ({ ...f, budget: e.target.value }))}
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3 text-white text-sm outline-none focus:border-[#25D366] transition-all placeholder:text-zinc-700"
+                  />
+                  <div className="flex gap-3 mt-6">
+                    <button onClick={() => setProjectFormStep(1)} className="flex-1 bg-white/5 border border-white/10 text-zinc-400 py-4 rounded-2xl font-bold text-sm hover:bg-white/10 transition-all">
+                      ← Back
+                    </button>
+                    <a
+                      href={(() => {
+                        const msg = [
+                          `Hi Janish! 👋 I'm interested in your video editing services.`,
+                          ``,
+                          `*Name:* ${projectForm.name}`,
+                          projectForm.refLink ? `*Reference Reel:* ${projectForm.refLink}` : null,
+                          projectForm.budget ? `*Budget:* ${projectForm.budget}` : null,
+                          ``,
+                          `Looking forward to working with you! 🎬`,
+                        ].filter(Boolean).join('\n');
+                        return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
+                      })()}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setShowProjectModal(false)}
+                      className="flex-[2] bg-[#25D366] hover:bg-green-600 text-white py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 transition-all"
+                    >
+                      <MessageCircle size={18} fill="currentColor" /> Send on WhatsApp
+                    </a>
+                  </div>
+                </motion.div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
