@@ -20,17 +20,10 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { db } from '../src/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 
-const CATEGORIES = [
-  { id: 'Personal Branding', label: 'Personal Branding', icon: <Smartphone size={18} /> },
-  { id: 'Real Estate', label: 'Real Estate', icon: <TrendingUp size={18} /> },
-  { id: 'AI Advertisement', label: 'AI Advertisement', icon: <Zap size={18} /> },
-  { id: 'Motion Graphics', label: 'Motion Graphics', icon: <Layers size={18} /> },
-  { id: 'Basic Business Reel', label: 'Basic Business Reel', icon: <Briefcase size={18} /> },
-  { id: 'Normal Business Shop Edit', label: 'Normal Business Shop Edit', icon: <ShoppingBag size={18} /> }
-];
-
-const QUICK_ADDONS = [
+const QUICK_ADDONS_DEFAULT = [
   { id: 'fast_delivery', label: 'Need fast delivery ⚡' },
   { id: 'thumbnails', label: 'Provide Thumbnails 🖼️' }
 ];
@@ -55,6 +48,7 @@ interface CustomStyle {
   price: string;
   priceNum: number;
   desc: string;
+  videoUrl?: string;
 }
 
 interface StyleCategory {
@@ -77,26 +71,54 @@ export const CustomQuotePage: React.FC = () => {
   const totalContainerRef = useRef<HTMLDivElement>(null);
 
   const [rawPricing, setRawPricing] = useState<any[]>([]);
+  const [addons, setAddons] = useState(QUICK_ADDONS_DEFAULT);
 
   useEffect(() => {
-    // Mocking data fetching
-    const mockData: StyleCategory[] = [
-      {
-        id: 'branding',
-        label: 'Personal Branding',
-        styles: [
-          { id: 'styleA', name: 'Style A - Basic Captions', price: '₹3,000', priceNum: 3000, desc: 'Simple captions and basic cuts.' },
-          { id: 'styleB', name: 'Style B - Advanced Graphics', price: '₹2,000', priceNum: 2000, desc: 'Premium graphics and motion elements for higher engagement.' },
-          { id: 'styleC', name: 'Style C - Cinematic Storytelling', price: '₹2,500', priceNum: 2500, desc: 'Color grading, sound design, and cinematic cuts.' }
-        ]
-      },
-      { id: 'realestate', label: 'Real Estate', styles: [] },
-      { id: 'ai', label: 'AI Advertisement', styles: [] },
-      { id: 'motion', label: 'Motion Graphics', styles: [] }
-    ];
-    setCategories(mockData);
-    setActiveCategory(mockData[0]);
-    setSelectedStyle(mockData[0].styles[1]);
+    const fetchFromFirebase = async () => {
+      try {
+        const docRef = doc(db, 'portfolio', 'data');
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+
+          // Load style categories from Firebase
+          const firebaseStyles: StyleCategory[] = (data.styleCategories || [])
+            .filter((cat: any) => cat.enabled !== false)
+            .map((cat: any) => ({
+              id: cat.id,
+              label: cat.label,
+              styles: (cat.styles || [])
+                .filter((s: any) => s.enabled !== false)
+                .map((s: any) => ({
+                  id: s.id,
+                  name: s.label,
+                  price: `₹${Number(s.price).toLocaleString()}`,
+                  priceNum: Number(s.price),
+                  desc: s.description || '',
+                  videoUrl: s.videoUrl || '',
+                })),
+            }));
+
+          if (firebaseStyles.length > 0) {
+            setCategories(firebaseStyles);
+            setActiveCategory(firebaseStyles[0]);
+            if (firebaseStyles[0].styles.length > 0) {
+              setSelectedStyle(firebaseStyles[0].styles[0]);
+            }
+          }
+
+          // Load addons from Firebase
+          if (data.addons && data.addons.length > 0) {
+            setAddons(data.addons.filter((a: any) => a.enabled !== false));
+          }
+        }
+      } catch (error) {
+        console.error('Firebase fetch error:', error);
+      }
+    };
+
+    fetchFromFirebase();
   }, []);
 
   // Default base price
@@ -168,9 +190,9 @@ export const CustomQuotePage: React.FC = () => {
     const selectedStyleLabel = 'Custom Selection';
     const videoCount = `${quantity} Videos`;
     
-    const selectedAddonLabels = QUICK_ADDONS
-      .filter(addon => selectedAddons[addon.id])
-      .map(addon => sanitize(addon.label));
+    const selectedAddonLabels = addons
+      .filter((addon: any) => selectedAddons[addon.id])
+      .map((addon: any) => sanitize(addon.label));
     
     const cleanAddons = selectedAddonLabels.join(', ');
     const isDiscountApplied = discount > 0;
@@ -437,7 +459,48 @@ I have also downloaded the PDF quotation. Please check it!`;
                 <div className="bg-[#121212] border border-zinc-800 rounded-3xl p-6 md:p-10 flex flex-col md:flex-row gap-10">
                   <div className="w-full md:w-5/12 flex justify-center">
                     <div className="relative w-full max-w-[280px] aspect-[9/16] bg-zinc-800 rounded-2xl overflow-hidden shadow-2xl border border-zinc-700">
-                      <img src="https://via.placeholder.com/280x500/333/fff?text=Video+Preview" alt="Video Preview" className="w-full h-full object-cover opacity-80" />
+                      {selectedStyle && selectedStyle.videoUrl ? (() => {
+                        const url = selectedStyle.videoUrl;
+                        const isDirectVideo = url.endsWith('.mp4') || url.endsWith('.webm');
+                        const youtubeId = (url.includes('youtube.com') || url.includes('youtu.be'))
+                          ? url.split('/').pop()?.split('?')[0]
+                          : null;
+                        if (isDirectVideo) {
+                          return (
+                            <video
+                              key={url}
+                              src={url}
+                              autoPlay
+                              loop
+                              muted
+                              playsInline
+                              className="w-full h-full object-cover"
+                            />
+                          );
+                        } else if (youtubeId) {
+                          return (
+                            <iframe
+                              key={youtubeId}
+                              className="w-full h-full"
+                              src={`https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&mute=1&loop=1&playlist=${youtubeId}&controls=0&modestbranding=1&rel=0&playsinline=1`}
+                              title={selectedStyle.name}
+                              frameBorder="0"
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                              allowFullScreen
+                            />
+                          );
+                        } else {
+                          return (
+                            <div className="w-full h-full flex items-center justify-center text-zinc-500 text-xs p-4 text-center">
+                              Video Preview<br/>Not Available
+                            </div>
+                          );
+                        }
+                      })() : (
+                        <div className="w-full h-full flex items-center justify-center text-zinc-500 text-xs p-4 text-center">
+                          Select a style<br/>to see preview
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -502,7 +565,7 @@ I have also downloaded the PDF quotation. Please check it!`;
                 <div className="space-y-4">
                   <label className="text-[9px] md:text-[10px] uppercase tracking-[0.2em] font-bold text-zinc-500 block">Quick Add-ons</label>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3 addons-grid">
-                    {QUICK_ADDONS.map((addon) => (
+                    {addons.map((addon: any) => (
                       <button
                         key={addon.id}
                         onClick={() => toggleAddon(addon.id)}
