@@ -69,6 +69,7 @@ export const CustomQuotePage: React.FC = () => {
   const [selectedAddons, setSelectedAddons] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(false);
   const totalContainerRef = useRef<HTMLDivElement>(null);
+  const [isPreviewMuted, setIsPreviewMuted] = useState(true);
 
   const [rawPricing, setRawPricing] = useState<any[]>([]);
   const [addons, setAddons] = useState(QUICK_ADDONS_DEFAULT);
@@ -469,7 +470,7 @@ I have also downloaded the PDF quotation. Please check it!`;
                 {categories.map((cat) => (
                   <button
                     key={cat.id}
-                    onClick={() => { setActiveCategory(cat); setSelectedStyle(cat.styles[0] || null); }}
+                    onClick={() => { setActiveCategory(cat); setSelectedStyle(cat.styles[0] || null); setIsPreviewMuted(true); }}
                     className={`px-5 py-2 rounded-full text-sm font-bold uppercase tracking-wide transition-all ${
                       activeCategory?.id === cat.id
                         ? 'bg-[#E50914] text-white'
@@ -495,10 +496,11 @@ I have also downloaded the PDF quotation. Please check it!`;
                           return (
                             <video
                               key={url}
+                              id="quote-preview-video"
                               src={url}
                               autoPlay
                               loop
-                              muted
+                              muted={isPreviewMuted}
                               playsInline
                               className="w-full h-full object-cover"
                             />
@@ -506,12 +508,12 @@ I have also downloaded the PDF quotation. Please check it!`;
                         } else if (youtubeId) {
                           return (
                             <iframe
-                              key={youtubeId}
+                              key={`${youtubeId}-${isPreviewMuted}`}
                               className="w-full h-full"
-                              src={`https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&mute=1&loop=1&playlist=${youtubeId}&controls=0&modestbranding=1&rel=0&playsinline=1`}
+                              src={`https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&mute=${isPreviewMuted ? 1 : 0}&loop=1&playlist=${youtubeId}&controls=0&modestbranding=1&rel=0&playsinline=1`}
                               title={selectedStyle.name}
                               frameBorder="0"
-                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; compute-pressure"
                               allowFullScreen
                             />
                           );
@@ -526,6 +528,30 @@ I have also downloaded the PDF quotation. Please check it!`;
                         <div className="w-full h-full flex items-center justify-center text-zinc-500 text-xs p-4 text-center">
                           Select a style<br/>to see preview
                         </div>
+                      )}
+
+                      {/* Mute / Unmute Button */}
+                      {selectedStyle && selectedStyle.videoUrl && (
+                        <button
+                          onClick={() => setIsPreviewMuted(m => !m)}
+                          className="absolute bottom-3 right-3 z-20 flex items-center gap-1.5 bg-black/60 backdrop-blur-md text-white text-[10px] font-bold px-3 py-1.5 rounded-full border border-white/10 hover:bg-black/80 transition-all"
+                        >
+                          {isPreviewMuted ? (
+                            <>
+                              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/>
+                              </svg>
+                              Muted
+                            </>
+                          ) : (
+                            <>
+                              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                              </svg>
+                              Sound On
+                            </>
+                          )}
+                        </button>
                       )}
                     </div>
                   </div>
@@ -545,7 +571,7 @@ I have also downloaded the PDF quotation. Please check it!`;
                       {activeCategory.styles.map((style) => (
                         <div
                           key={style.id}
-                          onClick={() => setSelectedStyle(style)}
+                          onClick={() => { setSelectedStyle(style); setIsPreviewMuted(true); }}
                           className={`p-4 rounded-xl border cursor-pointer transition-all duration-200 flex justify-between items-center ${
                             selectedStyle?.id === style.id ? 'border-[#E50914] bg-[#1a1a1a]' : 'border-zinc-800 bg-[#121212] hover:border-zinc-600'
                           }`}
