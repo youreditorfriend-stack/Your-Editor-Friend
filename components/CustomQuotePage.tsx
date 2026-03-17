@@ -188,6 +188,37 @@ export const CustomQuotePage: React.FC = () => {
 
   const isFormValid = fullName.trim() !== '' && contactNumber.trim() !== '';
 
+  const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbw1TaSQ3vk2tnj7_ciI6Nb0pJES3w-CPYd5CLPqfBh68VFEIXfcGXstCg5yURo6yQpy/exec';
+
+  const sendToGoogleSheets = (source: string, extraData: Record<string, any> = {}) => {
+    const selectedAddonNames = addons
+      .filter((a: any) => selectedAddons[a.id])
+      .map((a: any) => a.label)
+      .join(', ');
+
+    const payload = {
+      source,
+      name: fullName || extraData.name || '',
+      whatsapp: contactNumber || '',
+      style: selectedStyle?.name || extraData.style || '',
+      quantity: quantity || extraData.quantity || '',
+      budget: extraData.budget || '',
+      refLink: refLink || extraData.refLink || '',
+      requirements: requirements || '',
+      total: `₹${final.toLocaleString('en-IN')}` || '',
+      addons: selectedAddonNames || 'None',
+      ...extraData,
+    };
+
+    // fire-and-forget — don't block UX
+    fetch(SHEETS_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }).catch(() => {}); // silent fail
+  };
+
   // Detect Instagram / Facebook in-app browser (no file download support)
   const isInAppBrowser = () => {
     const ua = navigator.userAgent || '';
@@ -219,13 +250,14 @@ Looking forward to working with you! 🎬`;
   const handleSendWhatsApp = () => {
     if (!isFormValid) return;
 
+    // Save lead to Google Sheets
+    sendToGoogleSheets('Custom Quote Page');
+
     const waUrl = `https://wa.me/916374343169?text=${encodeURIComponent(buildWhatsAppMessage())}`;
 
     if (isInAppBrowser()) {
-      // Instagram/Facebook browser can't download PDF — go directly to WhatsApp
       window.open(waUrl, '_blank');
     } else {
-      // Normal browser — generate PDF then open WhatsApp
       generatePDF(waUrl);
     }
   };
