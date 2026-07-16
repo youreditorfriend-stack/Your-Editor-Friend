@@ -1,10 +1,23 @@
 // POST /api/verify-payment  { orderId, paymentId, signature }
 // Verifies the Razorpay signature, then grants the item to the user
 // recorded in the order's notes (set server-side at order creation).
+// NOTE: self-contained — no relative imports (see create-order.ts).
 import crypto from "crypto";
 import Razorpay from "razorpay";
-import { FieldValue } from "firebase-admin/firestore";
-import { adminDb, json } from "./_lib";
+import { cert, getApps, initializeApp } from "firebase-admin/app";
+import { FieldValue, getFirestore } from "firebase-admin/firestore";
+
+function adminDb() {
+  if (!getApps().length) {
+    const svc = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT || "{}");
+    initializeApp({ credential: cert(svc) });
+  }
+  return getFirestore();
+}
+
+function json(res: any, status: number, body: any) {
+  res.status(status).setHeader("Content-Type", "application/json").send(JSON.stringify(body));
+}
 
 export default async function handler(req: any, res: any) {
   if (req.method !== "POST") return json(res, 405, { error: "Method not allowed" });

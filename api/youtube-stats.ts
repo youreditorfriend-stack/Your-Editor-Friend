@@ -3,10 +3,20 @@
 // Requires env var YOUTUBE_API_KEY (Google Cloud Console → APIs & Services →
 // Credentials → API key, with "YouTube Data API v3" enabled).
 // Costs ~2 quota units per call; responses are cached at the CDN for 6 hours.
-import { YOUTUBE } from "../src/lib/site";
-
-const CHANNEL_ID = YOUTUBE.channelId;
-const UPLOADS_PLAYLIST = YOUTUBE.uploadsPlaylistId;
+// NOTE: no imports from src/ here — Vercel functions can't resolve those
+// extensionless ESM imports at runtime. Keep these in sync with src/lib/site.ts.
+const CHANNEL_ID = "UCTCCdk0D5y6wAB6vuR6jYbw";
+const UPLOADS_PLAYLIST = "UUTCCdk0D5y6wAB6vuR6jYbw";
+const FALLBACK_AVATAR =
+  "https://yt3.googleusercontent.com/anig3ej2CcRFlvzac5XWrXnFXK4B0kKUedqrAw0GSbhk6BuMor4UwpJAZrctbcnoQIWqVx2I8w=s900-c-k-c0x00ffffff-no-rj";
+const FALLBACK_VIDEO_IDS = [
+  "3tEHyBX0zRU",
+  "947uAF82nMQ",
+  "Aoq1fnD_qro",
+  "B7JXqAMablI",
+  "6EwyG118OB8",
+  "xCH997TcWB4",
+];
 
 // 12400 → "12.4K", 1250000 → "1.25M"
 function compact(n: number): string {
@@ -54,8 +64,8 @@ export default async function handler(_req: any, res: any) {
       .json({
         subscribers: compact(subCount),
         videoCount: String(channel.statistics.videoCount || 0),
-        avatar: channel.snippet?.thumbnails?.high?.url || YOUTUBE.avatar,
-        latestVideoIds: latestVideoIds.length ? latestVideoIds : YOUTUBE.latestVideoIds,
+        avatar: channel.snippet?.thumbnails?.high?.url || FALLBACK_AVATAR,
+        latestVideoIds: latestVideoIds.length ? latestVideoIds : FALLBACK_VIDEO_IDS,
       });
   } catch (e) {
     console.error("youtube-stats failed:", e);

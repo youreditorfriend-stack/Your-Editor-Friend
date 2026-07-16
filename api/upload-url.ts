@@ -1,6 +1,7 @@
 // POST /api/upload-url  { filename, contentType, adminPassword }
 // Returns a short-lived presigned PUT URL for Cloudflare R2 plus the final
 // public URL to store alongside the product/course.
+// NOTE: self-contained — no relative imports (see create-order.ts).
 //
 // Required env vars (Vercel → Settings → Environment Variables):
 //   R2_ACCOUNT_ID         — Cloudflare dashboard → R2 → Account ID
@@ -9,7 +10,20 @@
 //   R2_BUCKET             — your bucket name, e.g. yef-uploads
 //   R2_PUBLIC_URL         — bucket's public URL, e.g. https://pub-xxxx.r2.dev
 import { AwsClient } from "aws4fetch";
-import { adminDb, json } from "./_lib";
+import { cert, getApps, initializeApp } from "firebase-admin/app";
+import { getFirestore } from "firebase-admin/firestore";
+
+function adminDb() {
+  if (!getApps().length) {
+    const svc = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT || "{}");
+    initializeApp({ credential: cert(svc) });
+  }
+  return getFirestore();
+}
+
+function json(res: any, status: number, body: any) {
+  res.status(status).setHeader("Content-Type", "application/json").send(JSON.stringify(body));
+}
 
 const MAX_MB = 10;
 const ALLOWED = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif"];
