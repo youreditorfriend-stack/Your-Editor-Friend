@@ -1,0 +1,127 @@
+import { useState } from "react";
+import { arrayUnion, doc, updateDoc } from "firebase/firestore";
+import { db } from "../firebase";
+import { useAuth } from "./auth";
+import { getWhatsAppLink } from "./site";
+import type { Course, Product } from "./store";
+
+declare global {
+  interface Window {
+    Razorpay?: any;
+  }
+}
+
+// Loads Razorpay's checkout script once, on demand
+let rzpScript: Promise<boolean> | null = null;
+function loadRazorpay(): Promise<boolean> {
+  if (window.Razorpay) return Promise.resolve(true);
+  if (!rzpScript) {
+    rzpScript = new Promise((resolve) => {
+      const s = document.createElement("script");
+      s.src = "https://checkout.razorpay.com/v1/checkout.js";
+      s.onload = () => resolve(true);
+      s.onerror = () => resolve(false);
+      document.body.appendChild(s);
+    });
+  }
+  return rzpScript;
+}
+
+// Shared buy/claim flow for products & courses.
+// - Login is required for everything.
+// - Free items: claimed instantly (added to user's purchases → available in My Library).
+// - Paid items: Razorpay checkout → payment verified server-side → item granted
+//   automatically. If Razorpay isn't configured, falls back to the WhatsApp flow
+//   (admin grants access manually from Admin → Users after payment).
+export function usePurchase() {
+  const { user, profile, signIn } = useAuth();
+  const [paying, setPaying] = useState<string | null>(null);
+
+  const owns = (itemId: string) => !!profile?.purchases?.includes(itemId);
+
+  const claimFree = async (item: Product | Course) => {
+    if (!user) {
+      await signIn();
+      return; // profile listener will refresh; user clicks again after login
+    }
+    await updateDoc(doc(db, "users", user.uid), { purchases: arrayUnion(item.id) });
+  };
+
+  const whatsAppFallback = (item: Product | Course) => {
+    const name = "name" in item ? item.name : item.title;
+    const msg = `Hi Janish! I want to buy *${name}* (₹${item.price}).\nMy login email: ${user?.email}\nPlease share the payment details!`;
+    window.open(getWhatsAppLink(msg), "_blank");
+  };
+
+  const buy = async (item: Product | Course) => {
+    if (!user) {
+      await signIn();
+      return;
+    }
+
+    setPaying(item.id);
+    try {
+      // Create order server-side (price is looked up there, not trusted from client)
+      const orderRes = await fetch("/api/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ itemId: item.id, uid: user.uid }),
+      });
+
+      const isJson = (orderRes.headers.get("content-type") || "").includes("application/json");
+      if (!orderRes.ok || !isJson) {
+        // Razorpay not configured (or server error) → WhatsApp flow
+        whatsAppFallback(item);
+        return;
+      }
+
+      const order = await orderRes.json();
+      const loaded = await loadRazorpay();
+      if (!loaded || !window.Razorpay) {
+        whatsAppFallback(item);
+        return;
+      }
+
+      const rzp = new window.Razorpay({
+        key: order.keyId,
+        amount: order.amount,
+        currency: order.currency,
+        name: "Your Editor Friend",
+        description: order.itemName,
+        order_id: order.orderId,
+        prefill: {
+          name: user.displayName || "",
+          email: user.email || "",
+        },
+        theme: { color: "#E50914" },
+        handler: async (resp: any) => {
+          try {
+            const verifyRes = await fetch("/api/verify-payment", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                orderId: resp.razorpay_order_id,
+                paymentId: resp.razorpay_payment_id,
+                signature: resp.razorpay_signature,
+              }),
+            });
+            if (!verifyRes.ok) {
+              alert("Payment received but verification failed — message me on WhatsApp and I'll unlock it for you right away!");
+            }
+            // On success the users/{uid} snapshot listener updates the UI automatically
+          } catch {
+            alert("Payment received but verification failed — message me on WhatsApp and I'll unlock it for you right away!");
+          }
+        },
+      });
+      rzp.open();
+    } catch (e) {
+      console.error("Buy flow failed:", e);
+      whatsAppFallback(item);
+    } finally {
+      setPaying(null);
+    }
+  };
+
+  return { owns, claimFree, buy, isLoggedIn: !!user, paying };
+}

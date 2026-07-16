@@ -49,6 +49,25 @@ async function startServer() {
     }
   });
 
+  // Razorpay endpoints live as Vercel serverless functions (/api folder) in
+  // production. In local dev they're not configured, so return 503 — the site
+  // then falls back to the WhatsApp purchase flow automatically.
+  app.post("/api/create-order", (_req, res) => {
+    res.status(503).json({ error: "Razorpay not configured in local dev" });
+  });
+  app.post("/api/verify-payment", (_req, res) => {
+    res.status(503).json({ error: "Razorpay not configured in local dev" });
+  });
+  // Same for the YouTube stats function — the site falls back to the snapshot
+  // in src/lib/site.ts when this isn't available.
+  app.get("/api/youtube-stats", (_req, res) => {
+    res.status(503).json({ error: "YouTube API not configured in local dev" });
+  });
+  // R2 uploads only work on the deployed site; locally, paste an image URL.
+  app.post("/api/upload-url", (_req, res) => {
+    res.status(503).json({ error: "R2 not configured in local dev" });
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({

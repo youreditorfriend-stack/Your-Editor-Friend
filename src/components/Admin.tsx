@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { db } from "../firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
+import { AdminProductsPanel, AdminCoursesPanel, AdminUsersPanel, AdminPagesPanel } from "./AdminStore";
 
 // ─── INITIAL DATA ─────────────────────────────────────────────────────────────
 const INIT_PROJECTS = [
@@ -101,7 +102,7 @@ const Empty = ({ children }) => (
 
 const IS = { background:"#0d0d0d",border:"1px solid #2a2a2a",borderRadius:8,padding:"7px 11px",color:"#fff",fontSize:13,outline:"none" };
 
-const SectionCard = ({ title, icon, children, action }) => (
+const SectionCard = ({ title, icon, children, action = null }) => (
   <div style={{ background:"#111",border:"1px solid #1e1e1e",borderRadius:16,marginBottom:20,overflow:"hidden" }}>
     <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 22px",borderBottom:"1px solid #1a1a1a",background:"#0d0d0d" }}>
       <div style={{ display:"flex",alignItems:"center",gap:8 }}>
@@ -278,6 +279,10 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
 
   const NAV = [
     { id:"overview", label:"Overview",       icon:"📊" },
+    { id:"pages",    label:"Pages",          icon:"👁️" },
+    { id:"store",    label:"Products",       icon:"📦" },
+    { id:"courses",  label:"Courses",        icon:"🎓" },
+    { id:"users",    label:"Users",          icon:"👥" },
     { id:"projects", label:"Recent Projects",icon:"🎬" },
     { id:"quote",    label:"Custom Quote",   icon:"💰" },
   ];
@@ -346,6 +351,10 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
               </div>
               <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:12 }}>
                 {[
+                  {label:"Show / Hide Pages",     sub:"Turn any page or section on and off",t:"pages",icon:"👁️"},
+                  {label:"Manage Products",       sub:"Products, categories, pricing", t:"store",  icon:"📦"},
+                  {label:"Manage Courses",        sub:"Courses, features, pricing",    t:"courses",icon:"🎓"},
+                  {label:"Logged-in Users",       sub:"Grant purchases, see customers",t:"users",  icon:"👥"},
                   {label:"Manage Recent Projects",sub:"Videos, categories, ordering",t:"projects",icon:"🎬"},
                   {label:"Customize Quote Page",  sub:"Styles, pricing, form fields", t:"quote",   icon:"💰"},
                 ].map(c=>(
@@ -360,6 +369,12 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
               </div>
             </div>
           )}
+
+          {/* ══ PAGES / STORE / COURSES / USERS ══ */}
+          {tab==="pages"   && <AdminPagesPanel/>}
+          {tab==="store"   && <AdminProductsPanel/>}
+          {tab==="courses" && <AdminCoursesPanel/>}
+          {tab==="users"   && <AdminUsersPanel/>}
 
           {/* ══ RECENT PROJECTS ══ */}
           {tab==="projects" && (

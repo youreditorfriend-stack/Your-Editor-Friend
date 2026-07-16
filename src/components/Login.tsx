@@ -13,6 +13,8 @@ export const Login = ({ onLogin }: { onLogin: () => void }) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
         if (password === data.adminPassword) {
+          // Kept for the session so image uploads can be authorised server-side
+          sessionStorage.setItem("adminPassword", password);
           onLogin();
         } else {
           setError("Invalid password");
