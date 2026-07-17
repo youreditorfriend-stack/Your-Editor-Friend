@@ -119,6 +119,22 @@ export const Layout: React.FC = () => {
         </motion.a>
       )}
 
+      {/* Floating "Ask AI" button — mobile only (desktop uses the header
+          button). Sits above the WhatsApp FAB; hidden on item detail pages
+          where the purchase bar owns the bottom of the screen. */}
+      {!detailMode && (
+        <motion.button
+          onClick={() => setShowAiChat(true)}
+          aria-label="Ask the AI assistant"
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          whileTap={{ scale: 0.9 }}
+          className="sm:hidden fixed bottom-24 right-8 z-[60] bg-gradient-to-br from-[#E50914] to-purple-600 text-white p-4 rounded-full shadow-2xl shadow-[#E50914]/30 flex items-center justify-center"
+        >
+          <Sparkles size={26} className="text-white" />
+        </motion.button>
+      )}
+
       {/* Navigation — all section names always visible (no hamburger) */}
       <nav className={`fixed top-0 w-full z-50 transition-all duration-300 border-b ${scrolled ? 'bg-[#0A0A0A]/85 backdrop-blur-xl border-white/10' : 'bg-[#0A0A0A]/60 backdrop-blur-md border-white/5'}`}>
         <div className="max-w-7xl mx-auto px-4 md:px-6">
