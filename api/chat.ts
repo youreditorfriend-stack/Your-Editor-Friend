@@ -4,10 +4,64 @@
 // process.env.OPENAI_API_KEY. It is never sent to or exposed in the browser;
 // the client only ever talks to this endpoint. The response is streamed back
 // as plain UTF-8 text chunks (token-by-token) so the UI can render live.
-import { buildMessages, ChatTurn } from './_promptBuilder';
+//
+// NOTE: everything is self-contained in this one file. Vercel serverless
+// functions can't resolve extensionless sibling/src imports at runtime (see
+// api/youtube-stats.ts), so the Prompt Builder is inlined below rather than
+// imported from ./_promptBuilder.
 
 const MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 
+interface ChatTurn {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+// ---- Prompt Builder (inlined) --------------------------------------------
+const BUSINESS = {
+  brand: 'Your Editor Friend',
+  owner: 'Janish Prabu',
+  site: 'youreditorfriend.in',
+  whatsapp: '+91 63743 43169',
+  services: [
+    'Reel / Shorts editing',
+    'YouTube video editing',
+    'Thumbnail design',
+    'Course / tutorial production',
+    'Full-time retainer editor',
+    'Channel consulting & growth',
+  ],
+};
+
+function buildSystemPrompt(answers?: Record<string, string>): string {
+  const known = answers && Object.keys(answers).length
+    ? '\n\nThe visitor has already told us:\n' +
+      Object.entries(answers).map(([k, v]) => `- ${k}: ${v}`).join('\n')
+    : '';
+
+  return [
+    `You are the friendly AI assistant for ${BUSINESS.brand}, the video-editing studio run by ${BUSINESS.owner} (${BUSINESS.site}).`,
+    `Help visitors with: ${BUSINESS.services.join(', ')}.`,
+    ``,
+    `Guidelines:`,
+    `- Be warm, concise and practical. Keep replies short (2–4 sentences) unless asked for detail.`,
+    `- You give rough guidance on services, pricing bands, courses, availability and process, but never invent exact prices or hard commitments — for a firm quote, point them to WhatsApp (${BUSINESS.whatsapp}) or the “Let's Talk” form.`,
+    `- Indian Rupee (₹) pricing. You may answer in the visitor's language (English/Tamil/Tanglish).`,
+    `- If asked something unrelated to the studio, gently steer back.`,
+    `- Never claim to take payments or bookings yourself; you only inform and hand off.`,
+    known,
+  ].join('\n');
+}
+
+function buildMessages(history: ChatTurn[], answers?: Record<string, string>) {
+  const trimmed = history.slice(-12); // cap context sent upstream
+  return [
+    { role: 'system', content: buildSystemPrompt(answers) },
+    ...trimmed.map(t => ({ role: t.role, content: t.content })),
+  ];
+}
+
+// ---- Handler --------------------------------------------------------------
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
