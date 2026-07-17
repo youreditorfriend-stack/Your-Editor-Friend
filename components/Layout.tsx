@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Instagram, Youtube, Mail, MessageCircle, LogOut, Library, User as UserIcon } from 'lucide-react';
+import { Instagram, Youtube, Mail, MessageCircle, LogOut, Library, User as UserIcon, Sparkles } from 'lucide-react';
 import { Link, NavLink, Outlet, useLocation, useOutletContext } from 'react-router-dom';
 import { ProjectModal } from './ProjectModal';
+import { AiChat } from './AiChat';
 import { WHATSAPP_LINK, WHATSAPP_DISPLAY, EMAIL, INSTAGRAM_URL, YOUTUBE } from '../src/lib/site';
 import { useAuth } from '../src/lib/auth';
 import { usePageEnabled } from '../src/lib/store';
@@ -23,6 +24,7 @@ export const Layout: React.FC = () => {
   const navLinks = allNavLinks.filter(l => l.id === 'home' || isEnabled(l.id));
   const [scrolled, setScrolled] = useState(false);
   const [showProjectModal, setShowProjectModal] = useState(false);
+  const [showAiChat, setShowAiChat] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   // Item detail pages render their own fixed mobile purchase bar. When they
   // mount they flip this on to suppress the floating WhatsApp button, which
@@ -128,10 +130,10 @@ export const Layout: React.FC = () => {
 
             <div className="flex items-center gap-2 md:gap-3">
               <button
-                onClick={() => setShowProjectModal(true)}
+                onClick={() => setShowAiChat(true)}
                 className="hidden sm:flex bg-white text-black px-5 py-2 rounded-full text-sm font-medium hover:bg-zinc-200 transition-all active:scale-95 items-center gap-2"
               >
-                Let's Talk <MessageCircle size={15} />
+                Ask AI <Sparkles size={15} />
               </button>
 
               {user ? (
@@ -243,6 +245,7 @@ export const Layout: React.FC = () => {
       </footer>
 
       <ProjectModal open={showProjectModal} onClose={() => setShowProjectModal(false)} />
+      <AiChat open={showAiChat} onClose={() => setShowAiChat(false)} />
     </div>
   );
 };
