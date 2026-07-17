@@ -23,9 +23,26 @@ import { Login } from './src/components/Login';
 import { AuthProvider, useAuth } from './src/lib/auth';
 import { isAdminEmail } from './src/lib/adminAuth';
 
-// The admin panel is directly accessible as requested.
+// The admin panel is locked behind Google sign-in. Only the owner accounts
+// in ADMIN_EMAILS (youreditorfriend@gmail.com) can open it — anyone else,
+// signed in or not, gets the Login gate instead of the panel.
 const AdminRoute: React.FC = () => {
-  return <Admin onLogout={() => window.location.href = '/'} />;
+  const { user, loading, signOut } = useAuth();
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#080808', color: '#666', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans','Segoe UI',sans-serif", fontSize: 14 }}>
+        Checking access…
+      </div>
+    );
+  }
+
+  // Not signed in, or signed in with a non-admin account → show the gate.
+  if (!user || !isAdminEmail(user.email)) {
+    return <Login />;
+  }
+
+  return <Admin onLogout={() => signOut().finally(() => { window.location.href = '/'; })} />;
 };
 
 const App: React.FC = () => {
