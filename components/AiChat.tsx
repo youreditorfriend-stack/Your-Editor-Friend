@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Send, X } from 'lucide-react';
+import { Sparkles, Send, X, MessageCircle, RotateCcw } from 'lucide-react';
+import { WHATSAPP_NUMBER } from '../src/lib/site';
+import { CHAT_FLOW, WELCOME, buildSummary, buildWhatsAppText } from '../src/lib/chatFlow';
 
 interface AiChatProps {
   open: boolean;
@@ -13,70 +15,68 @@ interface ChatMessage {
   text: string;
 }
 
-// Placeholder-only assistant. No AI is wired yet — replies are picked from a
-// canned list so the full interface (bubbles, typing indicator, auto-scroll,
-// multiline input) can be reviewed in isolation. The real provider call will
-// later live in src/lib/aiChat.ts and only this pickReply() needs swapping.
-const GREETING: ChatMessage = {
-  id: 0,
-  role: 'assistant',
-  text: `Hi 👋
-
-Welcome to Your Editor Friend.
-
-I'm your AI Assistant.
-
-I can help you with
-
-• Video Editing
-• Pricing
-• Courses
-• Services
-• Portfolio
-• Custom Quote
-• Availability
-
-What can I help you with today?`,
-};
-
-const DUMMY_REPLIES = [
-  "Great question! I'm still in preview mode, but Janish offers reel editing, YouTube edits, thumbnails and full-time retainer plans. 🎬",
-  "Pricing depends on the format and turnaround. Short-form reels usually start affordable — tap “Let's Talk” for an exact quote. 💰",
-  "You can start a project any time — share a reference video you like and your deadline, and we'll take it from there. ✨",
-  "Once the AI is switched on I'll answer this properly. For now, message on WhatsApp and Janish will reply personally. 🙌",
-];
-
-let replyCursor = 0;
-const pickReply = (): string => {
-  const r = DUMMY_REPLIES[replyCursor % DUMMY_REPLIES.length];
-  replyCursor += 1;
-  return r;
-};
+// AI-free assistant. A predefined conversation flow (src/lib/chatFlow.ts)
+// drives the whole exchange: one question per state, quick-reply buttons for
+// option steps, a free-text box for text steps. This component is a generic
+// runner — to change the questions, edit chatFlow.ts, not this file.
+let msgId = 1;
+const nextId = () => msgId++;
 
 export const AiChat: React.FC<AiChatProps> = ({ open, onClose }) => {
-  const [messages, setMessages] = useState<ChatMessage[]>([GREETING]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [stepIndex, setStepIndex] = useState(0);      // which flow step we're on
+  const [answers, setAnswers] = useState<Record<string, string>>({});
   const [input, setInput] = useState('');
   const [typing, setTyping] = useState(false);
+  const [done, setDone] = useState(false);
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-  // Reset the conversation each time the panel is reopened
+  const currentStep = stepIndex < CHAT_FLOW.length ? CHAT_FLOW[stepIndex] : null;
+  // Show the text input only on free-text steps (option steps use buttons)
+  const textInputActive = !done && currentStep?.type === 'text';
+
+  const clearTimers = () => { timers.current.forEach(clearTimeout); timers.current = []; };
+
+  // Post an assistant message after a short "typing" delay
+  const botSay = useCallback((text: string, delay = 900) => {
+    setTyping(true);
+    const t = setTimeout(() => {
+      setTyping(false);
+      setMessages(prev => [...prev, { id: nextId(), role: 'assistant', text }]);
+    }, delay);
+    timers.current.push(t);
+  }, []);
+
+  // Start / restart the whole conversation
+  const startFlow = useCallback(() => {
+    clearTimers();
+    msgId = 1;
+    setMessages([{ id: nextId(), role: 'assistant', text: WELCOME }]);
+    setAnswers({});
+    setStepIndex(0);
+    setInput('');
+    setDone(false);
+    setTyping(false);
+    // Ask the first question shortly after the welcome
+    if (CHAT_FLOW.length > 0) botSay(CHAT_FLOW[0].question, 700);
+  }, [botSay]);
+
+  // (Re)start each time the panel opens; clean up timers when it closes
   useEffect(() => {
     if (open) {
-      setMessages([GREETING]);
-      setInput('');
-      setTyping(false);
-      replyCursor = 0;
+      startFlow();
       const t = setTimeout(() => inputRef.current?.focus(), 250);
       return () => clearTimeout(t);
     }
-  }, [open]);
+    clearTimers();
+  }, [open, startFlow]);
 
-  // Clean up any pending typing timer on unmount
-  useEffect(() => () => { if (typingTimer.current) clearTimeout(typingTimer.current); }, []);
+  useEffect(() => () => clearTimers(), []);
 
-  // Auto-scroll to the newest message / typing indicator
+  // Auto-scroll to newest message / typing indicator
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages, typing]);
@@ -96,31 +96,40 @@ export const AiChat: React.FC<AiChatProps> = ({ open, onClose }) => {
     el.style.height = 'auto';
     el.style.height = Math.min(el.scrollHeight, 120) + 'px';
   }, []);
-
   useEffect(() => { autosize(); }, [input, autosize]);
 
-  const send = () => {
-    const text = input.trim();
-    if (!text || typing) return;
-    const userMsg: ChatMessage = { id: Date.now(), role: 'user', text };
-    setMessages(prev => [...prev, userMsg]);
-    setInput('');
-    setTyping(true);
+  // Record an answer for the current step and advance to the next one
+  const answerStep = (value: string) => {
+    const text = value.trim();
+    if (!text || typing || !currentStep) return;
 
-    // Simulate the assistant "thinking", then drop a canned reply
-    typingTimer.current = setTimeout(() => {
-      setTyping(false);
-      setMessages(prev => [...prev, { id: Date.now() + 1, role: 'assistant', text: pickReply() }]);
-    }, 1100);
+    setMessages(prev => [...prev, { id: nextId(), role: 'user', text }]);
+    setAnswers(prev => ({ ...prev, [currentStep.key]: text }));
+    setInput('');
+
+    const next = stepIndex + 1;
+    setStepIndex(next);
+
+    if (next < CHAT_FLOW.length) {
+      botSay(CHAT_FLOW[next].question, 900);
+    } else {
+      // Flow complete — summarise using the answers collected so far
+      const finalAnswers = { ...answers, [currentStep.key]: text };
+      botSay(buildSummary(finalAnswers), 900);
+      const t = setTimeout(() => setDone(true), 900);
+      timers.current.push(t);
+    }
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // Enter sends, Shift+Enter inserts a newline
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      send();
+      answerStep(input);
     }
   };
+
+  const whatsappHref =
+    `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(buildWhatsAppText(answers))}`;
 
   return (
     <AnimatePresence>
@@ -158,7 +167,7 @@ export const AiChat: React.FC<AiChatProps> = ({ open, onClose }) => {
                 <div>
                   <div className="text-sm font-bold text-white leading-tight">AI Assistant</div>
                   <div className="flex items-center gap-1.5 text-[11px] text-zinc-400">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#25D366]" /> Online · placeholder
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#25D366]" /> Online · guided chat
                   </div>
                 </div>
               </div>
@@ -214,30 +223,80 @@ export const AiChat: React.FC<AiChatProps> = ({ open, onClose }) => {
                   </motion.div>
                 )}
               </AnimatePresence>
+
+              {/* Quick-reply buttons for the current option step */}
+              {!typing && !done && currentStep?.type === 'options' && (
+                <motion.div
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex flex-wrap gap-2 pt-1"
+                >
+                  {currentStep.options!.map((opt) => (
+                    <button
+                      key={opt}
+                      onClick={() => answerStep(opt)}
+                      className="px-3.5 py-2 rounded-full text-xs font-semibold border border-[#E50914]/40 bg-[#E50914]/10 text-white hover:bg-[#E50914]/20 hover:border-[#E50914] transition-all active:scale-95"
+                    >
+                      {opt}
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+
+              {/* Completion actions */}
+              {done && (
+                <motion.div
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex flex-col gap-2 pt-1"
+                >
+                  <a
+                    href={whatsappHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full py-3 rounded-2xl bg-[#25D366] hover:bg-green-600 text-white font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-95"
+                  >
+                    <MessageCircle size={16} fill="currentColor" /> Send on WhatsApp
+                  </a>
+                  <button
+                    onClick={startFlow}
+                    className="w-full py-2.5 rounded-2xl bg-white/5 border border-white/10 text-zinc-300 font-semibold text-xs flex items-center justify-center gap-2 hover:bg-white/10 transition-all"
+                  >
+                    <RotateCcw size={13} /> Start over
+                  </button>
+                </motion.div>
+              )}
             </div>
 
-            {/* Input bar */}
+            {/* Input bar — active only on free-text steps */}
             <div className="relative border-t border-white/10 px-3 py-3">
-              <div className="flex items-end gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-1.5 focus-within:border-[#E50914]/60 transition-all">
+              <div className={`flex items-end gap-2 rounded-2xl border px-3 py-1.5 transition-all ${
+                textInputActive ? 'border-white/10 bg-white/5 focus-within:border-[#E50914]/60' : 'border-white/5 bg-white/[0.02] opacity-60'
+              }`}>
                 <textarea
                   ref={inputRef}
                   rows={1}
                   value={input}
+                  disabled={!textInputActive}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={onKeyDown}
-                  placeholder="Type a message…  (Shift+Enter for a new line)"
-                  className="flex-1 resize-none bg-transparent text-sm text-white placeholder:text-zinc-500 outline-none py-2 max-h-[120px] no-scrollbar"
+                  placeholder={
+                    done ? 'Chat complete — tap “Start over” to begin again'
+                    : textInputActive ? 'Type your answer…  (Shift+Enter for a new line)'
+                    : 'Pick an option above 👆'
+                  }
+                  className="flex-1 resize-none bg-transparent text-sm text-white placeholder:text-zinc-500 outline-none py-2 max-h-[120px] no-scrollbar disabled:cursor-not-allowed"
                 />
                 <button
-                  onClick={send}
-                  disabled={!input.trim() || typing}
+                  onClick={() => answerStep(input)}
+                  disabled={!textInputActive || !input.trim() || typing}
                   aria-label="Send message"
                   className="w-9 h-9 mb-0.5 shrink-0 rounded-xl bg-[#E50914] disabled:opacity-30 disabled:cursor-not-allowed hover:bg-red-700 text-white flex items-center justify-center transition-all active:scale-95"
                 >
                   <Send size={15} />
                 </button>
               </div>
-              <p className="text-center text-[10px] text-zinc-600 mt-2">AI responses are not enabled yet — placeholder preview</p>
+              <p className="text-center text-[10px] text-zinc-600 mt-2">Guided assistant · AI responses not enabled yet</p>
             </div>
           </motion.div>
         </motion.div>
