@@ -28,9 +28,31 @@ export const Layout: React.FC = () => {
   // mount they flip this on to suppress the floating WhatsApp button, which
   // would otherwise sit on top of the bar.
   const [detailMode, setDetailMode] = useState(false);
+  const [authError, setAuthError] = useState('');
   const location = useLocation();
   const { user, signIn, signOut } = useAuth();
   const userMenuRef = useRef<HTMLDivElement>(null);
+
+  const handleLogin = async () => {
+    setAuthError('');
+    try {
+      await signIn();
+    } catch (e: any) {
+      const code = e?.code || '';
+      if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+        return; // user just closed the popup — no error worth showing
+      }
+      setAuthError(
+        code === 'auth/unauthorized-domain'
+          ? 'This site isn\'t authorised in Firebase yet. Add the domain in Firebase → Authentication → Settings → Authorized domains.'
+          : code === 'auth/popup-blocked'
+          ? 'Your browser blocked the sign-in popup. Allow popups and try again.'
+          : code === 'auth/operation-not-allowed'
+          ? 'Google sign-in isn\'t enabled in Firebase yet. Enable the Google provider in Firebase → Authentication.'
+          : `Sign-in failed: ${e?.message || code || 'unknown error'}`
+      );
+    }
+  };
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
@@ -56,6 +78,24 @@ export const Layout: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-[#EDEDED] font-sans selection:bg-[#E50914] selection:text-white antialiased">
+
+      {/* Sign-in error toast */}
+      <AnimatePresence>
+        {authError && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="fixed top-4 left-1/2 -translate-x-1/2 z-[70] w-[92%] max-w-md bg-[#2a0a0a] border border-[#E50914]/40 rounded-xl px-4 py-3 shadow-2xl"
+          >
+            <div className="flex items-start gap-3">
+              <span className="text-[#E50914] text-sm font-bold shrink-0">⚠</span>
+              <p className="text-xs md:text-sm text-zinc-200 flex-1">{authError}</p>
+              <button onClick={() => setAuthError('')} className="text-zinc-500 hover:text-white text-sm shrink-0">✕</button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Floating WhatsApp Button — hidden on item detail pages where the
           mobile purchase bar takes the bottom of the screen */}
@@ -127,7 +167,7 @@ export const Layout: React.FC = () => {
                 </div>
               ) : (
                 <button
-                  onClick={() => signIn().catch(() => {})}
+                  onClick={handleLogin}
                   className="bg-[#E50914] hover:bg-red-700 text-white px-3.5 md:px-5 py-1.5 md:py-2 rounded-full text-xs md:text-sm font-medium transition-all active:scale-95 flex items-center gap-1.5 md:gap-2"
                 >
                   <UserIcon size={14} /> Login
