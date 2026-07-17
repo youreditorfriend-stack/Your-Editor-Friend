@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Send, X } from 'lucide-react';
 
@@ -13,36 +13,57 @@ interface ChatMessage {
   text: string;
 }
 
-// Placeholder-only assistant. No AI is wired yet — the send button simply
-// echoes a friendly "coming soon" reply so the UI can be reviewed in
-// isolation. The real provider call will later live in src/lib/aiChat.ts.
+// Placeholder-only assistant. No AI is wired yet — replies are picked from a
+// canned list so the full interface (bubbles, typing indicator, auto-scroll,
+// multiline input) can be reviewed in isolation. The real provider call will
+// later live in src/lib/aiChat.ts and only this pickReply() needs swapping.
 const GREETING: ChatMessage = {
   id: 0,
   role: 'assistant',
-  text: "Hey! 👋 I'm your editing assistant. Ask me about services, pricing or how to start a project. (I'm still learning — full answers coming soon!)",
+  text: "Hey! 👋 I'm your editing assistant. Ask me about services, pricing, or how to start a project.",
+};
+
+const DUMMY_REPLIES = [
+  "Great question! I'm still in preview mode, but Janish offers reel editing, YouTube edits, thumbnails and full-time retainer plans. 🎬",
+  "Pricing depends on the format and turnaround. Short-form reels usually start affordable — tap “Let's Talk” for an exact quote. 💰",
+  "You can start a project any time — share a reference video you like and your deadline, and we'll take it from there. ✨",
+  "Once the AI is switched on I'll answer this properly. For now, message on WhatsApp and Janish will reply personally. 🙌",
+];
+
+let replyCursor = 0;
+const pickReply = (): string => {
+  const r = DUMMY_REPLIES[replyCursor % DUMMY_REPLIES.length];
+  replyCursor += 1;
+  return r;
 };
 
 export const AiChat: React.FC<AiChatProps> = ({ open, onClose }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([GREETING]);
   const [input, setInput] = useState('');
+  const [typing, setTyping] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Reset the conversation each time the panel is reopened
   useEffect(() => {
     if (open) {
       setMessages([GREETING]);
       setInput('');
-      // Focus the input shortly after the open animation starts
+      setTyping(false);
+      replyCursor = 0;
       const t = setTimeout(() => inputRef.current?.focus(), 250);
       return () => clearTimeout(t);
     }
   }, [open]);
 
-  // Keep the newest message in view
+  // Clean up any pending typing timer on unmount
+  useEffect(() => () => { if (typingTimer.current) clearTimeout(typingTimer.current); }, []);
+
+  // Auto-scroll to the newest message / typing indicator
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, typing]);
 
   // Close on Escape
   useEffect(() => {
@@ -52,17 +73,37 @@ export const AiChat: React.FC<AiChatProps> = ({ open, onClose }) => {
     return () => window.removeEventListener('keydown', h);
   }, [open, onClose]);
 
+  // Grow the textarea with its content (capped)
+  const autosize = useCallback(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+  }, []);
+
+  useEffect(() => { autosize(); }, [input, autosize]);
+
   const send = () => {
     const text = input.trim();
-    if (!text) return;
+    if (!text || typing) return;
     const userMsg: ChatMessage = { id: Date.now(), role: 'user', text };
-    const placeholder: ChatMessage = {
-      id: Date.now() + 1,
-      role: 'assistant',
-      text: "Thanks! The AI assistant isn't switched on yet — for now, tap “Let's Talk” or message on WhatsApp and Janish will reply personally. 🙌",
-    };
-    setMessages(prev => [...prev, userMsg, placeholder]);
+    setMessages(prev => [...prev, userMsg]);
     setInput('');
+    setTyping(true);
+
+    // Simulate the assistant "thinking", then drop a canned reply
+    typingTimer.current = setTimeout(() => {
+      setTyping(false);
+      setMessages(prev => [...prev, { id: Date.now() + 1, role: 'assistant', text: pickReply() }]);
+    }, 1100);
+  };
+
+  const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Enter sends, Shift+Enter inserts a newline
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      send();
+    }
   };
 
   return (
@@ -124,7 +165,7 @@ export const AiChat: React.FC<AiChatProps> = ({ open, onClose }) => {
                   className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-[80%] px-4 py-2.5 text-sm leading-relaxed rounded-2xl border ${
+                    className={`max-w-[80%] px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap break-words rounded-2xl border ${
                       m.role === 'user'
                         ? 'bg-[#E50914] text-white border-transparent rounded-br-md'
                         : 'bg-white/5 text-zinc-100 border-white/10 rounded-bl-md'
@@ -134,25 +175,48 @@ export const AiChat: React.FC<AiChatProps> = ({ open, onClose }) => {
                   </div>
                 </motion.div>
               ))}
+
+              {/* Typing indicator */}
+              <AnimatePresence>
+                {typing && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    className="flex justify-start"
+                  >
+                    <div className="bg-white/5 border border-white/10 rounded-2xl rounded-bl-md px-4 py-3 flex items-center gap-1.5">
+                      {[0, 1, 2].map((i) => (
+                        <motion.span
+                          key={i}
+                          className="w-1.5 h-1.5 rounded-full bg-zinc-400"
+                          animate={{ opacity: [0.3, 1, 0.3], y: [0, -3, 0] }}
+                          transition={{ duration: 0.9, repeat: Infinity, delay: i * 0.15 }}
+                        />
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             {/* Input bar */}
             <div className="relative border-t border-white/10 px-3 py-3">
-              <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-1.5 focus-within:border-[#E50914]/60 transition-all">
-                <input
+              <div className="flex items-end gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-1.5 focus-within:border-[#E50914]/60 transition-all">
+                <textarea
                   ref={inputRef}
-                  type="text"
+                  rows={1}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') send(); }}
-                  placeholder="Type a message…"
-                  className="flex-1 bg-transparent text-sm text-white placeholder:text-zinc-500 outline-none py-2"
+                  onKeyDown={onKeyDown}
+                  placeholder="Type a message…  (Shift+Enter for a new line)"
+                  className="flex-1 resize-none bg-transparent text-sm text-white placeholder:text-zinc-500 outline-none py-2 max-h-[120px] no-scrollbar"
                 />
                 <button
                   onClick={send}
-                  disabled={!input.trim()}
+                  disabled={!input.trim() || typing}
                   aria-label="Send message"
-                  className="w-9 h-9 shrink-0 rounded-xl bg-[#E50914] disabled:opacity-30 disabled:cursor-not-allowed hover:bg-red-700 text-white flex items-center justify-center transition-all active:scale-95"
+                  className="w-9 h-9 mb-0.5 shrink-0 rounded-xl bg-[#E50914] disabled:opacity-30 disabled:cursor-not-allowed hover:bg-red-700 text-white flex items-center justify-center transition-all active:scale-95"
                 >
                   <Send size={15} />
                 </button>
