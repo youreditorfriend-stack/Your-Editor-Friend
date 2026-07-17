@@ -3,6 +3,9 @@ import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs/promises";
+// The same serverless handler used on Vercel — reused locally so the AI chat
+// works in dev too (Express req/res are compatible with what it expects).
+import chatHandler from "./api/chat";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -63,12 +66,10 @@ async function startServer() {
   app.get("/api/youtube-stats", (_req, res) => {
     res.status(503).json({ error: "YouTube API not configured in local dev" });
   });
-  // AI chat runs as a Vercel serverless function (api/chat.ts) in production,
-  // where OPENAI_API_KEY is set. Locally it's not configured, so return 503 —
-  // the chat UI then falls back to a friendly "AI not enabled" message.
-  app.post("/api/chat", (_req, res) => {
-    res.status(503).json({ error: "AI not configured in local dev" });
-  });
+  // AI chat: reuse the real serverless handler. It reads OPENAI_API_KEY from
+  // the environment (set a local .env — see .env.example) and returns 503 by
+  // itself when the key is missing, so the UI still falls back gracefully.
+  app.post("/api/chat", (req, res) => chatHandler(req, res));
   // R2 uploads only work on the deployed site; locally, paste an image URL.
   app.post("/api/upload-file-url", (_req, res) => {
     res.status(503).json({ error: "R2 not configured", missing: ["local dev"] });
