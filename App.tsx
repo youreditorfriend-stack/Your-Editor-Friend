@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
 */
 
-import React, { useState } from 'react';
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { PageGate } from './components/PageGate';
@@ -19,22 +19,20 @@ import { Library } from './pages/Library';
 import { CustomQuotePage } from './components/CustomQuotePage';
 import Admin from './src/components/Admin';
 import { Login } from './src/components/Login';
-import { AuthProvider } from './src/lib/auth';
+import { AuthProvider, useAuth } from './src/lib/auth';
+import { isAdminEmail } from './src/lib/adminAuth';
+
+// The admin panel is only reachable by the owner's Google account.
+const AdminRoute: React.FC = () => {
+  const { user, loading, signOut } = useAuth();
+  if (loading) {
+    return <div style={{ minHeight: '100vh', background: '#080808', color: '#555', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Checking access…</div>;
+  }
+  if (!isAdminEmail(user?.email)) return <Login />;
+  return <Admin onLogout={signOut} />;
+};
 
 const App: React.FC = () => {
-  const [isAdmin, setIsAdmin] = useState(() => sessionStorage.getItem('isAdmin') === 'true');
-
-  const handleLogin = () => {
-    sessionStorage.setItem('isAdmin', 'true');
-    setIsAdmin(true);
-  };
-
-  const handleLogout = () => {
-    sessionStorage.removeItem('isAdmin');
-    sessionStorage.removeItem('adminPassword');
-    setIsAdmin(false);
-  };
-
   return (
     <AuthProvider>
       <Router>
@@ -50,7 +48,7 @@ const App: React.FC = () => {
             <Route path="/my-library" element={<Library />} />
           </Route>
           <Route path="/custom-quote" element={<CustomQuotePage />} />
-          <Route path="/admin" element={isAdmin ? <Admin onLogout={handleLogout} /> : <Login onLogin={handleLogin} />} />
+          <Route path="/admin" element={<AdminRoute />} />
         </Routes>
       </Router>
     </AuthProvider>

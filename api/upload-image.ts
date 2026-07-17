@@ -1,4 +1,4 @@
-// POST /api/upload-image  { filename, contentType, data (base64), adminPassword }
+// POST /api/upload-image  { filename, contentType, data (base64), idToken }
 // Uploads the image to Cloudflare R2 from the server, so the browser never
 // talks to R2 directly and no bucket CORS setup is needed.
 // The client resizes images before sending, keeping bodies well under
@@ -8,16 +8,31 @@
 //                    R2_BUCKET, R2_PUBLIC_URL, FIREBASE_SERVICE_ACCOUNT
 import { AwsClient } from "aws4fetch";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
-import { getFirestore } from "firebase-admin/firestore";
+import { getAuth } from "firebase-admin/auth";
 
 export const config = { api: { bodyParser: { sizeLimit: "8mb" } } };
 
-function adminDb() {
+// Keep in sync with src/lib/adminAuth.ts
+const ADMIN_EMAILS = ["youreditorfriend@gmail.com"];
+
+function initAdmin() {
   if (!getApps().length) {
     const svc = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT || "{}");
     initializeApp({ credential: cert(svc) });
   }
-  return getFirestore();
+}
+
+// Verifies the caller is a signed-in owner account. The token is signed by
+// Google, so it can't be forged or replayed by editing the request body.
+async function assertAdmin(idToken?: string) {
+  if (!idToken) throw new Error("Not signed in");
+  initAdmin();
+  const decoded = await getAuth().verifyIdToken(idToken);
+  const email = decoded.email?.toLowerCase();
+  if (!email || !decoded.email_verified || !ADMIN_EMAILS.includes(email)) {
+    throw new Error("Not an admin account");
+  }
+  return email;
 }
 
 function json(res: any, status: number, body: any) {
@@ -50,7 +65,7 @@ export default async function handler(req: any, res: any) {
   if (missing.length) return json(res, 503, { error: "R2 not configured", missing });
 
   try {
-    const { filename, contentType, data, adminPassword } = req.body || {};
+    const { filename, contentType, data, idToken } = req.body || {};
     if (!filename || !contentType || !data) {
       return json(res, 400, { error: "filename, contentType and data are required" });
     }
@@ -58,11 +73,10 @@ export default async function handler(req: any, res: any) {
       return json(res, 400, { error: "Only JPG, PNG, WebP, GIF or AVIF images are allowed" });
     }
 
-    // Only the admin may upload
-    const snap = await adminDb().doc("portfolio/data").get();
-    const realPassword = snap.exists ? snap.data()?.adminPassword : null;
-    if (!realPassword || adminPassword !== realPassword) {
-      return json(res, 401, { error: "Not authorised — log out of the admin panel and log in again" });
+    try {
+      await assertAdmin(idToken);
+    } catch {
+      return json(res, 401, { error: "Not authorised — sign in with the owner's Google account" });
     }
 
     const bytes = Buffer.from(String(data).replace(/^data:[^;]+;base64,/, ""), "base64");

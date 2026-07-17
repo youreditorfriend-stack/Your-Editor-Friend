@@ -3,6 +3,7 @@ import { db } from "../firebase";
 import { arrayRemove, arrayUnion, collection, doc, getDoc, getDocs, setDoc, updateDoc } from "firebase/firestore";
 import { SEED_STORE, StoreData, Product, Course, ProductCategory, PageConfig, mergePages } from "../lib/store";
 import { ImageField } from "./ImageField";
+import { FileField } from "./FileField";
 
 // ─── shared atoms (same visual language as Admin.tsx) ─────────────────────────
 const IS: React.CSSProperties = { background:"#0d0d0d",border:"1px solid #2a2a2a",borderRadius:8,padding:"7px 11px",color:"#fff",fontSize:13,outline:"none" };
@@ -262,13 +263,17 @@ export function AdminProductsPanel() {
                     {data.productCategories.map(c=>(<option key={c.id} value={c.id}>{c.label}</option>))}
                   </select>
                 </div>
-                <div style={{ gridColumn:"1 / 3" }}>
-                  <FieldLabel>DOWNLOAD URL (delivered in My Library)</FieldLabel>
-                  <input value={p.downloadUrl} onChange={e=>upProd(p.id,{downloadUrl:e.target.value})} placeholder="Google Drive / Dropbox link" style={{...IS,width:"100%"}}/>
-                </div>
                 <div>
                   <FieldLabel>BADGE (optional)</FieldLabel>
                   <input value={p.badge ?? ""} onChange={e=>upProd(p.id,{badge:e.target.value||undefined})} placeholder="Best Seller" style={{...IS,width:"100%"}}/>
+                </div>
+                <div style={{ gridColumn:"1 / -1" }}>
+                  <FileField
+                    label="PRODUCT FILE (delivered in My Library)"
+                    hint="Upload a file, or paste a Google Drive / Dropbox link"
+                    value={p.downloadUrl}
+                    onChange={url => upProd(p.id, { downloadUrl: url })}
+                  />
                 </div>
               </div>
             </div>
@@ -358,8 +363,12 @@ export function AdminCoursesPanel() {
                   <input value={c.badge ?? ""} onChange={e=>upCourse(c.id,{badge:e.target.value||undefined})} placeholder="New" style={{...IS,width:"100%"}}/>
                 </div>
                 <div style={{ gridColumn:"1 / -1" }}>
-                  <FieldLabel>COURSE ACCESS URL (delivered in My Library)</FieldLabel>
-                  <input value={c.accessUrl} onChange={e=>upCourse(c.id,{accessUrl:e.target.value})} placeholder="Course platform / unlisted playlist link" style={{...IS,width:"100%"}}/>
+                  <FileField
+                    label="COURSE ACCESS (delivered in My Library)"
+                    hint="Unlisted playlist / course platform link — or upload a file"
+                    value={c.accessUrl}
+                    onChange={url => upCourse(c.id, { accessUrl: url })}
+                  />
                 </div>
                 <div style={{ gridColumn:"1 / -1" }}>
                   <FieldLabel>FEATURES — one per line</FieldLabel>

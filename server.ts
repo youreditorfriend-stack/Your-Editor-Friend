@@ -64,6 +64,9 @@ async function startServer() {
     res.status(503).json({ error: "YouTube API not configured in local dev" });
   });
   // R2 uploads only work on the deployed site; locally, paste an image URL.
+  app.post("/api/upload-file-url", (_req, res) => {
+    res.status(503).json({ error: "R2 not configured", missing: ["local dev"] });
+  });
   app.post("/api/upload-image", (_req, res) => {
     res.status(503).json({ error: "R2 not configured", missing: ["local dev"] });
   });

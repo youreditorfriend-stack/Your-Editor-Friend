@@ -1,65 +1,11 @@
 import { useRef, useState } from "react";
+import { CropModal } from "./CropModal";
+import { adminAuthBody } from "../lib/adminAuth";
 
 const IS: React.CSSProperties = { background:"#0d0d0d",border:"1px solid #2a2a2a",borderRadius:8,padding:"7px 11px",color:"#fff",fontSize:13,outline:"none" };
 
-async function readAsDataUrl(file: File) {
-  return new Promise<string>((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(String(r.result));
-    r.onerror = () => reject(new Error("Could not read the file"));
-    r.readAsDataURL(file);
-  });
-}
-
-// True if any pixel is not fully opaque. Photos exported as PNG are usually
-// opaque, and keeping those as PNG would balloon the file for no benefit.
-function hasTransparency(ctx: CanvasRenderingContext2D, w: number, h: number) {
-  const { data } = ctx.getImageData(0, 0, w, h);
-  for (let i = 3; i < data.length; i += 4) {
-    if (data[i] < 255) return true;
-  }
-  return false;
-}
-
-// Downscales an image to fit maxEdge, keeping its aspect ratio. Images with a
-// transparent background stay PNG; everything else becomes a much lighter JPEG.
-// Animated GIFs are passed through untouched.
-async function prepareImage(file: File, maxEdge: number) {
-  if (file.type === "image/gif") {
-    return { data: await readAsDataUrl(file), contentType: file.type, filename: file.name };
-  }
-
-  const bitmap = await createImageBitmap(file);
-  const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
-  const w = Math.round(bitmap.width * scale);
-  const h = Math.round(bitmap.height * scale);
-
-  const canvas = document.createElement("canvas");
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Could not process the image");
-  ctx.drawImage(bitmap, 0, 0, w, h);
-  bitmap.close?.();
-
-  const base = file.name.replace(/\.[^.]+$/, "");
-  const couldHaveAlpha = file.type === "image/png" || file.type === "image/webp";
-  if (couldHaveAlpha && hasTransparency(ctx, w, h)) {
-    return {
-      data: canvas.toDataURL("image/png"),
-      contentType: "image/png",
-      filename: `${base}.png`,
-    };
-  }
-  return {
-    data: canvas.toDataURL("image/jpeg", 0.88),
-    contentType: "image/jpeg",
-    filename: `${base}.jpg`,
-  };
-}
-
-// Upload an image straight from the computer to Cloudflare R2 (via our own
-// server, so no bucket CORS is involved), or paste a URL.
+// Pick an image → crop it to the exact ratio this slot needs → upload to
+// Cloudflare R2 through our own server (no bucket CORS involved).
 export function ImageField({
   value,
   onChange,
@@ -72,32 +18,27 @@ export function ImageField({
   label: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const [cropFile, setCropFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
-  const [stage, setStage] = useState("");
   const [err, setErr] = useState("");
   const [dragOver, setDragOver] = useState(false);
 
-  const upload = async (file: File) => {
+  const pick = (file: File) => {
     setErr("");
     if (!file.type.startsWith("image/")) { setErr("Pick an image file"); return; }
     if (file.size > 25 * 1024 * 1024) { setErr("Image must be under 25 MB"); return; }
+    setCropFile(file);
+  };
 
+  const upload = async (cropped: { data: string; contentType: string; filename: string }) => {
+    setCropFile(null);
     setBusy(true);
+    setErr("");
     try {
-      setStage("Resizing…");
-      // Products display at 1080×1080, courses at 1920×1080 — no point storing bigger
-      const { data, contentType, filename } = await prepareImage(file, aspect === "square" ? 1080 : 1920);
-
-      setStage("Uploading…");
       const res = await fetch("/api/upload-image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          filename,
-          contentType,
-          data,
-          adminPassword: sessionStorage.getItem("adminPassword") || "",
-        }),
+        body: JSON.stringify({ ...cropped, ...(await adminAuthBody()) }),
       });
 
       const body = await res.json().catch(() => ({}));
@@ -108,13 +49,11 @@ export function ImageField({
             : body.error || `Upload failed (${res.status})`
         );
       }
-
       onChange(body.url);
     } catch (e: any) {
       setErr(e.message || "Upload failed");
     } finally {
       setBusy(false);
-      setStage("");
     }
   };
 
@@ -136,6 +75,15 @@ export function ImageField({
 
   return (
     <div>
+      {cropFile && (
+        <CropModal
+          file={cropFile}
+          aspect={aspect}
+          onCancel={() => setCropFile(null)}
+          onDone={upload}
+        />
+      )}
+
       <div style={{ color:"#666",fontSize:10,letterSpacing:1,fontWeight:700,marginBottom:4 }}>{label}</div>
       <div style={{ display:"flex",gap:12,alignItems:"flex-start" }}>
         {/* Click / drop zone with preview */}
@@ -148,13 +96,13 @@ export function ImageField({
             e.preventDefault();
             setDragOver(false);
             const f = e.dataTransfer.files?.[0];
-            if (f) upload(f);
+            if (f) pick(f);
           }}
         >
           {busy ? (
             <div style={{ textAlign:"center",padding:4 }}>
               <div style={{ color:"#e63027",fontSize:18 }}>⏳</div>
-              <div style={{ color:"#666",fontSize:9,letterSpacing:.5 }}>{stage}</div>
+              <div style={{ color:"#666",fontSize:9,letterSpacing:.5 }}>Uploading…</div>
             </div>
           ) : value ? (
             <img src={value} alt="" style={{ width:"100%",height:"100%",objectFit:"contain" }}/>
@@ -174,7 +122,7 @@ export function ImageField({
               disabled={busy}
               style={{ background:"#22c55e18",color:"#22c55e",border:"1px solid #22c55e44",borderRadius:8,padding:"6px 14px",cursor:busy?"wait":"pointer",fontWeight:700,fontSize:12 }}
             >
-              {busy ? stage : value ? "↻ Replace" : "⬆ Upload image"}
+              {busy ? "Uploading…" : value ? "↻ Replace" : "⬆ Upload & crop"}
             </button>
             {value && !busy && (
               <button
@@ -192,7 +140,7 @@ export function ImageField({
             style={{ ...IS, width:"100%", fontSize:12 }}
           />
           <div style={{ color:"#444",fontSize:10,marginTop:4 }}>
-            {aspect === "square" ? "Best: 1080×1080 (1:1)" : "Best: 1920×1080 (16:9, like a YouTube thumbnail)"} · JPG / PNG / WebP · transparent PNG supported · never cropped · resized automatically
+            {aspect === "square" ? "Crops to 1080×1080 (1:1)" : "Crops to 1920×1080 (16:9)"} · JPG / PNG / WebP · transparent PNG supported
           </div>
           {err && (
             <div style={{ background:"#2a0a0a",border:"1px solid #e6302744",borderRadius:8,padding:"6px 10px",color:"#e63027",fontSize:11,marginTop:6 }}>⚠ {err}</div>
@@ -205,7 +153,7 @@ export function ImageField({
         type="file"
         accept="image/*"
         style={{ display:"none" }}
-        onChange={(e) => { const f = e.target.files?.[0]; if (f) upload(f); e.target.value = ""; }}
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) pick(f); e.target.value = ""; }}
       />
     </div>
   );
