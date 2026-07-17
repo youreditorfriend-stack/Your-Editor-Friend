@@ -16,23 +16,11 @@ export interface FlowStep {
   options?: string[];
 }
 
-export const WELCOME = `Hi 👋
+export const WELCOME = `👋 Hi! I'm Janish's AI Assistant.
 
-Welcome to Your Editor Friend.
+I'm here to help you with video editing, courses, mentoring, project planning, quotations, portfolio reviews and technical guidance.
 
-I'm your AI Assistant.
-
-I can help you with
-
-• Video Editing
-• Pricing
-• Courses
-• Services
-• Portfolio
-• Custom Quote
-• Availability
-
-What can I help you with today?`;
+How can I help you today?`;
 
 // One question per state, in order.
 export const CHAT_FLOW: FlowStep[] = [
