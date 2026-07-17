@@ -2,24 +2,35 @@ import { useRef, useState } from "react";
 
 const IS: React.CSSProperties = { background:"#0d0d0d",border:"1px solid #2a2a2a",borderRadius:8,padding:"7px 11px",color:"#fff",fontSize:13,outline:"none" };
 
-// Thumbnails never need to be huge — resizing keeps the site fast and the
-// upload body small enough for the serverless function.
-const MAX_EDGE = 1400;
+async function readAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result));
+    r.onerror = () => reject(new Error("Could not read the file"));
+    r.readAsDataURL(file);
+  });
+}
 
-async function resizeToJpeg(file: File): Promise<{ data: string; contentType: string; filename: string }> {
-  // GIFs would lose their animation, so pass them through untouched
+// True if any pixel is not fully opaque. Photos exported as PNG are usually
+// opaque, and keeping those as PNG would balloon the file for no benefit.
+function hasTransparency(ctx: CanvasRenderingContext2D, w: number, h: number) {
+  const { data } = ctx.getImageData(0, 0, w, h);
+  for (let i = 3; i < data.length; i += 4) {
+    if (data[i] < 255) return true;
+  }
+  return false;
+}
+
+// Downscales an image to fit maxEdge, keeping its aspect ratio. Images with a
+// transparent background stay PNG; everything else becomes a much lighter JPEG.
+// Animated GIFs are passed through untouched.
+async function prepareImage(file: File, maxEdge: number) {
   if (file.type === "image/gif") {
-    const data = await new Promise<string>((resolve, reject) => {
-      const r = new FileReader();
-      r.onload = () => resolve(String(r.result));
-      r.onerror = () => reject(new Error("Could not read the file"));
-      r.readAsDataURL(file);
-    });
-    return { data, contentType: file.type, filename: file.name };
+    return { data: await readAsDataUrl(file), contentType: file.type, filename: file.name };
   }
 
   const bitmap = await createImageBitmap(file);
-  const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height));
+  const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
   const w = Math.round(bitmap.width * scale);
   const h = Math.round(bitmap.height * scale);
 
@@ -31,9 +42,20 @@ async function resizeToJpeg(file: File): Promise<{ data: string; contentType: st
   ctx.drawImage(bitmap, 0, 0, w, h);
   bitmap.close?.();
 
-  const data = canvas.toDataURL("image/jpeg", 0.88);
   const base = file.name.replace(/\.[^.]+$/, "");
-  return { data, contentType: "image/jpeg", filename: `${base}.jpg` };
+  const couldHaveAlpha = file.type === "image/png" || file.type === "image/webp";
+  if (couldHaveAlpha && hasTransparency(ctx, w, h)) {
+    return {
+      data: canvas.toDataURL("image/png"),
+      contentType: "image/png",
+      filename: `${base}.png`,
+    };
+  }
+  return {
+    data: canvas.toDataURL("image/jpeg", 0.88),
+    contentType: "image/jpeg",
+    filename: `${base}.jpg`,
+  };
 }
 
 // Upload an image straight from the computer to Cloudflare R2 (via our own
@@ -63,7 +85,8 @@ export function ImageField({
     setBusy(true);
     try {
       setStage("Resizing…");
-      const { data, contentType, filename } = await resizeToJpeg(file);
+      // Products display at 1080×1080, courses at 1920×1080 — no point storing bigger
+      const { data, contentType, filename } = await prepareImage(file, aspect === "square" ? 1080 : 1920);
 
       setStage("Uploading…");
       const res = await fetch("/api/upload-image", {
@@ -134,7 +157,7 @@ export function ImageField({
               <div style={{ color:"#666",fontSize:9,letterSpacing:.5 }}>{stage}</div>
             </div>
           ) : value ? (
-            <img src={value} alt="" style={{ width:"100%",height:"100%",objectFit:"cover" }}/>
+            <img src={value} alt="" style={{ width:"100%",height:"100%",objectFit:"contain" }}/>
           ) : (
             <div style={{ textAlign:"center",color:"#444" }}>
               <div style={{ fontSize:20 }}>🖼️</div>
@@ -169,7 +192,7 @@ export function ImageField({
             style={{ ...IS, width:"100%", fontSize:12 }}
           />
           <div style={{ color:"#444",fontSize:10,marginTop:4 }}>
-            {aspect === "square" ? "Square image works best (1:1)" : "Wide image works best (16:9, like a YouTube thumbnail)"} · drag &amp; drop supported · resized automatically
+            {aspect === "square" ? "Best: 1080×1080 (1:1)" : "Best: 1920×1080 (16:9, like a YouTube thumbnail)"} · JPG / PNG / WebP · transparent PNG supported · never cropped · resized automatically
           </div>
           {err && (
             <div style={{ background:"#2a0a0a",border:"1px solid #e6302744",borderRadius:8,padding:"6px 10px",color:"#e63027",fontSize:11,marginTop:6 }}>⚠ {err}</div>

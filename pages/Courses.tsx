@@ -37,9 +37,9 @@ export const Courses: React.FC = () => {
                   transition={{ duration: 0.5, delay: i * 0.1 }}
                   className="group rounded-3xl border border-white/5 bg-zinc-900/50 overflow-hidden hover:border-white/15 transition-all flex flex-col"
                 >
-                  {/* YouTube-style 16:9 thumbnail */}
-                  <div className="relative aspect-video overflow-hidden">
-                    <img src={c.thumbnail} alt={c.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  {/* YouTube-style 16:9 (1920×1080) thumbnail — contained, never cropped */}
+                  <div className="relative aspect-video overflow-hidden bg-zinc-950/60">
+                    <img src={c.thumbnail} alt={c.title} className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                     <div className="absolute inset-0 flex items-center justify-center">
                       <div className="w-16 h-16 rounded-full bg-[#E50914]/90 flex items-center justify-center shadow-2xl group-hover:scale-110 transition-transform">

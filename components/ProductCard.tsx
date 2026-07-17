@@ -18,9 +18,10 @@ export const ProductCard: React.FC<{ product: Product; index?: number }> = ({ pr
       transition={{ duration: 0.5, delay: index * 0.06 }}
       className="group rounded-2xl md:rounded-3xl border border-white/5 bg-zinc-900/50 overflow-hidden hover:border-white/15 transition-all flex flex-col"
     >
-      {/* Square thumbnail */}
-      <div className="relative aspect-square overflow-hidden">
-        <img src={p.image} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+      {/* Square (1080×1080) thumbnail — contained so nothing is ever cropped,
+          on a neutral panel that suits transparent PNGs */}
+      <div className="relative aspect-square overflow-hidden bg-zinc-950/60">
+        <img src={p.image} alt={p.name} className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" />
         {p.badge && (
           <span className="absolute top-3 left-3 bg-[#E50914] text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full">
             {p.badge}

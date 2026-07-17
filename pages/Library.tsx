@@ -76,7 +76,7 @@ export const Library: React.FC = () => {
                       transition={{ delay: i * 0.08 }}
                       className="rounded-3xl border border-white/5 bg-zinc-900/50 overflow-hidden flex flex-col sm:flex-row"
                     >
-                      <img src={c.thumbnail} alt={c.title} className="sm:w-56 aspect-video object-cover" />
+                      <img src={c.thumbnail} alt={c.title} className="sm:w-56 aspect-video object-contain bg-zinc-950/60" />
                       <div className="p-6 flex flex-col justify-between flex-1">
                         <div>
                           <h3 className="font-semibold text-lg mb-1">{c.title}</h3>
@@ -120,7 +120,7 @@ export const Library: React.FC = () => {
                       transition={{ delay: i * 0.06 }}
                       className="rounded-3xl border border-white/5 bg-zinc-900/50 overflow-hidden flex flex-col"
                     >
-                      <img src={p.image} alt={p.name} className="aspect-square object-cover" />
+                      <img src={p.image} alt={p.name} className="aspect-square object-contain bg-zinc-950/60" />
                       <div className="p-5 flex flex-col flex-1">
                         <h3 className="font-semibold text-sm mb-3 flex-1">{p.name}</h3>
                         {p.downloadUrl ? (

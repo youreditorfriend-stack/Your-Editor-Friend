@@ -41,8 +41,8 @@ export const Home: React.FC = () => {
                   to="/products"
                   className="group w-36 md:w-56 shrink-0 rounded-xl md:rounded-2xl border border-white/5 bg-zinc-900/60 overflow-hidden hover:border-white/20 transition-all"
                 >
-                  <div className="relative aspect-square overflow-hidden">
-                    <img src={p.image} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  <div className="relative aspect-square overflow-hidden bg-zinc-950/60">
+                    <img src={p.image} alt={p.name} className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" />
                     <span className={`absolute top-2 right-2 text-[9px] font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full ${p.free ? 'bg-[#25D366] text-black' : 'bg-black/70 text-white border border-white/20'}`}>
                       {p.free ? 'Free' : 'Paid'}
                     </span>
