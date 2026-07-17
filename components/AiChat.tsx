@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Send, X, MessageCircle, RotateCcw } from 'lucide-react';
 import { WHATSAPP_NUMBER } from '../src/lib/site';
 import { CHAT_FLOW, WELCOME, buildSummary, buildWhatsAppText } from '../src/lib/chatFlow';
+import { streamAssistant, AiUnavailableError, ChatTurn } from '../src/lib/aiService';
 
 interface AiChatProps {
   open: boolean;
@@ -15,10 +16,10 @@ interface ChatMessage {
   text: string;
 }
 
-// AI-free assistant. A predefined conversation flow (src/lib/chatFlow.ts)
-// drives the whole exchange: one question per state, quick-reply buttons for
-// option steps, a free-text box for text steps. This component is a generic
-// runner — to change the questions, edit chatFlow.ts, not this file.
+// Hybrid assistant. A predefined flow (src/lib/chatFlow.ts) offers a fast,
+// button-driven path for structured lead capture, while any free-text question
+// is answered by the AI Service (src/lib/aiService.ts → /api/chat → OpenAI,
+// streamed live). No key or provider detail ever lives in this component.
 let msgId = 1;
 const nextId = () => msgId++;
 
@@ -27,18 +28,26 @@ export const AiChat: React.FC<AiChatProps> = ({ open, onClose }) => {
   const [stepIndex, setStepIndex] = useState(0);      // which flow step we're on
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [input, setInput] = useState('');
-  const [typing, setTyping] = useState(false);
+  const [typing, setTyping] = useState(false);   // guided-flow "thinking" dots
+  const [streaming, setStreaming] = useState(false); // AI is streaming a reply
   const [done, setDone] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const abortRef = useRef<AbortController | null>(null);
 
   const currentStep = stepIndex < CHAT_FLOW.length ? CHAT_FLOW[stepIndex] : null;
-  // Show the text input only on free-text steps (option steps use buttons)
-  const textInputActive = !done && currentStep?.type === 'text';
+  // Free-text input is always available for AI questions, except while a reply
+  // is in flight or the guided flow is mid-"typing".
+  const textInputActive = !typing && !streaming;
 
-  const clearTimers = () => { timers.current.forEach(clearTimeout); timers.current = []; };
+  const clearTimers = () => {
+    timers.current.forEach(clearTimeout);
+    timers.current = [];
+    abortRef.current?.abort();
+    abortRef.current = null;
+  };
 
   // Post an assistant message after a short "typing" delay
   const botSay = useCallback((text: string, delay = 900) => {
@@ -60,6 +69,7 @@ export const AiChat: React.FC<AiChatProps> = ({ open, onClose }) => {
     setInput('');
     setDone(false);
     setTyping(false);
+    setStreaming(false);
     // Ask the first question shortly after the welcome
     if (CHAT_FLOW.length > 0) botSay(CHAT_FLOW[0].question, 700);
   }, [botSay]);
@@ -121,10 +131,49 @@ export const AiChat: React.FC<AiChatProps> = ({ open, onClose }) => {
     }
   };
 
+  // Send a free-text question to the AI and stream the reply into a bubble.
+  const askAi = async (value: string) => {
+    const text = value.trim();
+    if (!text || streaming || typing) return;
+
+    const userMsg: ChatMessage = { id: nextId(), role: 'user', text };
+    const replyId = nextId();
+    // Build the history to send BEFORE adding the empty reply bubble
+    const history: ChatTurn[] = [...messages, userMsg]
+      .filter(m => m.text !== WELCOME)
+      .map(m => ({ role: m.role, content: m.text }));
+
+    setMessages(prev => [...prev, userMsg, { id: replyId, role: 'assistant', text: '' }]);
+    setInput('');
+    setStreaming(true);
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    try {
+      await streamAssistant({
+        history,
+        answers,
+        signal: controller.signal,
+        onToken: (chunk) => {
+          setMessages(prev => prev.map(m => m.id === replyId ? { ...m, text: m.text + chunk } : m));
+        },
+      });
+    } catch (err) {
+      const msg = err instanceof AiUnavailableError
+        ? "The AI assistant isn't switched on yet. Use the quick options above, or message on WhatsApp and Janish will reply personally. 🙌"
+        : "Sorry — I couldn't reach the assistant just now. Please try again, or reach out on WhatsApp.";
+      setMessages(prev => prev.map(m => m.id === replyId ? { ...m, text: msg } : m));
+    } finally {
+      setStreaming(false);
+      abortRef.current = null;
+    }
+  };
+
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      answerStep(input);
+      askAi(input);
     }
   };
 
@@ -268,7 +317,7 @@ export const AiChat: React.FC<AiChatProps> = ({ open, onClose }) => {
               )}
             </div>
 
-            {/* Input bar — active only on free-text steps */}
+            {/* Input bar — free-text questions go to the AI */}
             <div className="relative border-t border-white/10 px-3 py-3">
               <div className={`flex items-end gap-2 rounded-2xl border px-3 py-1.5 transition-all ${
                 textInputActive ? 'border-white/10 bg-white/5 focus-within:border-[#E50914]/60' : 'border-white/5 bg-white/[0.02] opacity-60'
@@ -281,22 +330,21 @@ export const AiChat: React.FC<AiChatProps> = ({ open, onClose }) => {
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={onKeyDown}
                   placeholder={
-                    done ? 'Chat complete — tap “Start over” to begin again'
-                    : textInputActive ? 'Type your answer…  (Shift+Enter for a new line)'
-                    : 'Pick an option above 👆'
+                    streaming ? 'Assistant is replying…'
+                    : 'Ask me anything…  (Shift+Enter for a new line)'
                   }
                   className="flex-1 resize-none bg-transparent text-sm text-white placeholder:text-zinc-500 outline-none py-2 max-h-[120px] no-scrollbar disabled:cursor-not-allowed"
                 />
                 <button
-                  onClick={() => answerStep(input)}
-                  disabled={!textInputActive || !input.trim() || typing}
+                  onClick={() => askAi(input)}
+                  disabled={!textInputActive || !input.trim()}
                   aria-label="Send message"
                   className="w-9 h-9 mb-0.5 shrink-0 rounded-xl bg-[#E50914] disabled:opacity-30 disabled:cursor-not-allowed hover:bg-red-700 text-white flex items-center justify-center transition-all active:scale-95"
                 >
                   <Send size={15} />
                 </button>
               </div>
-              <p className="text-center text-[10px] text-zinc-600 mt-2">Guided assistant · AI responses not enabled yet</p>
+              <p className="text-center text-[10px] text-zinc-600 mt-2">Pick a quick option, or type your own question</p>
             </div>
           </motion.div>
         </motion.div>

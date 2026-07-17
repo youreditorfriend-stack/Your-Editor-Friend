@@ -63,6 +63,12 @@ async function startServer() {
   app.get("/api/youtube-stats", (_req, res) => {
     res.status(503).json({ error: "YouTube API not configured in local dev" });
   });
+  // AI chat runs as a Vercel serverless function (api/chat.ts) in production,
+  // where OPENAI_API_KEY is set. Locally it's not configured, so return 503 —
+  // the chat UI then falls back to a friendly "AI not enabled" message.
+  app.post("/api/chat", (_req, res) => {
+    res.status(503).json({ error: "AI not configured in local dev" });
+  });
   // R2 uploads only work on the deployed site; locally, paste an image URL.
   app.post("/api/upload-file-url", (_req, res) => {
     res.status(503).json({ error: "R2 not configured", missing: ["local dev"] });
