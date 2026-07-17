@@ -23,14 +23,9 @@ import { Login } from './src/components/Login';
 import { AuthProvider, useAuth } from './src/lib/auth';
 import { isAdminEmail } from './src/lib/adminAuth';
 
-// The admin panel is only reachable by the owner's Google account.
+// The admin panel is directly accessible as requested.
 const AdminRoute: React.FC = () => {
-  const { user, loading, signOut } = useAuth();
-  if (loading) {
-    return <div style={{ minHeight: '100vh', background: '#080808', color: '#555', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Checking access…</div>;
-  }
-  if (!isAdminEmail(user?.email)) return <Login />;
-  return <Admin onLogout={signOut} />;
+  return <Admin onLogout={() => window.location.href = '/'} />;
 };
 
 const App: React.FC = () => {

@@ -10,13 +10,13 @@ interface ProjectModalProps {
 
 export const ProjectModal: React.FC<ProjectModalProps> = ({ open, onClose }) => {
   const [step, setStep] = useState(0);
-  const [form, setForm] = useState({ name: '', refLink: '', budget: '' });
+  const [form, setForm] = useState({ name: '', service: '', refLink: '', budget: '' });
 
   // Reset when reopened
   React.useEffect(() => {
     if (open) {
       setStep(0);
-      setForm({ name: '', refLink: '', budget: '' });
+      setForm({ name: '', service: '', refLink: '', budget: '' });
     }
   }, [open]);
 
@@ -51,7 +51,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({ open, onClose }) => 
               </div>
               {/* Step indicator */}
               <div className="flex gap-2 mt-5">
-                {[0, 1, 2].map(i => (
+                {[0, 1, 2, 3].map(i => (
                   <div key={i} className={`h-1 flex-1 rounded-full transition-all duration-300 ${i <= step ? 'bg-[#E50914]' : 'bg-white/10'}`} />
                 ))}
               </div>
@@ -76,16 +76,65 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({ open, onClose }) => 
                 <button
                   onClick={() => { if (form.name.trim()) setStep(1); }}
                   disabled={!form.name.trim()}
-                  className="mt-6 w-full bg-[#E50914] disabled:opacity-30 disabled:cursor-not-allowed hover:bg-red-700 text-white py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 transition-all"
+                  className="mt-6 w-full bg-[#E50914] disabled:opacity-30 disabled:cursor-not-allowed hover:bg-red-700 text-white py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 transition-all cursor-pointer"
                 >
                   Continue <ArrowRight size={18} />
                 </button>
               </motion.div>
             )}
 
-            {/* Step 1 — Reference Reel */}
+            {/* Step 1 — Select Service (New customization requested by user!) */}
             {step === 1 && (
               <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="px-8 py-8">
+                <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mb-6">
+                  <span className="text-2xl">⚡</span>
+                </div>
+                <label className="block text-[10px] uppercase tracking-[0.2em] text-zinc-500 font-bold mb-1">Select Service *</label>
+                <p className="text-zinc-600 text-xs mb-4">Choose the editing or creative service you need</p>
+                
+                <div className="space-y-2 max-h-52 overflow-y-auto pr-1 no-scrollbar">
+                  {[
+                    "Instagram Reel / Shorts Editing 📱",
+                    "YouTube Video Editing 🎥",
+                    "Course / Tutorial Production 🎓",
+                    "Thumbnail & Visual Design 🎨",
+                    "Retainer / Full-Time Video Editor 🤝",
+                    "Channel Consulting & Growth 📈",
+                    "Custom Request ✍️",
+                  ].map(s => (
+                    <button
+                      key={s}
+                      onClick={() => setForm(f => ({ ...f, service: s }))}
+                      className={`w-full text-left px-4 py-3 rounded-xl border text-xs font-semibold transition-all flex items-center justify-between ${
+                        form.service === s 
+                          ? "bg-[#E50914]/15 border-[#E50914] text-white" 
+                          : "bg-white/5 border-white/10 text-zinc-400 hover:border-white/25 hover:text-white"
+                      }`}
+                    >
+                      <span>{s}</span>
+                      {form.service === s && <span className="text-[#E50914]">✓</span>}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex gap-3 mt-6">
+                  <button onClick={() => setStep(0)} className="flex-1 bg-white/5 border border-white/10 text-zinc-400 py-3.5 rounded-2xl font-bold text-xs hover:bg-white/10 transition-all cursor-pointer">
+                    ← Back
+                  </button>
+                  <button 
+                    onClick={() => { if (form.service) setStep(2); }} 
+                    disabled={!form.service}
+                    className="flex-[2] bg-[#E50914] hover:bg-red-700 disabled:opacity-30 disabled:cursor-not-allowed text-white py-3.5 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  >
+                    Continue <ArrowRight size={16} />
+                  </button>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Step 2 — Reference Reel */}
+            {step === 2 && (
+              <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="px-8 py-8">
                 <div className="w-14 h-14 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center mb-6">
                   <span className="text-2xl">🎬</span>
                 </div>
@@ -97,23 +146,23 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({ open, onClose }) => 
                   placeholder="https://instagram.com/... or YouTube link"
                   value={form.refLink}
                   onChange={e => setForm(f => ({ ...f, refLink: e.target.value }))}
-                  onKeyDown={e => { if (e.key === 'Enter') setStep(2); }}
+                  onKeyDown={e => { if (e.key === 'Enter') setStep(3); }}
                   className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white text-base outline-none focus:border-purple-500 transition-all placeholder:text-zinc-700"
                 />
                 <div className="flex gap-3 mt-6">
-                  <button onClick={() => setStep(0)} className="flex-1 bg-white/5 border border-white/10 text-zinc-400 py-4 rounded-2xl font-bold text-sm hover:bg-white/10 transition-all">
+                  <button onClick={() => setStep(1)} className="flex-1 bg-white/5 border border-white/10 text-zinc-400 py-4 rounded-2xl font-bold text-sm hover:bg-white/10 transition-all cursor-pointer">
                     ← Back
                   </button>
-                  <button onClick={() => setStep(2)} className="flex-[2] bg-purple-600 hover:bg-purple-700 text-white py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 transition-all">
+                  <button onClick={() => setStep(3)} className="flex-[2] bg-purple-600 hover:bg-purple-700 text-white py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 transition-all cursor-pointer">
                     Continue <ArrowRight size={18} />
                   </button>
                 </div>
               </motion.div>
             )}
 
-            {/* Step 2 — Budget */}
-            {step === 2 && (
-              <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="px-8 py-8">
+            {/* Step 3 — Budget */}
+            {step === 3 && (
+              <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="px-8 py-8">
                 <div className="w-14 h-14 rounded-2xl bg-green-500/10 border border-green-500/20 flex items-center justify-center mb-6">
                   <span className="text-2xl">💰</span>
                 </div>
@@ -135,7 +184,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({ open, onClose }) => 
                   className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3 text-white text-sm outline-none focus:border-[#25D366] transition-all placeholder:text-zinc-700"
                 />
                 <div className="flex gap-3 mt-6">
-                  <button onClick={() => setStep(1)} className="flex-1 bg-white/5 border border-white/10 text-zinc-400 py-4 rounded-2xl font-bold text-sm hover:bg-white/10 transition-all">
+                  <button onClick={() => setStep(2)} className="flex-1 bg-white/5 border border-white/10 text-zinc-400 py-4 rounded-2xl font-bold text-sm hover:bg-white/10 transition-all cursor-pointer">
                     ← Back
                   </button>
                   <a
@@ -144,6 +193,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({ open, onClose }) => 
                         `Hi Janish! 👋 I'm interested in your video editing services.`,
                         ``,
                         `*Name:* ${form.name}`,
+                        `*Service:* ${form.service}`,
                         form.refLink ? `*Reference Reel:* ${form.refLink}` : null,
                         form.budget ? `*Budget:* ${form.budget}` : null,
                         ``,
@@ -164,7 +214,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({ open, onClose }) => 
                           source: 'Start Your Project Modal',
                           name: form.name,
                           whatsapp: '',
-                          style: '',
+                          style: form.service || '',
                           quantity: '',
                           budget: form.budget || '',
                           refLink: form.refLink || '',

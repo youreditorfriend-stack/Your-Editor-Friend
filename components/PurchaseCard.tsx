@@ -1,10 +1,11 @@
 import React, { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, Copy, CreditCard, Download, Link as LinkIcon, Lock, Tag, X } from "lucide-react";
+import { Check, Copy, CreditCard, Download, Link as LinkIcon, Lock, Tag, X, ChevronDown, ChevronUp } from "lucide-react";
 import { Link } from "react-router-dom";
 import { applyCoupon, formatPrice, useStore } from "../src/lib/store";
 import type { Course, Product } from "../src/lib/store";
 import { usePurchase } from "../src/lib/purchase";
+import { getWhatsAppLink } from "../src/lib/site";
 
 // The purchase card lives on every item detail page.
 // - Desktop: rendered sticky in the right column.
@@ -24,6 +25,8 @@ export const PurchaseCard: React.FC<{
   const [couponError, setCouponError] = useState("");
   const [copied, setCopied] = useState(false);
   const [showCoupon, setShowCoupon] = useState(!compact);
+  const [agreed, setAgreed] = useState(false);
+  const [termsCollapsed, setTermsCollapsed] = useState(true);
 
   const title = "name" in item ? item.name : item.title;
 
@@ -92,9 +95,48 @@ export const PurchaseCard: React.FC<{
           )}
         </AnimatePresence>
 
-        <div className="px-4 py-2 text-[11px] text-zinc-500 leading-snug border-b border-white/5">
-          {item.terms || defaultTerms}
-        </div>
+        {!owned && (
+          <div className="px-4 py-2 border-b border-white/5 bg-zinc-950/20 text-[11px]">
+            <label className="flex items-start gap-2 cursor-pointer text-zinc-400 select-none">
+              <input
+                id="terms-checkbox-compact"
+                type="checkbox"
+                checked={agreed}
+                onChange={(e) => setAgreed(e.target.checked)}
+                className="mt-0.5 rounded border-white/20 bg-black/40 text-[#E50914] focus:ring-[#E50914] h-3.5 w-3.5"
+              />
+              <span className="leading-tight">
+                I agree to the{" "}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setTermsCollapsed(!termsCollapsed);
+                  }}
+                  className="text-[#E50914] hover:underline font-semibold inline-flex items-center gap-0.5"
+                >
+                  Terms &amp; Conditions
+                  {termsCollapsed ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
+                </button>
+              </span>
+            </label>
+
+            <AnimatePresence initial={false}>
+              {!termsCollapsed && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0, marginTop: 0 }}
+                  animate={{ height: "auto", opacity: 1, marginTop: 6 }}
+                  exit={{ height: 0, opacity: 0, marginTop: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="rounded-lg border border-white/5 bg-black/20 p-2 text-[10px] text-zinc-500 leading-normal">
+                    {item.terms || defaultTerms}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
 
         <div className="flex items-center gap-3 p-3">
           <div className="min-w-0">
@@ -121,9 +163,15 @@ export const PurchaseCard: React.FC<{
               isLoggedIn={isLoggedIn}
               onClaim={() => claimFree(item)}
               onBuy={() => buy(item, applied?.code)}
+              agreed={agreed || owned}
             />
           </div>
         </div>
+        {!owned && !item.free && (
+          <div className="px-4 pb-3 pt-1 border-t border-white/5 text-[10px] text-zinc-500 leading-normal text-center bg-black/20">
+            💡 Checkout issues? GPay <b>₹{finalPrice.toLocaleString("en-IN")}</b> to <b>+91 63743 43169</b> &amp; send screenshot on <a href={getWhatsAppLink(`Hi Janish, I have GPayed ₹${finalPrice} for "${title}". Please grant me access. My registered email is: `)} target="_blank" rel="noopener noreferrer" className="text-[#25D366] hover:underline font-bold">WhatsApp</a> for instant access!
+          </div>
+        )}
       </div>
     );
   }
@@ -170,9 +218,48 @@ export const PurchaseCard: React.FC<{
         />
       </div>
 
-      <div className="rounded-xl border border-white/10 bg-black/30 p-3 text-[11px] text-zinc-400 leading-snug mb-3">
-        {item.terms || defaultTerms}
-      </div>
+      {!owned && (
+        <div className="mb-4">
+          <label className="flex items-start gap-2.5 cursor-pointer text-xs text-zinc-300 select-none">
+            <input
+              id="terms-checkbox-desktop"
+              type="checkbox"
+              checked={agreed}
+              onChange={(e) => setAgreed(e.target.checked)}
+              className="mt-0.5 rounded border-white/20 bg-black/40 text-[#E50914] focus:ring-[#E50914] h-4 w-4 cursor-pointer"
+            />
+            <span className="leading-tight">
+              I agree to the{" "}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setTermsCollapsed(!termsCollapsed);
+                }}
+                className="text-[#E50914] hover:underline font-semibold inline-flex items-center gap-0.5"
+              >
+                Terms &amp; Conditions
+                {termsCollapsed ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
+              </button>
+            </span>
+          </label>
+
+          <AnimatePresence initial={false}>
+            {!termsCollapsed && (
+              <motion.div
+                initial={{ height: 0, opacity: 0, marginTop: 0 }}
+                animate={{ height: "auto", opacity: 1, marginTop: 10 }}
+                exit={{ height: 0, opacity: 0, marginTop: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="rounded-xl border border-white/10 bg-black/30 p-3 text-[11px] text-zinc-400 leading-snug">
+                  {item.terms || defaultTerms}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
 
       <BuyButton
         item={item}
@@ -182,7 +269,14 @@ export const PurchaseCard: React.FC<{
         isLoggedIn={isLoggedIn}
         onClaim={() => claimFree(item)}
         onBuy={() => buy(item, applied?.code)}
+        agreed={agreed || owned}
       />
+
+      {!owned && !item.free && (
+        <div className="mt-4 p-4 rounded-2xl bg-zinc-950 border border-white/5 text-[11px] text-zinc-500 leading-normal">
+          💡 <b>Checkout issues?</b> If the online checkout fails, simply GPay <b>₹{finalPrice.toLocaleString("en-IN")}</b> to <b>+91 63743 43169</b> and send the receipt/screenshot on <a href={getWhatsAppLink(`Hi Janish, I GPayed ₹${finalPrice} for "${title}". Please grant me access. My registered email is: `)} target="_blank" rel="noopener noreferrer" className="text-[#25D366] hover:underline font-bold">WhatsApp</a>. I will instantly activate your access!
+        </div>
+      )}
 
       <button
         onClick={share}
@@ -243,9 +337,10 @@ const BuyButton: React.FC<{
   isLoggedIn: boolean;
   onClaim: () => void;
   onBuy: () => void;
-}> = ({ item, owned, paying, isLoggedIn, onClaim, onBuy }) => {
+  agreed: boolean;
+}> = ({ item, owned, paying, isLoggedIn, onClaim, onBuy, agreed }) => {
   const cls =
-    "w-full py-3.5 rounded-xl text-base font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-60";
+    "w-full py-3.5 rounded-xl text-base font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed";
 
   if (owned) {
     return (
@@ -256,7 +351,11 @@ const BuyButton: React.FC<{
   }
   if (item.free) {
     return (
-      <button onClick={onClaim} className={`${cls} bg-[#25D366] text-black hover:bg-green-400`}>
+      <button 
+        onClick={onClaim} 
+        disabled={!agreed}
+        className={`${cls} bg-[#25D366] text-black hover:bg-green-400`}
+      >
         {isLoggedIn ? <><Download size={17} /> Get it free</> : <><Lock size={16} /> Login to get free</>}
       </button>
     );
@@ -264,7 +363,7 @@ const BuyButton: React.FC<{
   return (
     <button
       onClick={onBuy}
-      disabled={paying === item.id}
+      disabled={paying === item.id || !agreed}
       className={`${cls} bg-[#E50914] text-white hover:bg-red-700`}
     >
       {paying === item.id ? "Opening payment…" : isLoggedIn ? <><CreditCard size={17} /> Get it now</> : <><Lock size={16} /> Login to buy</>}

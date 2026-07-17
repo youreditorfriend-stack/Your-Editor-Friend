@@ -11,6 +11,12 @@ export const ProductCard: React.FC<{ product: Product; index?: number }> = ({ pr
   const owned = owns(p.id);
   const detailPath = `/products/${p.id}`;
 
+  React.useEffect(() => {
+    import('../src/lib/analytics').then(({ trackImpression }) => {
+      trackImpression(p.id);
+    }).catch(err => console.warn(err));
+  }, [p.id]);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
