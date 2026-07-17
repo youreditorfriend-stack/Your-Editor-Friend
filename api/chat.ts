@@ -322,9 +322,9 @@ export default async function handler(req: any, res: any) {
         images: body.images,
         onToken: (t) => res.write(t),
       });
-    } catch (providerErr) {
+    } catch (providerErr: any) {
       console.error(`Provider "${routed.name}" failed:`, providerErr);
-      if (!res.headersSent) return res.status(502).json({ error: 'AI upstream error' });
+      if (!res.headersSent) return res.status(502).json({ error: 'AI upstream error', provider: routed.name, detail: String(providerErr?.message || providerErr).slice(0, 500) });
       // Already streaming — end gracefully.
     }
     res.end();
