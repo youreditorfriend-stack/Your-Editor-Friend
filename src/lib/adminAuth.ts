@@ -2,7 +2,7 @@ import { auth } from "../firebase";
 
 // Only these Google accounts can open the admin panel or upload to storage.
 // The server enforces the same list — this copy just keeps the UI honest.
-export const ADMIN_EMAILS = ["youreditorfriend@gmail.com", "janishwork@gmail.com"];
+export const ADMIN_EMAILS = ["youreditorfriend@gmail.com"];
 
 export const isAdminEmail = (email?: string | null) =>
   !!email && ADMIN_EMAILS.includes(email.toLowerCase());
