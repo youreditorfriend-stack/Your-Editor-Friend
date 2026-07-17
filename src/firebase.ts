@@ -1,6 +1,12 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
-import { initializeAuth, browserLocalPersistence, getAuth, GoogleAuthProvider } from "firebase/auth";
+import {
+  initializeAuth,
+  browserLocalPersistence,
+  browserPopupRedirectResolver,
+  getAuth,
+  GoogleAuthProvider,
+} from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyBqgmzrNelS701uQ1ngLvcoatUkcBuiRic",
@@ -19,7 +25,10 @@ export const db = getFirestore(app);
 let authInstance;
 try {
   authInstance = initializeAuth(app, {
-    persistence: [browserLocalPersistence]
+    persistence: [browserLocalPersistence],
+    // Required so signInWithPopup/Redirect works — without an explicit
+    // resolver initializeAuth throws auth/argument-error on popup sign-in.
+    popupRedirectResolver: browserPopupRedirectResolver,
   });
 } catch (e) {
   authInstance = getAuth(app);
