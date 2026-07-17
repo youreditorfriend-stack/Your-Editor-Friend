@@ -4,6 +4,7 @@ import { Sparkles, Send, X, MessageCircle, RotateCcw } from 'lucide-react';
 import { WHATSAPP_NUMBER } from '../src/lib/site';
 import { CHAT_FLOW, WELCOME, buildSummary, buildWhatsAppText } from '../src/lib/chatFlow';
 import { streamAssistant, AiUnavailableError, ChatTurn } from '../src/lib/aiService';
+import { newConversationId, startConversation, saveChatTurn } from '../src/lib/chatHistory';
 
 interface AiChatProps {
   open: boolean;
@@ -36,6 +37,18 @@ export const AiChat: React.FC<AiChatProps> = ({ open, onClose }) => {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const abortRef = useRef<AbortController | null>(null);
+  const convId = useRef<string>('');       // Firestore conversation id
+  const convStarted = useRef(false);        // parent doc created yet?
+
+  // Persist one exchange to Firebase — best-effort, never blocks the UI.
+  const recordTurn = useCallback(async (userMessage: string, aiMessage: string) => {
+    try {
+      if (!convStarted.current) { await startConversation(convId.current); convStarted.current = true; }
+      await saveChatTurn(convId.current, userMessage, aiMessage);
+    } catch (e) {
+      console.warn('Chat history save failed:', e);
+    }
+  }, []);
 
   const currentStep = stepIndex < CHAT_FLOW.length ? CHAT_FLOW[stepIndex] : null;
   // Free-text input is always available for AI questions, except while a reply
@@ -63,6 +76,8 @@ export const AiChat: React.FC<AiChatProps> = ({ open, onClose }) => {
   const startFlow = useCallback(() => {
     clearTimers();
     msgId = 1;
+    convId.current = newConversationId();
+    convStarted.current = false;
     setMessages([{ id: nextId(), role: 'assistant', text: WELCOME }]);
     setAnswers({});
     setStepIndex(0);
@@ -120,15 +135,20 @@ export const AiChat: React.FC<AiChatProps> = ({ open, onClose }) => {
     const next = stepIndex + 1;
     setStepIndex(next);
 
+    let botMessage: string;
     if (next < CHAT_FLOW.length) {
-      botSay(CHAT_FLOW[next].question, 900);
+      botMessage = CHAT_FLOW[next].question;
+      botSay(botMessage, 900);
     } else {
       // Flow complete — summarise using the answers collected so far
       const finalAnswers = { ...answers, [currentStep.key]: text };
-      botSay(buildSummary(finalAnswers), 900);
+      botMessage = buildSummary(finalAnswers);
+      botSay(botMessage, 900);
       const t = setTimeout(() => setDone(true), 900);
       timers.current.push(t);
     }
+    // Persist this guided exchange (user's choice → assistant's next message)
+    recordTurn(text, botMessage);
   };
 
   // Send a free-text question to the AI and stream the reply into a bubble.
@@ -150,8 +170,9 @@ export const AiChat: React.FC<AiChatProps> = ({ open, onClose }) => {
     const controller = new AbortController();
     abortRef.current = controller;
 
+    let aiText = '';
     try {
-      await streamAssistant({
+      aiText = await streamAssistant({
         history,
         answers,
         signal: controller.signal,
@@ -160,13 +181,15 @@ export const AiChat: React.FC<AiChatProps> = ({ open, onClose }) => {
         },
       });
     } catch (err) {
-      const msg = err instanceof AiUnavailableError
+      aiText = err instanceof AiUnavailableError
         ? "The AI assistant isn't switched on yet. Use the quick options above, or message on WhatsApp and Janish will reply personally. 🙌"
         : "Sorry — I couldn't reach the assistant just now. Please try again, or reach out on WhatsApp.";
-      setMessages(prev => prev.map(m => m.id === replyId ? { ...m, text: msg } : m));
+      setMessages(prev => prev.map(m => m.id === replyId ? { ...m, text: aiText } : m));
     } finally {
       setStreaming(false);
       abortRef.current = null;
+      // Persist this AI exchange (user's question → assistant's reply)
+      recordTurn(text, aiText);
     }
   };
 
