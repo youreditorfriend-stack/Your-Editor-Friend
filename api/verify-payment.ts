@@ -44,9 +44,12 @@ export default async function handler(req: any, res: any) {
     const order = await rzp.orders.fetch(orderId);
     const itemId = (order.notes as any)?.itemId;
     const uid = (order.notes as any)?.uid;
+    const couponCode = ((order.notes as any)?.couponCode || "").toUpperCase();
     if (!itemId || !uid) return json(res, 400, { error: "Order missing item/user info" });
 
-    await adminDb().doc(`users/${uid}`).set(
+    const db = adminDb();
+
+    await db.doc(`users/${uid}`).set(
       {
         purchases: FieldValue.arrayUnion(itemId),
         payments: FieldValue.arrayUnion({
@@ -54,11 +57,29 @@ export default async function handler(req: any, res: any) {
           orderId,
           paymentId,
           amount: order.amount,
+          couponCode: couponCode || null,
           at: new Date().toISOString(),
         }),
       },
       { merge: true }
     );
+
+    // If a coupon was used, bump its uses counter transactionally so concurrent
+    // purchases with a maxUses cap can't both slip through.
+    if (couponCode) {
+      const ref = db.doc("store/data");
+      await db.runTransaction(async tx => {
+        const snap = await tx.get(ref);
+        if (!snap.exists) return;
+        const list = (snap.data()?.coupons || []) as any[];
+        const next = list.map(c =>
+          (c.code || "").toUpperCase() === couponCode
+            ? { ...c, uses: (c.uses || 0) + 1 }
+            : c
+        );
+        tx.update(ref, { coupons: next });
+      });
+    }
 
     return json(res, 200, { ok: true, itemId });
   } catch (e: any) {

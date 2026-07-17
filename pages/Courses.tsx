@@ -38,7 +38,7 @@ export const Courses: React.FC = () => {
                   className="group rounded-3xl border border-white/5 bg-zinc-900/50 overflow-hidden hover:border-white/15 transition-all flex flex-col"
                 >
                   {/* YouTube-style 16:9 (1920×1080) thumbnail — contained, never cropped */}
-                  <div className="relative aspect-video overflow-hidden bg-zinc-950/60">
+                  <Link to={`/courses/${c.id}`} className="relative aspect-video overflow-hidden bg-zinc-950/60 block">
                     <img src={c.thumbnail} alt={c.title} className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                     <div className="absolute inset-0 flex items-center justify-center">
@@ -54,10 +54,12 @@ export const Courses: React.FC = () => {
                     <span className={`absolute top-3 right-3 text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full ${c.free ? 'bg-[#25D366] text-black' : 'bg-black/70 text-white border border-white/20'}`}>
                       {c.free ? 'Free' : 'Paid'}
                     </span>
-                  </div>
+                  </Link>
 
                   <div className="p-5 md:p-8 flex flex-col flex-1">
-                    <h2 className="text-lg md:text-2xl font-semibold mb-2">{c.title}</h2>
+                    <Link to={`/courses/${c.id}`} className="block hover:text-white transition-colors">
+                      <h2 className="text-lg md:text-2xl font-semibold mb-2">{c.title}</h2>
+                    </Link>
                     <p className="text-zinc-500 text-xs md:text-sm font-light mb-4 md:mb-6">{c.tagline}</p>
 
                     {/* Features */}

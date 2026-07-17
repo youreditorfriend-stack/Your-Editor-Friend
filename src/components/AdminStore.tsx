@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { db } from "../firebase";
 import { arrayRemove, arrayUnion, collection, doc, getDoc, getDocs, setDoc, updateDoc } from "firebase/firestore";
-import { SEED_STORE, StoreData, Product, Course, ProductCategory, PageConfig, mergePages } from "../lib/store";
+import { SEED_STORE, StoreData, Product, Course, ProductCategory, PageConfig, Coupon, mergePages } from "../lib/store";
 import { ImageField } from "./ImageField";
 import { FileField } from "./FileField";
 
@@ -64,6 +64,7 @@ function useAdminStore() {
             courses: d.courses || SEED_STORE.courses,
             productCategories: d.productCategories || SEED_STORE.productCategories,
             pages: mergePages(d.pages),
+            coupons: Array.isArray(d.coupons) ? d.coupons : [],
           });
         } else {
           setData(SEED_STORE);
@@ -163,6 +164,178 @@ export function AdminPagesPanel() {
       </SectionCard>
 
       <SaveBar saved={saved} onSave={save} />
+    </div>
+  );
+}
+
+// ═══ DETAIL-PAGE FIELDS (shared by products + courses) ════════════════════════
+// Small helpers so the same rich-content editor works for both types without
+// duplicating a hundred lines of markup.
+
+import { parseVideo, describeVideo } from "../lib/video";
+import { renderMarkdown } from "../lib/markdown";
+import type { DetailContent } from "../lib/store";
+
+function DetailFieldsEditor<T extends DetailContent & { id: string }>({
+  item,
+  aspect,
+  onChange,
+}: {
+  item: T;
+  aspect: "square" | "video";
+  onChange: (ch: Partial<T>) => void;
+}) {
+  const [showPreview, setShowPreview] = useState(false);
+  const preview = parseVideo(item.previewVideo);
+  const desc = describeVideo(preview);
+
+  const setFaq = (faq: { q: string; a: string }[]) => onChange({ faq } as Partial<T>);
+  const setGallery = (gallery: string[]) => onChange({ gallery } as Partial<T>);
+
+  return (
+    <div style={{ marginTop:16,paddingTop:16,borderTop:"1px solid #1a1a1a" }}>
+      <div style={{ color:"#e63027",fontSize:10,letterSpacing:1.5,fontWeight:700,marginBottom:12,textTransform:"uppercase" }}>
+        Detail page content
+      </div>
+
+      {/* Preview video URL */}
+      <div style={{ marginBottom:14 }}>
+        <FieldLabel>PREVIEW VIDEO URL (optional)</FieldLabel>
+        <input
+          value={item.previewVideo || ""}
+          onChange={e => onChange({ previewVideo: e.target.value } as Partial<T>)}
+          placeholder="https://youtube.com/watch?v=... or Instagram reel or .mp4 link"
+          style={{...IS,width:"100%"}}
+        />
+        {desc && (
+          <div style={{ color:"#22c55e",fontSize:11,marginTop:4 }}>
+            ✓ Detected: {desc}
+          </div>
+        )}
+        {item.previewVideo && !desc && (
+          <div style={{ color:"#e63027",fontSize:11,marginTop:4 }}>
+            ⚠ Not a recognised YouTube / Instagram / video-file URL
+          </div>
+        )}
+      </div>
+
+      {/* Description (markdown) */}
+      <div style={{ marginBottom:14 }}>
+        <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4 }}>
+          <FieldLabel>DESCRIPTION (markdown)</FieldLabel>
+          <button
+            onClick={() => setShowPreview(v => !v)}
+            style={{ background:"#1a1a2a",color:"#3b82f6",border:"1px solid #3b82f644",borderRadius:6,padding:"3px 10px",cursor:"pointer",fontSize:11,fontWeight:700 }}
+          >
+            {showPreview ? "Edit" : "Preview"}
+          </button>
+        </div>
+        {showPreview ? (
+          <div style={{ background:"#0d0d0d",border:"1px solid #2a2a2a",borderRadius:8,padding:14,minHeight:120 }}>
+            <div className="prose prose-invert">{renderMarkdown(item.description || "(nothing to preview yet)")}</div>
+          </div>
+        ) : (
+          <textarea
+            value={item.description || ""}
+            onChange={e => onChange({ description: e.target.value } as Partial<T>)}
+            rows={8}
+            placeholder={"## What this is\nA short intro paragraph.\n\n## What you get\n- Feature one\n- Feature two"}
+            style={{...IS,width:"100%",resize:"vertical",fontFamily:"'JetBrains Mono', ui-monospace, monospace",fontSize:12,lineHeight:1.5}}
+          />
+        )}
+        <div style={{ color:"#444",fontSize:10,marginTop:4 }}>
+          Headings: # ## ### · bullets: - or * · numbered: 1. · divider: --- · **bold** · [link](url)
+        </div>
+      </div>
+
+      {/* Gallery */}
+      <div style={{ marginBottom:14 }}>
+        <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6 }}>
+          <FieldLabel>GALLERY (screenshots shown as a strip)</FieldLabel>
+          <button
+            onClick={() => setGallery([...(item.gallery || []), ""])}
+            style={{ background:"#22c55e18",color:"#22c55e",border:"1px solid #22c55e44",borderRadius:6,padding:"3px 10px",cursor:"pointer",fontSize:11,fontWeight:700 }}
+          >
+            + Add screenshot
+          </button>
+        </div>
+        {(item.gallery || []).map((url, i) => (
+          <div key={i} style={{ marginBottom:8,padding:10,background:"#0d0d0d",border:"1px solid #222",borderRadius:8 }}>
+            <ImageField
+              label={`SCREENSHOT ${i + 1}`}
+              aspect={aspect}
+              value={url}
+              onChange={u => {
+                const next = [...(item.gallery || [])];
+                next[i] = u;
+                setGallery(next);
+              }}
+            />
+            <button
+              onClick={() => setGallery((item.gallery || []).filter((_, j) => j !== i))}
+              style={{ background:"#2a0a0a",color:"#e63027",border:"none",borderRadius:6,padding:"4px 10px",cursor:"pointer",fontSize:11,fontWeight:700,marginTop:6 }}
+            >
+              Remove
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {/* Terms */}
+      <div style={{ marginBottom:14 }}>
+        <FieldLabel>TERMS (shown above the buy button)</FieldLabel>
+        <textarea
+          value={item.terms || ""}
+          onChange={e => onChange({ terms: e.target.value } as Partial<T>)}
+          rows={2}
+          placeholder="Leave blank to use the default terms. Keep it short — this appears in the purchase card."
+          style={{...IS,width:"100%",resize:"vertical",fontSize:12}}
+        />
+      </div>
+
+      {/* FAQ */}
+      <div>
+        <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6 }}>
+          <FieldLabel>FAQ (question and answer pairs)</FieldLabel>
+          <button
+            onClick={() => setFaq([...(item.faq || []), { q: "", a: "" }])}
+            style={{ background:"#22c55e18",color:"#22c55e",border:"1px solid #22c55e44",borderRadius:6,padding:"3px 10px",cursor:"pointer",fontSize:11,fontWeight:700 }}
+          >
+            + Add question
+          </button>
+        </div>
+        {(item.faq || []).map((row, i) => (
+          <div key={i} style={{ marginBottom:8,padding:10,background:"#0d0d0d",border:"1px solid #222",borderRadius:8 }}>
+            <input
+              value={row.q}
+              onChange={e => {
+                const next = [...(item.faq || [])];
+                next[i] = { ...next[i], q: e.target.value };
+                setFaq(next);
+              }}
+              placeholder="Question"
+              style={{...IS,width:"100%",marginBottom:6,fontWeight:600}}
+            />
+            <textarea
+              value={row.a}
+              onChange={e => {
+                const next = [...(item.faq || [])];
+                next[i] = { ...next[i], a: e.target.value };
+                setFaq(next);
+              }}
+              rows={2}
+              placeholder="Answer"
+              style={{...IS,width:"100%",resize:"vertical",fontSize:12}}
+            />
+            <button
+              onClick={() => setFaq((item.faq || []).filter((_, j) => j !== i))}
+              style={{ background:"#2a0a0a",color:"#e63027",border:"none",borderRadius:6,padding:"4px 10px",cursor:"pointer",fontSize:11,fontWeight:700,marginTop:6 }}
+            >
+              Remove
+            </button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -277,6 +450,11 @@ export function AdminProductsPanel() {
                 </div>
               </div>
             </div>
+            <DetailFieldsEditor
+              item={p}
+              aspect="square"
+              onChange={ch => upProd(p.id, ch)}
+            />
             <div style={{ display:"flex",alignItems:"center",gap:18,marginTop:12,paddingTop:12,borderTop:"1px solid #1a1a1a" }}>
               <label style={{ display:"flex",alignItems:"center",gap:8,color:"#888",fontSize:12,fontWeight:700 }}>FREE <Toggle value={p.free} onChange={v=>upProd(p.id,{free:v,price:v?0:p.price})}/></label>
               <label style={{ display:"flex",alignItems:"center",gap:8,color:"#888",fontSize:12,fontWeight:700 }}>FEATURED (home) <Toggle value={!!p.featured} onChange={v=>upProd(p.id,{featured:v})}/></label>
@@ -382,6 +560,11 @@ export function AdminCoursesPanel() {
                 </div>
               </div>
             </div>
+            <DetailFieldsEditor
+              item={c}
+              aspect="video"
+              onChange={ch => upCourse(c.id, ch)}
+            />
             <div style={{ display:"flex",alignItems:"center",gap:18,marginTop:12,paddingTop:12,borderTop:"1px solid #1a1a1a" }}>
               <label style={{ display:"flex",alignItems:"center",gap:8,color:"#888",fontSize:12,fontWeight:700 }}>FREE <Toggle value={c.free} onChange={v=>upCourse(c.id,{free:v,price:v?0:c.price})}/></label>
               <label style={{ display:"flex",alignItems:"center",gap:8,color:"#888",fontSize:12,fontWeight:700 }}>VISIBLE <Toggle value={c.enabled} onChange={v=>upCourse(c.id,{enabled:v})}/></label>
@@ -514,6 +697,144 @@ export function AdminUsersPanel() {
           </div>
         ))}
       </SectionCard>
+    </div>
+  );
+}
+
+// ═══ COUPONS PANEL ═════════════════════════════════════════════════════════════
+export function AdminCouponsPanel() {
+  const { data, setData, save, saved } = useAdminStore();
+  if (!data) return <div style={{ color:"#555" }}>Loading…</div>;
+
+  const coupons = data.coupons || [];
+  const setCoupons = (cs: Coupon[]) => setData({ ...data, coupons: cs });
+
+  const addCoupon = () => {
+    setCoupons([
+      { code: "LAUNCH10", percentOff: 10, enabled: true, appliesTo: [], uses: 0 },
+      ...coupons,
+    ]);
+  };
+
+  const upCoupon = (i: number, ch: Partial<Coupon>) => {
+    setCoupons(coupons.map((c, j) => (j === i ? { ...c, ...ch } : c)));
+  };
+
+  // All items (products + courses) shown in the "applies to" picker
+  const allItems = [
+    ...(data.products || []).map(p => ({ id: p.id, label: `📦 ${p.name}` })),
+    ...(data.courses || []).map(c => ({ id: c.id, label: `🎓 ${c.title}` })),
+  ];
+
+  return (
+    <div>
+      <h1 style={{ fontFamily:"'Bebas Neue',cursive",fontSize:30,letterSpacing:3,margin:"0 0 4px" }}>
+        DISCOUNT <span style={{ color:"#e63027" }}>COUPONS</span>
+      </h1>
+      <p style={{ color:"#555",fontSize:13,marginBottom:18 }}>
+        Buyers enter the code at checkout · code stored uppercase · leave "applies to" empty to work on everything · usage count updates automatically
+      </p>
+      <SaveBar saved={saved} onSave={save} />
+
+      <SectionCard title={`COUPONS (${coupons.length})`} icon="🏷️" action={<Btn onClick={addCoupon} color="#22c55e">+ Add Coupon</Btn>}>
+        {coupons.length === 0 && <Empty>No coupons yet — click + Add Coupon</Empty>}
+        {coupons.map((c, i) => (
+          <div key={i} style={{ background:"#0d0d0d",border:"1px solid #222",borderRadius:12,padding:14,marginBottom:10,opacity:c.enabled?1:0.6 }}>
+            <div style={{ display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1fr",gap:10,marginBottom:10 }}>
+              <div>
+                <FieldLabel>CODE</FieldLabel>
+                <input
+                  value={c.code}
+                  onChange={e => upCoupon(i, { code: e.target.value.toUpperCase().replace(/\s+/g, "") })}
+                  placeholder="LAUNCH50"
+                  style={{...IS,width:"100%",fontWeight:700,textTransform:"uppercase",letterSpacing:1}}
+                />
+              </div>
+              <div>
+                <FieldLabel>% OFF</FieldLabel>
+                <input
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={c.percentOff}
+                  onChange={e => upCoupon(i, { percentOff: Math.max(0, Math.min(100, Number(e.target.value))) })}
+                  style={{...IS,width:"100%"}}
+                />
+              </div>
+              <div>
+                <FieldLabel>EXPIRES (optional)</FieldLabel>
+                <input
+                  type="date"
+                  value={c.expiresAt ? c.expiresAt.slice(0, 10) : ""}
+                  onChange={e => upCoupon(i, { expiresAt: e.target.value ? new Date(e.target.value).toISOString() : undefined })}
+                  style={{...IS,width:"100%"}}
+                />
+              </div>
+              <div>
+                <FieldLabel>MAX USES (optional)</FieldLabel>
+                <input
+                  type="number"
+                  min={0}
+                  value={c.maxUses ?? ""}
+                  onChange={e => upCoupon(i, { maxUses: e.target.value ? Number(e.target.value) : undefined })}
+                  placeholder="Unlimited"
+                  style={{...IS,width:"100%"}}
+                />
+              </div>
+            </div>
+
+            {/* Applies to picker */}
+            <div style={{ marginBottom:10 }}>
+              <FieldLabel>APPLIES TO (leave empty for everything)</FieldLabel>
+              <div style={{ display:"flex",flexWrap:"wrap",gap:6,marginTop:4 }}>
+                {allItems.map(item => {
+                  const on = (c.appliesTo || []).includes(item.id);
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        const next = new Set(c.appliesTo || []);
+                        if (on) next.delete(item.id); else next.add(item.id);
+                        upCoupon(i, { appliesTo: Array.from(next) });
+                      }}
+                      style={{
+                        background: on ? "#22c55e33" : "#1a1a1a",
+                        border: `1px solid ${on ? "#22c55e" : "#333"}`,
+                        color: on ? "#22c55e" : "#888",
+                        borderRadius: 20,
+                        padding: "4px 12px",
+                        cursor: "pointer",
+                        fontSize: 11,
+                        fontWeight: 700,
+                      }}
+                    >
+                      {on ? "✓ " : ""}{item.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div style={{ display:"flex",alignItems:"center",gap:18,paddingTop:10,borderTop:"1px solid #1a1a1a" }}>
+              <label style={{ display:"flex",alignItems:"center",gap:8,color:"#888",fontSize:12,fontWeight:700 }}>
+                ENABLED
+                <Toggle value={c.enabled} onChange={v => upCoupon(i, { enabled: v })}/>
+              </label>
+              <span style={{ color:"#666",fontSize:12 }}>
+                Used <b style={{ color: "#ccc" }}>{c.uses || 0}</b>
+                {c.maxUses != null ? ` / ${c.maxUses}` : ""} times
+              </span>
+              <div style={{ flex:1 }}/>
+              <button
+                onClick={() => { if (window.confirm(`Delete coupon "${c.code}"?`)) setCoupons(coupons.filter((_, j) => j !== i)); }}
+                style={{ background:"#2a0a0a",color:"#e63027",border:"none",borderRadius:7,padding:"6px 14px",cursor:"pointer",fontSize:12,fontWeight:700 }}
+              >🗑 Delete</button>
+            </div>
+          </div>
+        ))}
+      </SectionCard>
+
+      <SaveBar saved={saved} onSave={save} />
     </div>
   );
 }

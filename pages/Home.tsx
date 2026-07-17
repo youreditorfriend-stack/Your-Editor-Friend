@@ -38,7 +38,7 @@ export const Home: React.FC = () => {
               {marqueeItems.map((p, i) => (
                 <Link
                   key={`${p.id}-${i}`}
-                  to="/products"
+                  to={`/products/${p.id}`}
                   className="group w-36 md:w-56 shrink-0 rounded-xl md:rounded-2xl border border-white/5 bg-zinc-900/60 overflow-hidden hover:border-white/20 transition-all"
                 >
                   <div className="relative aspect-square overflow-hidden bg-zinc-950/60">

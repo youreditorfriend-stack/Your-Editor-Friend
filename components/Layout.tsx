@@ -24,6 +24,10 @@ export const Layout: React.FC = () => {
   const [scrolled, setScrolled] = useState(false);
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  // Item detail pages render their own fixed mobile purchase bar. When they
+  // mount they flip this on to suppress the floating WhatsApp button, which
+  // would otherwise sit on top of the bar.
+  const [detailMode, setDetailMode] = useState(false);
   const location = useLocation();
   const { user, signIn, signOut } = useAuth();
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -53,22 +57,25 @@ export const Layout: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-[#EDEDED] font-sans selection:bg-[#E50914] selection:text-white antialiased">
 
-      {/* Floating WhatsApp Button */}
-      <motion.a
-        href={WHATSAPP_LINK}
-        target="_blank"
-        rel="noopener noreferrer"
-        initial={{ scale: 0, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.9 }}
-        className="fixed bottom-8 right-8 z-[60] bg-[#25D366] text-white p-4 rounded-full shadow-2xl shadow-green-500/20 flex items-center justify-center group"
-      >
-        <MessageCircle size={28} fill="currentColor" className="text-white" />
-        <span className="max-w-0 overflow-hidden group-hover:max-w-xs group-hover:ml-2 transition-all duration-500 whitespace-nowrap font-medium text-sm">
-          Chat with me
-        </span>
-      </motion.a>
+      {/* Floating WhatsApp Button — hidden on item detail pages where the
+          mobile purchase bar takes the bottom of the screen */}
+      {!detailMode && (
+        <motion.a
+          href={WHATSAPP_LINK}
+          target="_blank"
+          rel="noopener noreferrer"
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+          className="fixed bottom-8 right-8 z-[60] bg-[#25D366] text-white p-4 rounded-full shadow-2xl shadow-green-500/20 flex items-center justify-center group"
+        >
+          <MessageCircle size={28} fill="currentColor" className="text-white" />
+          <span className="max-w-0 overflow-hidden group-hover:max-w-xs group-hover:ml-2 transition-all duration-500 whitespace-nowrap font-medium text-sm">
+            Chat with me
+          </span>
+        </motion.a>
+      )}
 
       {/* Navigation — all section names always visible (no hamburger) */}
       <nav className={`fixed top-0 w-full z-50 transition-all duration-300 border-b ${scrolled ? 'bg-[#0A0A0A]/85 backdrop-blur-xl border-white/10' : 'bg-[#0A0A0A]/60 backdrop-blur-md border-white/5'}`}>
@@ -153,7 +160,10 @@ export const Layout: React.FC = () => {
 
       {/* Page content */}
       <main className="pt-[92px] md:pt-28">
-        <Outlet context={{ openProjectModal: () => setShowProjectModal(true) }} />
+        <Outlet context={{
+          openProjectModal: () => setShowProjectModal(true),
+          setDetailMode,
+        }} />
       </main>
 
       {/* Footer */}
@@ -197,6 +207,15 @@ export const Layout: React.FC = () => {
   );
 };
 
+interface LayoutContext {
+  openProjectModal: () => void;
+  setDetailMode: (v: boolean) => void;
+}
+
 // Hook for pages to open the "Start Your Project" modal from the shared layout
 export const useProjectModal = () =>
-  useOutletContext<{ openProjectModal: () => void }>();
+  useOutletContext<LayoutContext>();
+
+// Item detail pages use this to suppress the floating WhatsApp button while
+// their mobile purchase bar owns the bottom of the screen.
+export const useDetailContext = () => useOutletContext<LayoutContext>();

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { db } from "../firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
-import { AdminProductsPanel, AdminCoursesPanel, AdminUsersPanel, AdminPagesPanel } from "./AdminStore";
+import { AdminProductsPanel, AdminCoursesPanel, AdminUsersPanel, AdminPagesPanel, AdminCouponsPanel } from "./AdminStore";
 
 // ─── INITIAL DATA ─────────────────────────────────────────────────────────────
 const INIT_PROJECTS = [
@@ -282,6 +282,7 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
     { id:"pages",    label:"Pages",          icon:"👁️" },
     { id:"store",    label:"Products",       icon:"📦" },
     { id:"courses",  label:"Courses",        icon:"🎓" },
+    { id:"coupons",  label:"Coupons",        icon:"🏷️" },
     { id:"users",    label:"Users",          icon:"👥" },
     { id:"projects", label:"Recent Projects",icon:"🎬" },
     { id:"quote",    label:"Custom Quote",   icon:"💰" },
@@ -373,6 +374,7 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
           {/* ══ PAGES / STORE / COURSES / USERS ══ */}
           {tab==="pages"   && <AdminPagesPanel/>}
           {tab==="store"   && <AdminProductsPanel/>}
+          {tab==="coupons" && <AdminCouponsPanel/>}
           {tab==="courses" && <AdminCoursesPanel/>}
           {tab==="users"   && <AdminUsersPanel/>}
 

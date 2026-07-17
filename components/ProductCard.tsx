@@ -9,6 +9,7 @@ import { usePurchase } from '../src/lib/purchase';
 export const ProductCard: React.FC<{ product: Product; index?: number }> = ({ product: p, index = 0 }) => {
   const { owns, claimFree, buy, isLoggedIn, paying } = usePurchase();
   const owned = owns(p.id);
+  const detailPath = `/products/${p.id}`;
 
   return (
     <motion.div
@@ -20,7 +21,10 @@ export const ProductCard: React.FC<{ product: Product; index?: number }> = ({ pr
     >
       {/* Square (1080×1080) thumbnail — contained so nothing is ever cropped,
           on a neutral panel that suits transparent PNGs */}
-      <div className="relative aspect-square overflow-hidden bg-zinc-950/60">
+      <Link
+        to={detailPath}
+        className="relative aspect-square overflow-hidden bg-zinc-950/60 block"
+      >
         <img src={p.image} alt={p.name} className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" />
         {p.badge && (
           <span className="absolute top-3 left-3 bg-[#E50914] text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full">
@@ -30,11 +34,13 @@ export const ProductCard: React.FC<{ product: Product; index?: number }> = ({ pr
         <span className={`absolute top-3 right-3 text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full ${p.free ? 'bg-[#25D366] text-black' : 'bg-black/70 text-white border border-white/20'}`}>
           {p.free ? 'Free' : 'Paid'}
         </span>
-      </div>
+      </Link>
 
       {/* Pricing list below thumbnail */}
       <div className="p-3.5 md:p-5 flex flex-col flex-1">
-        <h3 className="font-semibold text-sm md:text-base mb-1 leading-snug">{p.name}</h3>
+        <Link to={detailPath} className="block hover:text-white transition-colors">
+          <h3 className="font-semibold text-sm md:text-base mb-1 leading-snug">{p.name}</h3>
+        </Link>
         <p className="text-zinc-500 text-[11px] md:text-xs font-light mb-3 md:mb-4 flex-1">{p.tagline}</p>
 
         <div className="border-t border-white/5 pt-2.5 md:pt-3 mb-3 md:mb-4 space-y-1 md:space-y-1.5 text-xs md:text-sm">

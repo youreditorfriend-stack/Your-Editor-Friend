@@ -10,7 +10,16 @@ export interface ProductCategory {
   enabled: boolean;
 }
 
-export interface Product {
+// Detail-page fields that both Product and Course share.
+export interface DetailContent {
+  previewVideo?: string;                    // YouTube / Instagram / mp4
+  description?: string;                     // markdown, rendered on the detail page
+  gallery?: string[];                       // extra screenshots (R2 URLs)
+  faq?: { q: string; a: string }[];
+  terms?: string;                           // short text shown above the buy button
+}
+
+export interface Product extends DetailContent {
   id: string;
   name: string;
   tagline: string;
@@ -25,7 +34,7 @@ export interface Product {
   enabled: boolean;
 }
 
-export interface Course {
+export interface Course extends DetailContent {
   id: string;
   title: string;
   tagline: string;
@@ -37,6 +46,18 @@ export interface Course {
   accessUrl: string; // course link delivered after purchase
   badge?: string;
   enabled: boolean;
+}
+
+// Discount code, applied at checkout. Server re-validates and computes the
+// amount, so a tampered client can't buy at a lower price.
+export interface Coupon {
+  code: string;         // stored uppercase
+  percentOff: number;   // 1-100
+  enabled: boolean;
+  appliesTo?: string[]; // item ids; empty/absent = everything
+  expiresAt?: string;   // ISO date
+  maxUses?: number;
+  uses?: number;
 }
 
 // A page/section of the site that can be switched on or off from the Admin panel.
@@ -54,6 +75,7 @@ export interface StoreData {
   courses: Course[];
   productCategories: ProductCategory[];
   pages: PageConfig[];
+  coupons: Coupon[];
 }
 
 export const DEFAULT_PAGES: PageConfig[] = [
@@ -70,6 +92,7 @@ export const DEFAULT_PAGES: PageConfig[] = [
 
 export const SEED_STORE: StoreData = {
   pages: DEFAULT_PAGES,
+  coupons: [],
   productCategories: [
     { id: "transitions", label: "Transitions", enabled: true },
     { id: "templates", label: "Templates", enabled: true },
@@ -199,6 +222,7 @@ export function useStore() {
               ? d.productCategories
               : SEED_STORE.productCategories,
             pages: mergePages(d.pages),
+            coupons: Array.isArray(d.coupons) ? d.coupons : [],
           };
         } else {
           cache = SEED_STORE;
@@ -223,6 +247,47 @@ export function useStore() {
 
 export const formatPrice = (n: number) =>
   n === 0 ? "FREE" : `₹${n.toLocaleString("en-IN")}`;
+
+// Coupon validation used by both the purchase card (instant feedback) and the
+// server (source of truth for the amount charged). They must stay in lockstep,
+// so keep this function pure and let the caller pass the current time.
+export interface CouponResult {
+  ok: boolean;
+  price: number;    // final price after discount (never below 0)
+  discount: number; // amount taken off
+  coupon?: Coupon;
+  error?: string;   // set when ok=false; safe to show to the user
+}
+
+export function applyCoupon(
+  price: number,
+  code: string,
+  coupons: Coupon[],
+  itemId: string,
+  now: Date = new Date()
+): CouponResult {
+  const trimmed = (code || "").trim().toUpperCase();
+  if (!trimmed) return { ok: false, price, discount: 0, error: "Enter a coupon code" };
+
+  const c = coupons.find(x => (x.code || "").toUpperCase() === trimmed);
+  if (!c) return { ok: false, price, discount: 0, error: "That coupon doesn't exist" };
+  if (!c.enabled) return { ok: false, price, discount: 0, error: "This coupon is not active" };
+  if (c.expiresAt && new Date(c.expiresAt).getTime() < now.getTime()) {
+    return { ok: false, price, discount: 0, error: "This coupon has expired" };
+  }
+  if (c.maxUses != null && (c.uses ?? 0) >= c.maxUses) {
+    return { ok: false, price, discount: 0, error: "This coupon has already been fully used" };
+  }
+  if (c.appliesTo && c.appliesTo.length > 0 && !c.appliesTo.includes(itemId)) {
+    return { ok: false, price, discount: 0, error: "This coupon doesn't apply to this item" };
+  }
+  if (!(c.percentOff > 0 && c.percentOff <= 100)) {
+    return { ok: false, price, discount: 0, error: "This coupon is misconfigured" };
+  }
+
+  const discount = Math.round(price * (c.percentOff / 100));
+  return { ok: true, price: Math.max(0, price - discount), discount, coupon: c };
+}
 
 // Is a page/section switched on in the Admin panel?
 // Defaults to true while the store is still loading, so nothing flickers.

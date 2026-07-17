@@ -53,7 +53,7 @@ export function usePurchase() {
     window.open(getWhatsAppLink(msg), "_blank");
   };
 
-  const buy = async (item: Product | Course) => {
+  const buy = async (item: Product | Course, couponCode?: string) => {
     if (!user) {
       await signIn();
       return;
@@ -65,7 +65,7 @@ export function usePurchase() {
       const orderRes = await fetch("/api/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ itemId: item.id, uid: user.uid }),
+        body: JSON.stringify({ itemId: item.id, uid: user.uid, couponCode: couponCode || undefined }),
       });
 
       const isJson = (orderRes.headers.get("content-type") || "").includes("application/json");

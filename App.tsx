@@ -16,6 +16,7 @@ import { PortfolioPage } from './pages/PortfolioPage';
 import { About } from './pages/About';
 import { Contact } from './pages/Contact';
 import { Library } from './pages/Library';
+import { ItemDetail } from './pages/ItemDetail';
 import { CustomQuotePage } from './components/CustomQuotePage';
 import Admin from './src/components/Admin';
 import { Login } from './src/components/Login';
@@ -40,7 +41,9 @@ const App: React.FC = () => {
           <Route element={<Layout />}>
             <Route path="/" element={<Home />} />
             <Route path="/products" element={<PageGate id="products"><Products /></PageGate>} />
+            <Route path="/products/:id" element={<PageGate id="products"><ItemDetail kind="product" /></PageGate>} />
             <Route path="/courses" element={<PageGate id="courses"><Courses /></PageGate>} />
+            <Route path="/courses/:id" element={<PageGate id="courses"><ItemDetail kind="course" /></PageGate>} />
             <Route path="/services" element={<PageGate id="services"><Services /></PageGate>} />
             <Route path="/portfolio" element={<PageGate id="portfolio"><PortfolioPage /></PageGate>} />
             <Route path="/about" element={<PageGate id="about"><About /></PageGate>} />
