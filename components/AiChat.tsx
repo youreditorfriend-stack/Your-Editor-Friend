@@ -20,7 +20,23 @@ interface ChatMessage {
 const GREETING: ChatMessage = {
   id: 0,
   role: 'assistant',
-  text: "Hey! 👋 I'm your editing assistant. Ask me about services, pricing, or how to start a project.",
+  text: `Hi 👋
+
+Welcome to Your Editor Friend.
+
+I'm your AI Assistant.
+
+I can help you with
+
+• Video Editing
+• Pricing
+• Courses
+• Services
+• Portfolio
+• Custom Quote
+• Availability
+
+What can I help you with today?`,
 };
 
 const DUMMY_REPLIES = [
