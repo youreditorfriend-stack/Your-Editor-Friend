@@ -1,5 +1,12 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { onAuthStateChanged, signInWithPopup, signOut as fbSignOut, User } from "firebase/auth";
+import {
+  onAuthStateChanged,
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
+  signOut as fbSignOut,
+  User,
+} from "firebase/auth";
 import { doc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, db, googleProvider } from "../firebase";
 
@@ -83,8 +90,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return unsub;
   }, [user]);
 
+  // Finish a redirect-based sign-in when the browser lands back on the site.
+  useEffect(() => {
+    getRedirectResult(auth).catch((e) => {
+      console.error("Redirect sign-in failed:", e);
+    });
+  }, []);
+
   const signIn = async () => {
-    await signInWithPopup(auth, googleProvider);
+    // Popup is nicer on desktop, but many mobile browsers block it. Try the
+    // popup first and fall back to a full-page redirect when it can't open.
+    try {
+      await signInWithPopup(auth, googleProvider);
+    } catch (e: any) {
+      const code = e?.code || "";
+      const popupFailed =
+        code === "auth/popup-blocked" ||
+        code === "auth/operation-not-supported-in-this-environment" ||
+        code === "auth/cancelled-popup-request" ||
+        code === "auth/argument-error";
+      if (popupFailed) {
+        await signInWithRedirect(auth, googleProvider);
+        return;
+      }
+      throw e;
+    }
   };
 
   const signOut = async () => {

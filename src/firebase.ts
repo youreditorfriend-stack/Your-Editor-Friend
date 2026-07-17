@@ -36,3 +36,6 @@ try {
 
 export const auth = authInstance;
 export const googleProvider = new GoogleAuthProvider();
+// Always let the user pick which Google account to use (avoids being stuck
+// on a previously chosen, non-admin account).
+googleProvider.setCustomParameters({ prompt: "select_account" });
