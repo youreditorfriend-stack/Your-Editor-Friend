@@ -7,29 +7,33 @@
 // Required env vars: R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY,
 //                    R2_BUCKET, R2_PUBLIC_URL, FIREBASE_SERVICE_ACCOUNT
 import { AwsClient } from "aws4fetch";
-import { cert, getApps, initializeApp } from "firebase-admin/app";
-import { getAuth } from "firebase-admin/auth";
 
 export const config = { api: { bodyParser: { sizeLimit: "8mb" } } };
 
 // Keep in sync with src/lib/adminAuth.ts
 const ADMIN_EMAILS = ["youreditorfriend@gmail.com"];
 
-function initAdmin() {
-  if (!getApps().length) {
-    const svc = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT || "{}");
-    initializeApp({ credential: cert(svc) });
-  }
-}
+// Public web API key (it also ships in the browser bundle — it identifies the
+// project, it does not grant access).
+const FIREBASE_API_KEY = "AIzaSyBqgmzrNelS701uQ1ngLvcoatUkcBuiRic";
 
-// Verifies the caller is a signed-in owner account. The token is signed by
-// Google, so it can't be forged or replayed by editing the request body.
+// Verifies the caller is a signed-in owner account by having Google check the
+// token. Using the REST endpoint keeps firebase-admin/auth (and its ESM-only
+// jose dependency, which breaks in the deployed bundle) out of this function.
 async function assertAdmin(idToken?: string) {
   if (!idToken) throw new Error("Not signed in");
-  initAdmin();
-  const decoded = await getAuth().verifyIdToken(idToken);
-  const email = decoded.email?.toLowerCase();
-  if (!email || !decoded.email_verified || !ADMIN_EMAILS.includes(email)) {
+  const r = await fetch(
+    `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${FIREBASE_API_KEY}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ idToken }),
+    }
+  );
+  if (!r.ok) throw new Error("Invalid or expired sign-in");
+  const user = (await r.json())?.users?.[0];
+  const email = user?.email?.toLowerCase();
+  if (!email || !user.emailVerified || !ADMIN_EMAILS.includes(email)) {
     throw new Error("Not an admin account");
   }
   return email;
