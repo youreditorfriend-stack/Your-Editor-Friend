@@ -10,6 +10,7 @@ import { PurchaseCard } from "../components/PurchaseCard";
 import { FaqAccordion } from "../components/FaqAccordion";
 import { ProductCard } from "../components/ProductCard";
 import { useDetailContext } from "../components/Layout";
+import { CommentsSection } from "../src/components/CommentsSection";
 
 type Kind = "product" | "course";
 
@@ -20,7 +21,15 @@ export const ItemDetail: React.FC<{ kind: Kind }> = ({ kind }) => {
   const { store, loading } = useStore();
   const navigate = useNavigate();
   const detail = useDetailContext();
-  const [lightbox, setLightbox] = useState<string | null>(null);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [mainImageOpen, setMainImageOpen] = useState(false);
+
+  // Track product view and count unique visits
+  useEffect(() => {
+    if (id) {
+      import("../src/lib/analytics").then(({ trackView }) => trackView(id)).catch(err => console.warn(err));
+    }
+  }, [id]);
 
   // Ask the layout to hide its floating WhatsApp button — the mobile bottom
   // bar would sit on top of it otherwise.
@@ -31,6 +40,22 @@ export const ItemDetail: React.FC<{ kind: Kind }> = ({ kind }) => {
 
   const list: (Product | Course)[] = (kind === "product" ? store?.products : store?.courses) || [];
   const item = list.find(x => x.id === id && x.enabled);
+
+  // Keyboard navigation for lightbox
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (lightboxIndex === null || !item?.gallery?.length) return;
+      if (e.key === "ArrowLeft") {
+        setLightboxIndex(prev => prev !== null && prev > 0 ? prev - 1 : item.gallery!.length - 1);
+      } else if (e.key === "ArrowRight") {
+        setLightboxIndex(prev => prev !== null && prev < item.gallery!.length - 1 ? prev + 1 : 0);
+      } else if (e.key === "Escape") {
+        setLightboxIndex(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [lightboxIndex, item]);
 
   // Similar items: same category first, then top up from the rest.
   // Computed here so the hook order stays stable across renders.
@@ -53,7 +78,7 @@ export const ItemDetail: React.FC<{ kind: Kind }> = ({ kind }) => {
   const title = "name" in item ? item.name : item.title;
   const heroImage = "image" in item ? item.image : item.thumbnail;
 
-  const aspect = kind === "product" ? "aspect-square" : "aspect-video";
+  const aspect = "aspect-video";
   const preview = parseVideo(item.previewVideo);
 
   const backTo = kind === "product" ? "/products" : "/courses";
@@ -73,36 +98,50 @@ export const ItemDetail: React.FC<{ kind: Kind }> = ({ kind }) => {
           {/* ── Left column ─────────────────────────────────────────────── */}
           <div className="min-w-0">
             {/* Preview */}
-            <div className={`relative w-full ${aspect} rounded-2xl overflow-hidden bg-zinc-950/60 border border-white/5`}>
-              {preview.kind === "youtube" || preview.kind === "instagram" ? (
-                <iframe
-                  src={preview.embedUrl}
-                  title={title}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  className="absolute inset-0 w-full h-full"
-                />
-              ) : preview.kind === "file" ? (
-                <video
-                  src={preview.fileUrl}
-                  poster={heroImage || undefined}
-                  controls
-                  playsInline
-                  className="absolute inset-0 w-full h-full object-contain"
-                />
-              ) : heroImage ? (
-                <img src={heroImage} alt={title} className="absolute inset-0 w-full h-full object-contain" />
-              ) : (
-                <div className="absolute inset-0 flex items-center justify-center text-zinc-700">
-                  <Play size={40} />
+            {preview.kind !== "none" ? (
+              <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-zinc-950/60 border border-white/5">
+                {preview.kind === "youtube" || preview.kind === "instagram" ? (
+                  <iframe
+                    id="product-preview-video-iframe"
+                    src={preview.embedUrl}
+                    title={title}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    className="absolute inset-0 w-full h-full border-0"
+                  />
+                ) : (
+                  <video
+                    id="product-preview-video"
+                    src={preview.fileUrl}
+                    poster={heroImage || undefined}
+                    controls
+                    playsInline
+                    className="absolute inset-0 w-full h-full object-contain"
+                  />
+                )}
+              </div>
+            ) : (
+              <div
+                onClick={() => setMainImageOpen(true)}
+                className="relative w-full aspect-square max-w-lg mx-auto lg:mx-0 rounded-2xl overflow-hidden bg-zinc-950/60 border border-white/5 cursor-zoom-in group/mainimg"
+              >
+                {heroImage ? (
+                  <img src={heroImage} alt={title} className="absolute inset-0 w-full h-full object-cover group-hover/mainimg:scale-[1.02] transition-transform duration-300" />
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center text-zinc-700">
+                    <Play size={40} />
+                  </div>
+                )}
+                {item.badge && (
+                  <span className="absolute top-3 left-3 bg-[#E50914] text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full z-10 shadow-lg">
+                    {item.badge}
+                  </span>
+                )}
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/mainimg:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-semibold gap-2">
+                  <span>Click to preview actual ratio</span>
                 </div>
-              )}
-              {item.badge && (
-                <span className="absolute top-3 left-3 bg-[#E50914] text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full">
-                  {item.badge}
-                </span>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* Title + tagline */}
             <div className="mt-6">
@@ -122,7 +161,7 @@ export const ItemDetail: React.FC<{ kind: Kind }> = ({ kind }) => {
                   {item.gallery.map((src, i) => (
                     <button
                       key={i}
-                      onClick={() => setLightbox(src)}
+                      onClick={() => setLightboxIndex(i)}
                       className="shrink-0 w-40 md:w-48 aspect-square rounded-xl overflow-hidden border border-white/5 bg-zinc-950/60 hover:border-white/20 transition-colors"
                     >
                       <img src={src} alt={`Screenshot ${i + 1}`} className="w-full h-full object-cover" />
@@ -161,6 +200,9 @@ export const ItemDetail: React.FC<{ kind: Kind }> = ({ kind }) => {
                 <FaqAccordion items={item.faq} />
               </div>
             )}
+
+            {/* Public Discussion / Comments Section */}
+            <CommentsSection itemId={item.id} itemTitle={title} />
 
             {/* Similar items */}
             {similar.length > 0 && kind === "product" && (
@@ -217,18 +259,84 @@ export const ItemDetail: React.FC<{ kind: Kind }> = ({ kind }) => {
       <PurchaseCard item={{ ...item, kind } as any} compact />
 
       {/* Gallery lightbox */}
-      {lightbox && (
+      {lightboxIndex !== null && item.gallery && item.gallery[lightboxIndex] && (
         <div
-          onClick={(e) => { if (e.target === e.currentTarget) setLightbox(null); }}
-          className="fixed inset-0 z-[70] bg-black/95 backdrop-blur-xl flex items-center justify-center p-6"
+          onClick={(e) => { if (e.target === e.currentTarget) setLightboxIndex(null); }}
+          className="fixed inset-0 z-[70] bg-black/80 backdrop-blur-xl flex items-center justify-between p-4 md:p-10 select-none"
         >
+          {/* Close button */}
           <button
-            onClick={() => setLightbox(null)}
-            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20"
+            onClick={() => setLightboxIndex(null)}
+            className="absolute top-6 right-6 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-all hover:scale-105 z-50 cursor-pointer"
           >
-            <X size={18} />
+            <X size={20} />
           </button>
-          <img src={lightbox} alt="" className="max-w-full max-h-full object-contain rounded-2xl" />
+
+          {/* Left Arrow */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setLightboxIndex(prev => prev !== null && prev > 0 ? prev - 1 : item.gallery!.length - 1);
+            }}
+            className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-white/5 border border-white/10 hover:bg-white/15 flex items-center justify-center text-white transition-all hover:scale-105 cursor-pointer"
+          >
+            <ArrowLeft size={24} />
+          </button>
+
+          {/* Main Image Container */}
+          <div className="flex-1 flex flex-col items-center justify-center max-w-4xl h-full p-4 relative">
+            <motion.img
+              key={lightboxIndex}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.2 }}
+              src={item.gallery[lightboxIndex]}
+              alt={`Screenshot ${lightboxIndex + 1}`}
+              className="max-w-full max-h-[80vh] object-contain rounded-2xl shadow-2xl border border-white/10"
+            />
+            {/* Slide counter */}
+            <div className="absolute bottom-2 text-zinc-400 font-mono text-sm tracking-wider">
+              {lightboxIndex + 1} / {item.gallery.length}
+            </div>
+          </div>
+
+          {/* Right Arrow */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setLightboxIndex(prev => prev !== null && prev < item.gallery!.length - 1 ? prev + 1 : 0);
+            }}
+            className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-white/5 border border-white/10 hover:bg-white/15 flex items-center justify-center text-white transition-all hover:scale-105 cursor-pointer"
+          >
+            <ArrowRight size={24} />
+          </button>
+        </div>
+      )}
+
+      {/* Main Image Lightbox (Actual Aspect Ratio Preview) */}
+      {mainImageOpen && heroImage && (
+        <div
+          onClick={() => setMainImageOpen(false)}
+          className="fixed inset-0 z-[70] bg-black/90 backdrop-blur-xl flex items-center justify-center p-4 md:p-10 select-none cursor-zoom-out"
+        >
+          {/* Close button */}
+          <button
+            onClick={() => setMainImageOpen(false)}
+            className="absolute top-6 right-6 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-all hover:scale-105 z-50 cursor-pointer"
+          >
+            <X size={20} />
+          </button>
+
+          <motion.img
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.2 }}
+            src={heroImage}
+            alt={title}
+            className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl border border-white/10"
+          />
         </div>
       )}
     </div>

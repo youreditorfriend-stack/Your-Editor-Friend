@@ -263,7 +263,7 @@ function DetailFieldsEditor<T extends DetailContent & { id: string }>({
           <div key={i} style={{ marginBottom:8,padding:10,background:"#0d0d0d",border:"1px solid #222",borderRadius:8 }}>
             <ImageField
               label={`SCREENSHOT ${i + 1}`}
-              aspect={aspect}
+              aspect="any"
               value={url}
               onChange={u => {
                 const next = [...(item.gallery || [])];
@@ -596,6 +596,7 @@ export function AdminUsersPanel() {
   const [users, setUsers] = useState<AdminUser[] | null>(null);
   const [items, setItems] = useState<{ id: string; label: string; paid: boolean }[]>([]);
   const [grantFor, setGrantFor] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
 
   const load = async () => {
     try {
@@ -638,6 +639,11 @@ export function AdminUsersPanel() {
   const labelOf = (id: string) => items.find(i => i.id === id)?.label || id;
   const fmtDate = (ts: any) => ts?.seconds ? new Date(ts.seconds * 1000).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "—";
 
+  const filteredUsers = (users || []).filter(u => 
+    u.email.toLowerCase().includes(search.toLowerCase()) || 
+    u.name.toLowerCase().includes(search.toLowerCase())
+  );
+
   return (
     <div>
       <h1 style={{ fontFamily:"'Bebas Neue',cursive",fontSize:30,letterSpacing:3,margin:"0 0 4px" }}>
@@ -648,10 +654,32 @@ export function AdminUsersPanel() {
         💡 When a customer pays you on WhatsApp, click <b style={{color:"#22c55e"}}>+ Grant Access</b> on their row and pick the product/course — it instantly appears in their <b>My Library</b> with the download link.
       </p>
 
-      <SectionCard title={`USERS (${users?.length ?? "…"})`} icon="👥" action={<Btn onClick={load} color="#3b82f6">↻ Refresh</Btn>}>
+      {/* Search Input Box */}
+      <div style={{ marginBottom: 16 }}>
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="🔍 Search users by name or email ID..."
+          style={{
+            width: "100%",
+            background: "#0d0d0d",
+            border: "1px solid #222",
+            borderRadius: 8,
+            padding: "10px 14px",
+            color: "#fff",
+            fontSize: 13,
+            outline: "none",
+          }}
+          onFocus={(e) => e.target.style.borderColor = "#e63027"}
+          onBlur={(e) => e.target.style.borderColor = "#222"}
+        />
+      </div>
+
+      <SectionCard title={`USERS (${filteredUsers.length} of ${users?.length ?? 0})`} icon="👥" action={<Btn onClick={load} color="#3b82f6">↻ Refresh</Btn>}>
         {users === null && <div style={{ color:"#555" }}>Loading…</div>}
-        {users?.length === 0 && <Empty>No users have logged in yet</Empty>}
-        {users?.map(u => (
+        {users !== null && filteredUsers.length === 0 && <Empty>No matching users found</Empty>}
+        {filteredUsers.map(u => (
           <div key={u.uid} style={{ background:"#0d0d0d",border:"1px solid #222",borderRadius:12,padding:14,marginBottom:10 }}>
             <div style={{ display:"flex",alignItems:"center",gap:12 }}>
               {u.photo
@@ -670,7 +698,7 @@ export function AdminUsersPanel() {
 
             {/* Purchases */}
             {u.purchases.length > 0 && (
-              <div style={{ display:"flex",flexWrap:"wrap",gap:6,marginTop:10 }}>
+               <div style={{ display:"flex",flexWrap:"wrap",gap:6,marginTop:10 }}>
                 {u.purchases.map(pid => (
                   <span key={pid} style={{ background:"#16210f",border:"1px solid #22c55e33",color:"#22c55e",borderRadius:20,padding:"4px 10px",fontSize:12,display:"flex",alignItems:"center",gap:6 }}>
                     {labelOf(pid)}

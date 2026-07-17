@@ -1,11 +1,10 @@
 import { useRef, useState } from "react";
 import { CropModal } from "./CropModal";
 import { adminAuthBody } from "../lib/adminAuth";
+import { Image, UploadCloud, RotateCcw, Trash2, HelpCircle } from "lucide-react";
 
-const IS: React.CSSProperties = { background:"#0d0d0d",border:"1px solid #2a2a2a",borderRadius:8,padding:"7px 11px",color:"#fff",fontSize:13,outline:"none" };
-
-// Pick an image → crop it to the exact ratio this slot needs → upload to
-// Cloudflare R2 through our own server (no bucket CORS involved).
+// Modernized Image Upload & Crop Field.
+// Raw URL inputs are hidden by default to keep the interface extremely tidy and professional.
 export function ImageField({
   value,
   onChange,
@@ -14,7 +13,7 @@ export function ImageField({
 }: {
   value: string;
   onChange: (url: string) => void;
-  aspect?: "square" | "video";
+  aspect?: "square" | "video" | "any";
   label: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -22,12 +21,38 @@ export function ImageField({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [dragOver, setDragOver] = useState(false);
+  const [showUrlInput, setShowUrlInput] = useState(false); // Collapsible fallback
 
   const pick = (file: File) => {
     setErr("");
-    if (!file.type.startsWith("image/")) { setErr("Pick an image file"); return; }
-    if (file.size > 25 * 1024 * 1024) { setErr("Image must be under 25 MB"); return; }
-    setCropFile(file);
+    if (!file.type.startsWith("image/")) {
+      setErr("Please select a valid image file");
+      return;
+    }
+    if (file.size > 25 * 1024 * 1024) {
+      setErr("Image file size must be under 25 MB");
+      return;
+    }
+    if (aspect === "any") {
+      setBusy(true);
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        try {
+          const dataUrl = reader.result as string;
+          await upload({
+            data: dataUrl,
+            contentType: file.type,
+            filename: file.name
+          });
+        } catch (e: any) {
+          setErr(e.message || "Failed to upload image");
+          setBusy(false);
+        }
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setCropFile(file);
+    }
   };
 
   const upload = async (cropped: { data: string; contentType: string; filename: string }) => {
@@ -45,7 +70,7 @@ export function ImageField({
       if (!res.ok) {
         throw new Error(
           body.error === "R2 not configured"
-            ? `Storage isn't set up yet (missing: ${(body.missing || []).join(", ")}) — paste an image URL instead`
+            ? `Storage is not set up yet. Go to Advanced Settings below to paste an image URL.`
             : body.error || `Upload failed (${res.status})`
         );
       }
@@ -57,40 +82,30 @@ export function ImageField({
     }
   };
 
-  const previewStyle: React.CSSProperties = {
-    width: aspect === "square" ? 96 : 150,
-    height: aspect === "square" ? 96 : 84,
-    borderRadius: 10,
-    overflow: "hidden",
-    background: "#161616",
-    border: `1px ${dragOver ? "solid #e63027" : "dashed #2a2a2a"}`,
-    flexShrink: 0,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    cursor: busy ? "wait" : "pointer",
-    position: "relative",
-    transition: "border-color .15s",
-  };
-
   return (
-    <div>
+    <div className="space-y-1.5 select-none">
       {cropFile && (
         <CropModal
           file={cropFile}
-          aspect={aspect}
+          aspect={aspect === "any" ? "square" : aspect}
           onCancel={() => setCropFile(null)}
           onDone={upload}
         />
       )}
 
-      <div style={{ color:"#666",fontSize:10,letterSpacing:1,fontWeight:700,marginBottom:4 }}>{label}</div>
-      <div style={{ display:"flex",gap:12,alignItems:"flex-start" }}>
-        {/* Click / drop zone with preview */}
+      {/* Field label */}
+      <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block">
+        {label}
+      </label>
+
+      <div className="flex flex-col sm:flex-row gap-4 items-start bg-zinc-900/30 border border-white/5 rounded-2xl p-4">
+        {/* Click & drag-and-drop preview block - square preview by default */}
         <div
-          style={previewStyle}
           onClick={() => !busy && inputRef.current?.click()}
-          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDragOver(true);
+          }}
           onDragLeave={() => setDragOver(false)}
           onDrop={(e) => {
             e.preventDefault();
@@ -98,52 +113,91 @@ export function ImageField({
             const f = e.dataTransfer.files?.[0];
             if (f) pick(f);
           }}
+          className={`relative aspect-square w-24 h-24 sm:w-28 sm:h-28 rounded-xl shrink-0 overflow-hidden bg-zinc-950 flex flex-col items-center justify-center cursor-pointer transition-all border ${
+            dragOver
+              ? "border-[#E50914] bg-[#E50914]/5 scale-95"
+              : "border-white/10 hover:border-white/20 hover:bg-zinc-900"
+          } ${busy ? "cursor-wait opacity-50" : ""}`}
         >
           {busy ? (
-            <div style={{ textAlign:"center",padding:4 }}>
-              <div style={{ color:"#e63027",fontSize:18 }}>⏳</div>
-              <div style={{ color:"#666",fontSize:9,letterSpacing:.5 }}>Uploading…</div>
+            <div className="text-center p-2">
+              <div className="animate-spin text-[#E50914] text-lg mb-1">⏳</div>
+              <div className="text-[9px] text-zinc-500 tracking-wider uppercase">UPLOADING...</div>
             </div>
           ) : value ? (
-            <img src={value} alt="" style={{ width:"100%",height:"100%",objectFit:"contain" }}/>
+            <div className="relative w-full h-full group">
+              <img
+                src={value}
+                alt=""
+                className="w-full h-full object-cover rounded-xl"
+              />
+              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
+                <RotateCcw size={14} className="text-white" />
+                <span className="text-[10px] text-white font-bold uppercase tracking-wider">Replace</span>
+              </div>
+            </div>
           ) : (
-            <div style={{ textAlign:"center",color:"#444" }}>
-              <div style={{ fontSize:20 }}>🖼️</div>
-              <div style={{ fontSize:9,letterSpacing:1,fontWeight:700 }}>UPLOAD</div>
+            <div className="text-center p-3 flex flex-col items-center gap-1.5 text-zinc-500">
+              <UploadCloud size={20} className="text-zinc-500" />
+              <div className="text-[9px] font-bold uppercase tracking-widest leading-none">DROP IMAGE</div>
             </div>
           )}
         </div>
 
-        {/* Buttons + URL fallback */}
-        <div style={{ flex:1,minWidth:0 }}>
-          <div style={{ display:"flex",gap:6,marginBottom:6 }}>
+        {/* Info panel */}
+        <div className="flex-1 min-w-0 space-y-2.5">
+          <div className="flex flex-wrap gap-2">
             <button
+              type="button"
               onClick={() => inputRef.current?.click()}
               disabled={busy}
-              style={{ background:"#22c55e18",color:"#22c55e",border:"1px solid #22c55e44",borderRadius:8,padding:"6px 14px",cursor:busy?"wait":"pointer",fontWeight:700,fontSize:12 }}
+              className="inline-flex items-center gap-1.5 bg-[#25D366]/10 text-[#25D366] border border-[#25D366]/20 hover:bg-[#25D366]/20 text-xs font-bold px-3 py-1.5 rounded-lg transition-all cursor-pointer disabled:opacity-50"
             >
-              {busy ? "Uploading…" : value ? "↻ Replace" : "⬆ Upload & crop"}
+              <UploadCloud size={13} /> {value ? "Replace Image" : "Upload Image"}
             </button>
             {value && !busy && (
               <button
+                type="button"
                 onClick={() => onChange("")}
-                style={{ background:"#2a0a0a",color:"#e63027",border:"1px solid #e6302744",borderRadius:8,padding:"6px 12px",cursor:"pointer",fontWeight:700,fontSize:12 }}
+                className="inline-flex items-center gap-1.5 bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 text-xs font-bold px-3 py-1.5 rounded-lg transition-all cursor-pointer"
               >
-                Remove
+                <Trash2 size={13} /> Remove
               </button>
             )}
           </div>
-          <input
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder="…or paste an image URL"
-            style={{ ...IS, width:"100%", fontSize:12 }}
-          />
-          <div style={{ color:"#444",fontSize:10,marginTop:4 }}>
-            {aspect === "square" ? "Crops to 1080×1080 (1:1)" : "Crops to 1920×1080 (16:9)"} · JPG / PNG / WebP · transparent PNG supported
+
+          <div className="text-[10px] text-zinc-500 font-light flex items-center gap-1.5 leading-relaxed">
+            <HelpCircle size={11} />
+            <span>
+              {aspect === "square" ? "Prepped at 1:1 ratio." : aspect === "video" ? "Prepped at 16:9 ratio." : "Uncropped original aspect ratio."} PNG, JPG, WebP supported.
+            </span>
           </div>
+
+          {/* Fallback collapsible URL box (only shown on active toggled state) */}
+          <div className="pt-1.5">
+            <button
+              type="button"
+              onClick={() => setShowUrlInput(!showUrlInput)}
+              className="text-[10px] font-bold tracking-wider text-zinc-500 hover:text-zinc-300 uppercase transition-all"
+            >
+              {showUrlInput ? "Hide Advanced Link Details ▲" : "Paste raw image URL fallback ▼"}
+            </button>
+
+            {showUrlInput && (
+              <input
+                type="text"
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                placeholder="https://example.com/image.png"
+                className="w-full mt-2 bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-red-500 transition-all font-mono"
+              />
+            )}
+          </div>
+
           {err && (
-            <div style={{ background:"#2a0a0a",border:"1px solid #e6302744",borderRadius:8,padding:"6px 10px",color:"#e63027",fontSize:11,marginTop:6 }}>⚠ {err}</div>
+            <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-red-400 text-xs font-light">
+              ⚠️ {err}
+            </div>
           )}
         </div>
       </div>
@@ -152,8 +206,12 @@ export function ImageField({
         ref={inputRef}
         type="file"
         accept="image/*"
-        style={{ display:"none" }}
-        onChange={(e) => { const f = e.target.files?.[0]; if (f) pick(f); e.target.value = ""; }}
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) pick(f);
+          e.target.value = "";
+        }}
       />
     </div>
   );

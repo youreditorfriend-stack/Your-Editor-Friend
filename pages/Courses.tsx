@@ -10,6 +10,14 @@ export const Courses: React.FC = () => {
   const { owns, claimFree, buy, isLoggedIn, paying } = usePurchase();
   const courses = (store?.courses || []).filter(c => c.enabled);
 
+  React.useEffect(() => {
+    if (courses.length > 0) {
+      import('../src/lib/analytics').then(({ trackImpression }) => {
+        courses.forEach(c => trackImpression(c.id));
+      }).catch(err => console.warn(err));
+    }
+  }, [courses]);
+
   return (
     <div className="px-6 pb-24">
       <div className="max-w-6xl mx-auto">

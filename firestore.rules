@@ -1,0 +1,148 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 1. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isVerifiedUser() && request.auth.token.email == 'janishwork@gmail.com';
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Entity validations
+    function isValidPortfolioData(data) {
+      return data.portfolio is list 
+          && data.styleCategories is list 
+          && data.addons is list 
+          && data.formFields is list 
+          && data.discountSettings is map
+          && (data.get('adminPassword', '') is string);
+    }
+
+    function isValidStoreData(data) {
+      return data.products is list
+          && data.courses is list
+          && data.productCategories is list
+          && data.pages is list
+          && data.coupons is list;
+    }
+
+    function isValidComment(data) {
+      return data.itemId is string && data.itemId.size() <= 128
+          && data.uid is string && data.uid.size() <= 128
+          && data.content is string && data.content.size() > 0 && data.content.size() <= 5000
+          && data.createdAt is string && data.createdAt.size() <= 128
+          && data.userName is string && data.userName.size() <= 256
+          && data.userPhoto is string && data.userPhoto.size() <= 1024
+          && (data.get('itemTitle', '') is string)
+          && (data.get('replies', []) is list);
+    }
+
+    function isValidUserProfile(data) {
+      return data.uid is string && data.uid.size() <= 128
+          && data.email is string && data.email.size() <= 256
+          && data.name is string && data.name.size() <= 256
+          && data.photo is string && data.photo.size() <= 1024
+          && (data.get('purchases', []) is list);
+    }
+
+    function isValidAnalytics(data) {
+      return data.get('impressions', 0) is int
+          && data.get('views', 0) is int
+          && data.get('uniqueViewers', 0) is int
+          && data.get('revisits', 0) is int;
+    }
+
+    // Match patterns
+    match /portfolio/{docId} {
+      allow read: if true; // Public catalog reads are safe
+      allow write: if isAdmin() && isValidPortfolioData(incoming());
+    }
+
+    match /store/{docId} {
+      allow read: if true; // Public store catalog reads are safe
+      allow write: if isAdmin() && isValidStoreData(incoming());
+    }
+
+    match /comments/{commentId} {
+      allow read: if true; // Anyone can read comments
+      allow create: if isVerifiedUser() 
+                    && isValidId(commentId)
+                    && isValidComment(incoming())
+                    && incoming().uid == request.auth.uid; // Identity validation: cannot spoof uid
+      
+      allow update: if isVerifiedUser() && (
+        // Action 1: Creator of comment editing content or adding replies
+        (incoming().uid == request.auth.uid && isValidComment(incoming()) 
+         && incoming().diff(existing()).affectedKeys().hasOnly(['content', 'createdAt', 'replies']))
+        ||
+        // Action 2: Admin replying or moderating
+        (isAdmin() && isValidComment(incoming()))
+      );
+
+      allow delete: if isAdmin() || (isSignedIn() && existing().uid == request.auth.uid);
+    }
+
+    match /users/{userId} {
+      allow read: if isAdmin() || isOwner(userId);
+      allow create: if isVerifiedUser() 
+                    && userId == request.auth.uid 
+                    && isValidUserProfile(incoming())
+                    // Prevent self-granted purchases during creation
+                    && incoming().get('purchases', []).size() == 0;
+                    
+      allow update: if isVerifiedUser() && (
+        // Action 1: User updating basic details (excluding purchases and role fields)
+        (userId == request.auth.uid && isValidUserProfile(incoming())
+         && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'photo', 'lastLogin'])
+         && incoming().get('purchases', []) == existing().get('purchases', []))
+        ||
+        // Action 2: Admin granting licensing/purchases
+        (isAdmin() && isValidUserProfile(incoming()))
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    match /analytics/{itemId} {
+      allow read: if true; // Analytics reading can be performed
+      allow create: if isValidId(itemId) && isValidAnalytics(incoming());
+      
+      // Allow updates to increment impressions, views, uniqueViewers, revisits (with increments)
+      allow update: if isValidAnalytics(incoming()) && (
+        // Any signed-in or guest can track impressions and views (increment only)
+        incoming().diff(existing()).affectedKeys().hasAny(['impressions', 'views', 'uniqueViewers', 'revisits'])
+        || isAdmin()
+      );
+      
+      allow delete: if isAdmin();
+    }
+  }
+}

@@ -1,0 +1,96 @@
+{
+  "entities": {
+    "PortfolioData": {
+      "title": "PortfolioData",
+      "description": "Portfolio data configuration including projects, style categories, addons, form fields, and discounts",
+      "type": "object",
+      "properties": {
+        "portfolio": { "type": "array" },
+        "styleCategories": { "type": "array" },
+        "addons": { "type": "array" },
+        "formFields": { "type": "array" },
+        "discountSettings": { "type": "object" },
+        "adminPassword": { "type": "string" }
+      },
+      "required": ["portfolio", "styleCategories", "addons", "formFields", "discountSettings"]
+    },
+    "StoreData": {
+      "title": "StoreData",
+      "description": "Store data configuration including products, courses, product categories, pages, and coupons",
+      "type": "object",
+      "properties": {
+        "products": { "type": "array" },
+        "courses": { "type": "array" },
+        "productCategories": { "type": "array" },
+        "pages": { "type": "array" },
+        "coupons": { "type": "array" }
+      },
+      "required": ["products", "courses", "productCategories", "pages", "coupons"]
+    },
+    "Comment": {
+      "title": "Comment",
+      "description": "A student discussion comment or Q&A on a product or course",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "itemId": { "type": "string" },
+        "itemTitle": { "type": "string" },
+        "uid": { "type": "string" },
+        "userName": { "type": "string" },
+        "userPhoto": { "type": "string" },
+        "content": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "replies": { "type": "array" }
+      },
+      "required": ["itemId", "uid", "content", "createdAt"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile with login and purchase access metadata",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "photo": { "type": "string" },
+        "lastLogin": { "type": "object" },
+        "purchases": { "type": "array" }
+      },
+      "required": ["uid", "email"]
+    },
+    "Analytics": {
+      "title": "Analytics",
+      "description": "Analytics counts for impressions, views, unique viewers, and revisits per product/course",
+      "type": "object",
+      "properties": {
+        "impressions": { "type": "number" },
+        "views": { "type": "number" },
+        "uniqueViewers": { "type": "number" },
+        "revisits": { "type": "number" }
+      },
+      "required": ["impressions", "views", "uniqueViewers", "revisits"]
+    }
+  },
+  "firestore": {
+    "/portfolio/{docId}": {
+      "schema": "PortfolioData",
+      "description": "Contains portfolio and core configuration under the 'data' document"
+    },
+    "/store/{docId}": {
+      "schema": "StoreData",
+      "description": "Contains digital products, academy courses, and pages config under the 'data' document"
+    },
+    "/comments/{commentId}": {
+      "schema": "Comment",
+      "description": "User feedback, discussions, and course support queries"
+    },
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Site user profile with details of digital goods and courses they have been granted licensing to"
+    },
+    "/analytics/{itemId}": {
+      "schema": "Analytics",
+      "description": "Visitor metrics per specific catalog listing item"
+    }
+  }
+}
