@@ -153,6 +153,29 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
     setStoreProducts(arrayMove(storeProducts, oldIndex, newIndex));
   };
 
+  // Portfolio (Projects) tab: category filter + drag-and-drop reordering,
+  // scoped to a single category at a time (reordering only makes sense
+  // within a category, since that's how items are grouped on the public
+  // portfolio grid).
+  const [portfolioFilterCat, setPortfolioFilterCat] = useState("all");
+
+  const handlePortfolioDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id || portfolioFilterCat === "all") return;
+    const catItems = projects.filter(p => p.category === portfolioFilterCat);
+    const oldIndex = catItems.findIndex(p => p.id === active.id);
+    const newIndex = catItems.findIndex(p => p.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const reordered = arrayMove(catItems, oldIndex, newIndex).map((p, i) => ({ ...p, order: i }));
+    const reorderedIds = new Set(reordered.map(p => p.id));
+    const next = [
+      ...projects.filter(p => !reorderedIds.has(p.id)),
+      ...reordered,
+    ];
+    setProjects(next);
+    handleSave(undefined, undefined, undefined, next);
+  };
+
   // Updates a product-only field on the currently open workspace item, keeping
   // both the workspace's local copy and the master storeProducts array in sync.
   const updateActiveProduct = (ch: Partial<Product>) => {
@@ -175,7 +198,11 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
         if (portfolioSnap.exists()) {
           const d = portfolioSnap.data();
           setCategories(d.portfolio || []);
-          setProjects(d.portfolio?.flatMap((c: any) => c.projects) || []);
+          setProjects(
+            d.portfolio?.flatMap((c: any) =>
+              (c.projects || []).map((p: any, i: number) => ({ ...p, order: typeof p.order === "number" ? p.order : i }))
+            ) || []
+          );
           setStyleCategories(d.styleCategories || []);
           setAddons(d.addons || []);
           setFormFields(d.formFields || []);
@@ -1520,9 +1547,11 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
                         const newTitle = window.prompt("Enter new video title:");
                         const newLink = window.prompt("Enter video link:");
                         if (!newTitle || !newLink) return;
+                        const cat = categories[0]?.id || "personal_branding";
                         const nextProj = {
                           id: Date.now(),
-                          category: categories[0]?.id || "personal_branding",
+                          category: cat,
+                          order: projects.filter(p => p.category === cat).length,
                           title: newTitle,
                           link: newLink,
                           enabled: true,
@@ -1537,7 +1566,7 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
                     </Button>
                   </div>
 
-                  {/* Portfolio Video List Container */}
+                  {/* Categories */}
                   <Card>
                     <CardHeader
                       title="Active Tabs Categories"
@@ -1558,9 +1587,36 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
                       }
                     />
 
-                    <div className="space-y-3">
-                      {projects.map((proj) => (
-                        <div key={proj.id} className="bg-white/[0.02] border border-white/5 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-white/10 transition-colors">
+                    {/* Category filter tabs — reordering (below) is only
+                        available while a single category is selected, since
+                        that's the actual display grouping on the public site. */}
+                    <div className="flex flex-wrap items-center gap-2">
+                      {[{ id: "all", label: "All" }, ...categories].map((cat) => (
+                        <button
+                          key={cat.id}
+                          onClick={() => setPortfolioFilterCat(cat.id)}
+                          className={`rounded-full px-3.5 py-1.5 text-[11px] font-bold cursor-pointer transition-colors border ${
+                            portfolioFilterCat === cat.id ? "bg-white text-black border-white" : "bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10"
+                          }`}
+                        >
+                          {cat.label}
+                        </button>
+                      ))}
+                      {portfolioFilterCat === "all" && (
+                        <span className="text-zinc-600 text-[11px]">Select a single category to drag-and-drop reorder.</span>
+                      )}
+                    </div>
+                  </Card>
+
+                  {/* Portfolio Video List — grouped by category when viewing
+                      "All"; a single sortable list when a category is picked. */}
+                  {(() => {
+                    const withOrder = (list: any[]) => [...list].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+                    const renderProjectRow = (proj: any, dragHandle?: ReactNode) => (
+                      <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-white/10 transition-colors">
+                        <div className="flex items-start gap-2.5 flex-1 min-w-0">
+                          {dragHandle}
                           <div className="flex-1 min-w-0">
                             <input
                               type="text"
@@ -1587,63 +1643,122 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
                               className="bg-transparent border-none text-[10px] text-zinc-500 font-mono focus:ring-1 focus:ring-red-500 rounded px-1.5 py-0.5 w-full mt-1 outline-none"
                             />
                           </div>
-
-                          <div className="flex items-center gap-2.5 sm:gap-3 shrink-0 flex-wrap">
-                            <select
-                              value={proj.category}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                const next = projects.map(p => p.id === proj.id ? { ...p, category: val } : p);
-                                setProjects(next);
-                              }}
-                              className="bg-zinc-950 border border-white/10 rounded-lg px-2.5 py-1 text-[10px] font-mono text-zinc-400 outline-none"
-                            >
-                              {categories.map(cat => (
-                                <option key={cat.id} value={cat.id}>{cat.label}</option>
-                              ))}
-                            </select>
-
-                            <button
-                              onClick={() => {
-                                const nextOrient = proj.orientation === "horizontal" ? "vertical" : "horizontal";
-                                const next = projects.map(p => p.id === proj.id ? { ...p, orientation: nextOrient } : p);
-                                setProjects(next);
-                              }}
-                              className="bg-white/5 hover:bg-white/10 text-zinc-300 text-[10px] px-2 py-1 rounded-lg font-bold transition-colors cursor-pointer"
-                            >
-                              {proj.orientation === "horizontal" ? "16:9" : "9:16"}
-                            </button>
-
-                            <button
-                              onClick={() => {
-                                const nextVis = !proj.enabled;
-                                const next = projects.map(p => p.id === proj.id ? { ...p, enabled: nextVis } : p);
-                                setProjects(next);
-                              }}
-                              className="cursor-pointer"
-                            >
-                              <Badge toneKey={proj.enabled ? "success" : "neutral"}>{proj.enabled ? "Show" : "Hide"}</Badge>
-                            </button>
-
-                            <button
-                              onClick={async () => {
-                                if (await confirmDialog({ title: "Delete this video?", danger: true, confirmLabel: "Delete" })) {
-                                  const next = projects.filter(p => p.id !== proj.id);
-                                  setProjects(next);
-                                }
-                              }}
-                              className="p-1.5 text-zinc-500 hover:text-red-400 rounded-md transition-colors cursor-pointer"
-                            >
-                              <Trash2 size={13} />
-                            </button>
-                          </div>
                         </div>
-                      ))}
-                    </div>
-                    {projects.length === 0 && (
-                      <EmptyState title="No portfolio videos yet" description="Add a video to showcase it on the homepage." />
-                    )}
-                  </Card>
+
+                        <div className="flex items-center gap-2.5 sm:gap-3 shrink-0 flex-wrap">
+                          <select
+                            value={proj.category}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              const next = projects.map(p => p.id === proj.id ? { ...p, category: val, order: projects.filter(x => x.category === val).length } : p);
+                              setProjects(next);
+                            }}
+                            className="bg-zinc-950 border border-white/10 rounded-lg px-2.5 py-1 text-[10px] font-mono text-zinc-400 outline-none"
+                          >
+                            {categories.map(cat => (
+                              <option key={cat.id} value={cat.id}>{cat.label}</option>
+                            ))}
+                          </select>
+
+                          <button
+                            onClick={() => {
+                              const nextOrient = proj.orientation === "horizontal" ? "vertical" : "horizontal";
+                              const next = projects.map(p => p.id === proj.id ? { ...p, orientation: nextOrient } : p);
+                              setProjects(next);
+                            }}
+                            className="bg-white/5 hover:bg-white/10 text-zinc-300 text-[10px] px-2 py-1 rounded-lg font-bold transition-colors cursor-pointer"
+                          >
+                            {proj.orientation === "horizontal" ? "16:9" : "9:16"}
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              const nextVis = !proj.enabled;
+                              const next = projects.map(p => p.id === proj.id ? { ...p, enabled: nextVis } : p);
+                              setProjects(next);
+                            }}
+                            className="cursor-pointer"
+                          >
+                            <Badge toneKey={proj.enabled ? "success" : "neutral"}>{proj.enabled ? "Show" : "Hide"}</Badge>
+                          </button>
+
+                          <button
+                            onClick={async () => {
+                              if (await confirmDialog({ title: "Delete this video?", danger: true, confirmLabel: "Delete" })) {
+                                const next = projects.filter(p => p.id !== proj.id);
+                                setProjects(next);
+                              }
+                            }}
+                            className="p-1.5 text-zinc-500 hover:text-red-400 rounded-md transition-colors cursor-pointer"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+
+                    if (portfolioFilterCat === "all") {
+                      const uncategorized = withOrder(projects.filter(p => !categories.some(c => c.id === p.category)));
+                      return (
+                        <div className="space-y-5">
+                          {categories.map(cat => {
+                            const catItems = withOrder(projects.filter(p => p.category === cat.id));
+                            if (catItems.length === 0) return null;
+                            return (
+                              <Card key={cat.id}>
+                                <CardHeader title={cat.label} />
+                                <div className="space-y-3">
+                                  {catItems.map(proj => <div key={proj.id}>{renderProjectRow(proj)}</div>)}
+                                </div>
+                              </Card>
+                            );
+                          })}
+                          {uncategorized.length > 0 && (
+                            <Card>
+                              <CardHeader title="Uncategorized" />
+                              <div className="space-y-3">
+                                {uncategorized.map(proj => <div key={proj.id}>{renderProjectRow(proj)}</div>)}
+                              </div>
+                            </Card>
+                          )}
+                          {projects.length === 0 && (
+                            <Card><EmptyState title="No portfolio videos yet" description="Add a video to showcase it on the homepage." /></Card>
+                          )}
+                        </div>
+                      );
+                    }
+
+                    const catItems = withOrder(projects.filter(p => p.category === portfolioFilterCat));
+                    return (
+                      <Card>
+                        <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handlePortfolioDragEnd}>
+                          <SortableContext items={catItems.map(p => p.id)} strategy={verticalListSortingStrategy}>
+                            <div className="space-y-3">
+                              {catItems.map(proj => (
+                                <SortableProductCard key={proj.id} id={proj.id}>
+                                  {(drag) => renderProjectRow(
+                                    proj,
+                                    <button
+                                      ref={drag.setActivatorNodeRef}
+                                      {...drag.attributes}
+                                      {...drag.listeners}
+                                      className="mt-1 shrink-0 w-7 h-7 flex items-center justify-center bg-white/5 hover:bg-white/10 text-zinc-500 hover:text-zinc-300 rounded-lg cursor-grab active:cursor-grabbing touch-none"
+                                      title="Drag to reorder"
+                                    >
+                                      <GripVertical size={13} />
+                                    </button>
+                                  )}
+                                </SortableProductCard>
+                              ))}
+                            </div>
+                          </SortableContext>
+                        </DndContext>
+                        {catItems.length === 0 && (
+                          <EmptyState title="No videos in this category yet" description="Add a video and set its category, or switch categories above." />
+                        )}
+                      </Card>
+                    );
+                  })()}
                 </div>
               )}
 
