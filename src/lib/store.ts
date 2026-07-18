@@ -280,6 +280,48 @@ export function sortByPinned<T extends { pinned?: boolean }>(items: T[]): T[] {
     .map(({ item }) => item);
 }
 
+// Post-purchase cross-sell picks, in priority order — free downloads first
+// (the easiest possible next "yes"), then cheap products, then courses, then
+// the best-selling product — filling up to `limit` slots so the popup never
+// needs to scroll. Any empty tier is skipped gracefully.
+export type RecommendationReason = "free" | "low-cost" | "course" | "best-seller";
+
+export interface Recommendation {
+  kind: "product" | "course";
+  reason: RecommendationReason;
+  item: Product | Course;
+}
+
+export function getPostPurchaseRecommendations(
+  store: StoreData | null | undefined,
+  excludeItemId: string,
+  ownedIds: string[],
+  limit = 4
+): Recommendation[] {
+  if (!store) return [];
+  const owned = new Set(ownedIds);
+  const eligibleProducts = (store.products || []).filter(p => p.enabled && p.id !== excludeItemId && !owned.has(p.id));
+  const eligibleCourses = (store.courses || []).filter(c => c.enabled && c.id !== excludeItemId && !owned.has(c.id));
+
+  const picks: Recommendation[] = [];
+  const seen = new Set<string>();
+  const add = (list: (Product | Course)[], kind: "product" | "course", reason: RecommendationReason) => {
+    for (const item of list) {
+      if (picks.length >= limit) return;
+      if (seen.has(item.id)) continue;
+      seen.add(item.id);
+      picks.push({ item, kind, reason });
+    }
+  };
+
+  add(eligibleProducts.filter(p => p.free), "product", "free");
+  add([...eligibleProducts].filter(p => !p.free).sort((a, b) => a.price - b.price), "product", "low-cost");
+  add(eligibleCourses, "course", "course");
+  add(eligibleProducts.filter(p => p.bestSeller), "product", "best-seller");
+
+  return picks;
+}
+
 // Coupon validation used by both the purchase card (instant feedback) and the
 // server (source of truth for the amount charged). They must stay in lockstep,
 // so keep this function pure and let the caller pass the current time.
