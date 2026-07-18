@@ -23,13 +23,20 @@ export interface Product extends DetailContent {
   id: string;
   name: string;
   tagline: string;
-  price: number; // 0 = free
-  originalPrice?: number;
+  price: number; // 0 = free — the "discount price" once originalPrice is set
+  originalPrice?: number; // shown struck-through; discount % is derived from this + price
   image: string; // square thumbnail
-  category: string; // ProductCategory id
+  category: string; // legacy single ProductCategory id — kept for back-compat, mirrors categories[0]
+  categories?: string[]; // ProductCategory ids this product belongs to (multi-category)
   free: boolean;
   downloadUrl: string; // delivered after purchase / claim
-  badge?: string;
+  badge?: string; // legacy free-text badge, still supported alongside the flags below
+  bestSeller?: boolean;
+  isNew?: boolean;
+  trending?: boolean;
+  rating?: number; // 0-5, halves allowed (e.g. 4.5) — renders as a star rating
+  reviewCount?: number;
+  pinned?: boolean; // pinned products always sort first in the catalog
   featured?: boolean;
   enabled: boolean;
 }
@@ -247,6 +254,31 @@ export function useStore() {
 
 export const formatPrice = (n: number) =>
   n === 0 ? "FREE" : `₹${n.toLocaleString("en-IN")}`;
+
+// Every category id a product belongs to — falls back to its legacy single
+// `category` field when `categories` hasn't been set yet, so old data and
+// filters written before multi-category support keep working unchanged.
+export function getProductCategories(p: Pick<Product, "category" | "categories">): string[] {
+  if (p.categories && p.categories.length > 0) return p.categories;
+  return p.category ? [p.category] : [];
+}
+
+// Discount % derived from originalPrice → price (the "strike-through" chain:
+// Original Price → Strike Through → Discount Price → Discount %). Returns
+// undefined when there's nothing to discount from.
+export function getDiscountPercent(price: number, originalPrice?: number): number | undefined {
+  if (!originalPrice || originalPrice <= price) return undefined;
+  return Math.round(((originalPrice - price) / originalPrice) * 100);
+}
+
+// Pinned items always sort first; everything else keeps its existing
+// (admin drag-and-drop controlled) relative order.
+export function sortByPinned<T extends { pinned?: boolean }>(items: T[]): T[] {
+  return items
+    .map((item, index) => ({ item, index }))
+    .sort((a, b) => Number(!!b.item.pinned) - Number(!!a.item.pinned) || a.index - b.index)
+    .map(({ item }) => item);
+}
 
 // Coupon validation used by both the purchase card (instant feedback) and the
 // server (source of truth for the amount charged). They must stay in lockstep,

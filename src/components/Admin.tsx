@@ -1,7 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { db } from "../firebase";
 import { doc, getDoc, setDoc, collection, getDocs } from "firebase/firestore";
-import { SEED_STORE, StoreData, Product, Course, ProductCategory, PageConfig, Coupon } from "../lib/store";
+import { SEED_STORE, StoreData, Product, Course, ProductCategory, PageConfig, Coupon, getProductCategories, getDiscountPercent } from "../lib/store";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { ImageField } from "./ImageField";
 import { FileField } from "./FileField";
 import { StudioAnalytics } from "./StudioAnalytics";
@@ -43,6 +53,10 @@ import {
   Settings,
   Menu,
   X,
+  GripVertical,
+  Pin,
+  Star,
+  Flame,
 } from "lucide-react";
 
 // Types
@@ -53,6 +67,25 @@ interface ActiveWorkspace {
   type: "product" | "course";
   item: any;
   workspaceTab: "details" | "analytics" | "comments";
+}
+
+// Drag-and-drop wrapper for reordering products — only mounted while the
+// "All" category filter is active, so a drag always maps onto a well-defined
+// position in the full underlying array.
+function SortableProductCard({
+  id,
+  children,
+}: {
+  id: string;
+  children: (drag: { attributes: any; listeners: any; setActivatorNodeRef: (el: HTMLElement | null) => void }) => ReactNode;
+}) {
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
+  return (
+    <div ref={setNodeRef} style={style}>
+      {children({ attributes, listeners, setActivatorNodeRef })}
+    </div>
+  );
 }
 
 const NAV_CORE = [
@@ -106,6 +139,27 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
 
   // Inline editing state trackers
   const [editMap, setEditMap] = useState<{ [key: string]: string }>({});
+
+  // Products tab: category filter + drag-and-drop reordering
+  const [productFilterCat, setProductFilterCat] = useState("all");
+  const dndSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
+  const handleProductDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const oldIndex = storeProducts.findIndex(p => p.id === active.id);
+    const newIndex = storeProducts.findIndex(p => p.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    setStoreProducts(arrayMove(storeProducts, oldIndex, newIndex));
+  };
+
+  // Updates a product-only field on the currently open workspace item, keeping
+  // both the workspace's local copy and the master storeProducts array in sync.
+  const updateActiveProduct = (ch: Partial<Product>) => {
+    if (!activeWorkspace || activeWorkspace.type !== "product") return;
+    setActiveWorkspace(prev => prev ? { ...prev, item: { ...prev.item, ...ch } } : null);
+    setStoreProducts(storeProducts.map(p => p.id === activeWorkspace.id ? { ...p, ...ch } : p));
+  };
 
   // Fetch all databases at once
   useEffect(() => {
@@ -532,6 +586,80 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
                           </Field>
                         </div>
 
+                        {activeWorkspace.type === "product" && (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <Field label="Original Price ₹ (strike-through, optional)">
+                              <Input
+                                type="number"
+                                value={activeWorkspace.item.originalPrice ?? ""}
+                                onChange={(e) => updateActiveProduct({ originalPrice: e.target.value ? Number(e.target.value) : undefined })}
+                                className="font-mono"
+                              />
+                            </Field>
+                            <Field label="Discount %" hint={getDiscountPercent(activeWorkspace.item.price, activeWorkspace.item.originalPrice) != null ? undefined : "Set an original price to auto-compute this"}>
+                              <div className="w-full bg-zinc-950 border border-white/10 rounded-lg px-3.5 py-2.5 text-xs font-mono font-bold flex items-center justify-center h-[38px]">
+                                {getDiscountPercent(activeWorkspace.item.price, activeWorkspace.item.originalPrice) != null ? (
+                                  <span className="text-[#25D366]">-{getDiscountPercent(activeWorkspace.item.price, activeWorkspace.item.originalPrice)}%</span>
+                                ) : (
+                                  <span className="text-zinc-600">—</span>
+                                )}
+                              </div>
+                            </Field>
+                          </div>
+                        )}
+
+                        {activeWorkspace.type === "product" && (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <Field label="Rating (0-5, optional)">
+                              <Input
+                                type="number"
+                                min={0}
+                                max={5}
+                                step={0.5}
+                                value={activeWorkspace.item.rating ?? ""}
+                                onChange={(e) => updateActiveProduct({ rating: e.target.value ? Math.max(0, Math.min(5, Number(e.target.value))) : undefined })}
+                                className="font-mono"
+                              />
+                            </Field>
+                            <Field label="Review count (optional)">
+                              <Input
+                                type="number"
+                                min={0}
+                                value={activeWorkspace.item.reviewCount ?? ""}
+                                onChange={(e) => updateActiveProduct({ reviewCount: e.target.value ? Number(e.target.value) : undefined })}
+                                className="font-mono"
+                              />
+                            </Field>
+                          </div>
+                        )}
+
+                        {activeWorkspace.type === "product" && (
+                          <Field label="Categories (select one or more)">
+                            <div className="flex flex-wrap gap-1.5">
+                              {productCategories.map((cat) => {
+                                const selected = getProductCategories(activeWorkspace.item as Product);
+                                const on = selected.includes(cat.id);
+                                return (
+                                  <button
+                                    key={cat.id}
+                                    type="button"
+                                    onClick={() => {
+                                      const next = on ? selected.filter(id => id !== cat.id) : [...selected, cat.id];
+                                      updateActiveProduct({ categories: next, category: next[0] || "" });
+                                    }}
+                                    className={`rounded-full px-3 py-1 text-[11px] font-bold cursor-pointer transition-colors border ${
+                                      on ? "bg-[#E50914]/20 border-[#E50914] text-[#E50914]" : "bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10"
+                                    }`}
+                                  >
+                                    {on ? "✓ " : ""}{cat.label}
+                                  </button>
+                                );
+                              })}
+                              {productCategories.length === 0 && <span className="text-zinc-600 text-xs">Add a category in the Store Catalog Categories panel first.</span>}
+                            </div>
+                          </Field>
+                        )}
+
                         <Field label="Tagline">
                           <Input
                             value={activeWorkspace.item.tagline || ""}
@@ -833,6 +961,46 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
                             />
                           </div>
                         )}
+
+                        {activeWorkspace.type === "product" && (
+                          <div className="flex items-center justify-between gap-4">
+                            <div className="flex items-center gap-1.5">
+                              <Pin size={13} className="text-amber-400" />
+                              <div className="text-xs font-semibold">Pinned</div>
+                            </div>
+                            <Toggle value={!!activeWorkspace.item.pinned} onChange={(v) => updateActiveProduct({ pinned: v })} />
+                          </div>
+                        )}
+
+                        {activeWorkspace.type === "product" && (
+                          <div className="flex items-center justify-between gap-4">
+                            <div className="flex items-center gap-1.5">
+                              <Star size={13} className="text-amber-400" />
+                              <div className="text-xs font-semibold">Best Seller Badge</div>
+                            </div>
+                            <Toggle value={!!activeWorkspace.item.bestSeller} onChange={(v) => updateActiveProduct({ bestSeller: v })} />
+                          </div>
+                        )}
+
+                        {activeWorkspace.type === "product" && (
+                          <div className="flex items-center justify-between gap-4">
+                            <div className="flex items-center gap-1.5">
+                              <Sparkles size={13} className="text-blue-400" />
+                              <div className="text-xs font-semibold">New Badge</div>
+                            </div>
+                            <Toggle value={!!activeWorkspace.item.isNew} onChange={(v) => updateActiveProduct({ isNew: v })} />
+                          </div>
+                        )}
+
+                        {activeWorkspace.type === "product" && (
+                          <div className="flex items-center justify-between gap-4">
+                            <div className="flex items-center gap-1.5">
+                              <Flame size={13} className="text-orange-400" />
+                              <div className="text-xs font-semibold">Trending Badge</div>
+                            </div>
+                            <Toggle value={!!activeWorkspace.item.trending} onChange={(v) => updateActiveProduct({ trending: v })} />
+                          </div>
+                        )}
                       </div>
                     </Card>
 
@@ -1012,8 +1180,10 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
                           price: 499,
                           image: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=500",
                           category: productCategories[0]?.id || "presets",
+                          categories: productCategories[0] ? [productCategories[0].id] : [],
                           free: false,
                           downloadUrl: "",
+                          pinned: false,
                           enabled: false,
                         };
                         const nextProds = [newProd, ...storeProducts];
@@ -1068,61 +1238,137 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
                     )}
                   </Card>
 
-                  {/* Grid layout of high-density product cards */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {storeProducts.map((p) => (
-                      <Card key={p.id} hoverable className="!p-4 flex flex-col justify-between group">
-                        <div>
-                          {/* Square Thumbnail Preview */}
-                          <div className="relative aspect-square w-full rounded-xl overflow-hidden bg-zinc-900 border border-white/5 mb-3.5">
-                            <img
-                              src={p.image}
-                              alt={p.name}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                            />
-                            <div className="absolute top-2 right-2">
-                              <Badge toneKey={p.enabled ? "success" : "neutral"}>{p.enabled ? "Live" : "Draft"}</Badge>
+                  {/* Category filter tabs */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    {[{ id: "all", label: "All" }, ...productCategories].map((cat) => (
+                      <button
+                        key={cat.id}
+                        onClick={() => setProductFilterCat(cat.id)}
+                        className={`rounded-full px-3.5 py-1.5 text-[11px] font-bold cursor-pointer transition-colors border ${
+                          productFilterCat === cat.id ? "bg-white text-black border-white" : "bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10"
+                        }`}
+                      >
+                        {cat.label}
+                      </button>
+                    ))}
+                    {productFilterCat !== "all" && (
+                      <span className="text-zinc-600 text-[11px]">Switch to "All" to drag-and-drop reorder.</span>
+                    )}
+                  </div>
+
+                  {/* Grid layout of high-density product cards (draggable to reorder while viewing "All") */}
+                  {(() => {
+                    const visibleProducts = productFilterCat === "all"
+                      ? storeProducts
+                      : storeProducts.filter(p => getProductCategories(p).includes(productFilterCat));
+
+                    const renderProductCard = (p: Product, dragHandle?: ReactNode) => {
+                      const discountPercent = getDiscountPercent(p.price, p.originalPrice);
+                      return (
+                        <Card hoverable className="!p-4 flex flex-col justify-between group">
+                          <div>
+                            {/* Square Thumbnail Preview */}
+                            <div className="relative aspect-square w-full rounded-xl overflow-hidden bg-zinc-900 border border-white/5 mb-3.5">
+                              <img
+                                src={p.image}
+                                alt={p.name}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                              />
+                              <div className="absolute top-2 right-2 flex flex-col items-end gap-1">
+                                <Badge toneKey={p.enabled ? "success" : "neutral"}>{p.enabled ? "Live" : "Draft"}</Badge>
+                                {discountPercent != null && <Badge toneKey="danger">-{discountPercent}%</Badge>}
+                              </div>
+                              <div className="absolute top-2 left-2 flex items-center gap-1">
+                                {dragHandle}
+                                {p.pinned && (
+                                  <span className="w-6 h-6 flex items-center justify-center bg-black/60 text-amber-400 rounded-lg" title="Pinned">
+                                    <Pin size={12} />
+                                  </span>
+                                )}
+                              </div>
+                              <div className="absolute bottom-2 left-2 flex flex-wrap gap-1">
+                                {p.bestSeller && <Badge toneKey="amber">Best Seller</Badge>}
+                                {p.isNew && <Badge toneKey="info">New</Badge>}
+                                {p.trending && <Badge toneKey="danger"><Flame size={9} /> Trending</Badge>}
+                              </div>
+                            </div>
+
+                            <h3 className="font-semibold text-xs tracking-wide text-white group-hover:text-[#E50914] transition-colors line-clamp-1">
+                              {p.name}
+                            </h3>
+                            {typeof p.rating === "number" && p.rating > 0 && (
+                              <div className="flex items-center gap-1 mt-1">
+                                <Star size={11} fill="#facc15" className="text-yellow-400" />
+                                <span className="text-[10px] text-zinc-400 font-semibold">{p.rating.toFixed(1)}</span>
+                                {!!p.reviewCount && <span className="text-[10px] text-zinc-600">({p.reviewCount})</span>}
+                              </div>
+                            )}
+                            <p className="text-[10px] text-zinc-500 font-light mt-1 line-clamp-2 h-7 leading-relaxed">
+                              {p.tagline || "No description tagline provided."}
+                            </p>
+                          </div>
+
+                          <div className="border-t border-white/[0.04] mt-3.5 pt-3 flex items-center justify-between gap-2">
+                            <span className="text-xs font-bold text-zinc-300 font-mono flex items-center gap-1.5">
+                              {p.price === 0 ? "FREE" : `₹${p.price}`}
+                              {p.originalPrice ? <span className="text-zinc-600 font-normal line-through">₹{p.originalPrice}</span> : null}
+                            </span>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={async () => {
+                                  if (await confirmDialog({ title: `Delete "${p.name}"?`, description: "This removes it from the store permanently.", danger: true, confirmLabel: "Delete" })) {
+                                    const next = storeProducts.filter(x => x.id !== p.id);
+                                    setStoreProducts(next);
+                                    handleSave(next);
+                                  }
+                                }}
+                                className="p-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-lg transition-colors cursor-pointer"
+                                title="Delete Item"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                              <Button
+                                size="sm"
+                                variant="primary"
+                                onClick={() => setActiveWorkspace({ id: p.id, type: "product", item: p, workspaceTab: "details" })}
+                              >
+                                Edit Details <ChevronRight size={11} />
+                              </Button>
                             </div>
                           </div>
+                        </Card>
+                      );
+                    };
 
-                          <h3 className="font-semibold text-xs tracking-wide text-white group-hover:text-[#E50914] transition-colors line-clamp-1">
-                            {p.name}
-                          </h3>
-                          <p className="text-[10px] text-zinc-500 font-light mt-1 line-clamp-2 h-7 leading-relaxed">
-                            {p.tagline || "No description tagline provided."}
-                          </p>
-                        </div>
-
-                        <div className="border-t border-white/[0.04] mt-3.5 pt-3 flex items-center justify-between gap-2">
-                          <span className="text-xs font-bold text-zinc-300 font-mono">
-                            {p.price === 0 ? "FREE" : `₹${p.price}`}
-                          </span>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={async () => {
-                                if (await confirmDialog({ title: `Delete "${p.name}"?`, description: "This removes it from the store permanently.", danger: true, confirmLabel: "Delete" })) {
-                                  const next = storeProducts.filter(x => x.id !== p.id);
-                                  setStoreProducts(next);
-                                  handleSave(next);
-                                }
-                              }}
-                              className="p-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-lg transition-colors cursor-pointer"
-                              title="Delete Item"
-                            >
-                              <Trash2 size={13} />
-                            </button>
-                            <Button
-                              size="sm"
-                              variant="primary"
-                              onClick={() => setActiveWorkspace({ id: p.id, type: "product", item: p, workspaceTab: "details" })}
-                            >
-                              Edit Details <ChevronRight size={11} />
-                            </Button>
+                    return productFilterCat === "all" ? (
+                      <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleProductDragEnd}>
+                        <SortableContext items={storeProducts.map(p => p.id)} strategy={verticalListSortingStrategy}>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+                            {storeProducts.map((p) => (
+                              <SortableProductCard key={p.id} id={p.id}>
+                                {(drag) => renderProductCard(
+                                  p,
+                                  <button
+                                    ref={drag.setActivatorNodeRef}
+                                    {...drag.attributes}
+                                    {...drag.listeners}
+                                    className="w-6 h-6 flex items-center justify-center bg-black/60 text-zinc-300 hover:text-white rounded-lg cursor-grab active:cursor-grabbing touch-none"
+                                    title="Drag to reorder"
+                                  >
+                                    <GripVertical size={12} />
+                                  </button>
+                                )}
+                              </SortableProductCard>
+                            ))}
                           </div>
-                        </div>
-                      </Card>
-                    ))}
-                  </div>
+                        </SortableContext>
+                      </DndContext>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+                        {visibleProducts.map((p) => <div key={p.id}>{renderProductCard(p)}</div>)}
+                      </div>
+                    );
+                  })()}
 
                   {storeProducts.length === 0 && (
                     <EmptyState

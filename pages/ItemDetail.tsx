@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, ArrowRight, Play, X } from "lucide-react";
-import { useStore } from "../src/lib/store";
+import { useStore, getProductCategories } from "../src/lib/store";
 import type { Course, Product } from "../src/lib/store";
 import { parseVideo } from "../src/lib/video";
 import { renderMarkdown } from "../src/lib/markdown";
@@ -63,8 +63,9 @@ export const ItemDetail: React.FC<{ kind: Kind }> = ({ kind }) => {
     if (!item) return [];
     if (kind === "product") {
       const p = item as Product;
-      const same = (store?.products || []).filter(x => x.enabled && x.id !== p.id && x.category === p.category);
-      const rest = (store?.products || []).filter(x => x.enabled && x.id !== p.id && x.category !== p.category);
+      const pCats = getProductCategories(p);
+      const same = (store?.products || []).filter(x => x.enabled && x.id !== p.id && getProductCategories(x).some(c => pCats.includes(c)));
+      const rest = (store?.products || []).filter(x => x.enabled && x.id !== p.id && !getProductCategories(x).some(c => pCats.includes(c)));
       return [...same, ...rest].slice(0, 4);
     }
     return (store?.courses || []).filter(x => x.enabled && x.id !== item.id).slice(0, 4);

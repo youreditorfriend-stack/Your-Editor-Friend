@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { MessageCircle } from 'lucide-react';
-import { useStore } from '../src/lib/store';
+import { useStore, getProductCategories, sortByPinned } from '../src/lib/store';
 import { getWhatsAppLink } from '../src/lib/site';
 import { ProductCard } from '../components/ProductCard';
 
@@ -10,7 +10,9 @@ export const Products: React.FC = () => {
 
   const categories = (store?.productCategories || []).filter(c => c.enabled);
   const products = (store?.products || []).filter(p => p.enabled);
-  const filtered = activeCat === 'all' ? products : products.filter(p => p.category === activeCat);
+  const filtered = sortByPinned(
+    activeCat === 'all' ? products : products.filter(p => getProductCategories(p).includes(activeCat))
+  );
 
   return (
     <div className="px-6 pb-24">
