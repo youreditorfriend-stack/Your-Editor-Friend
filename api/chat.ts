@@ -283,16 +283,15 @@ function detectTask(body: ChatRequest): TaskKind {
   return 'text';
 }
 
-function routeProvider(task: TaskKind): { name: string; provider: Provider } | null {
+// Ordered list of configured providers to try for a task: the routed one
+// first, then the others as fallbacks (so a runtime failure like a quota/429
+// on the preferred provider still yields a reply from another).
+function providerChain(task: TaskKind): { name: string; provider: Provider }[] {
   const preferred = ROUTES[task];
-  // Prefer the configured route; otherwise fall back to any configured provider
-  // so the assistant keeps working even if a key isn't set yet.
   const order = [preferred, ...Object.keys(PROVIDERS).filter((n) => n !== preferred)];
-  for (const name of order) {
-    const provider = PROVIDERS[name];
-    if (provider && provider.isConfigured()) return { name, provider };
-  }
-  return null;
+  return order
+    .map((name) => ({ name, provider: PROVIDERS[name] }))
+    .filter((p) => p.provider && p.provider.isConfigured());
 }
 
 // ─── Handler ────────────────────────────────────────────────────────────────
@@ -306,26 +305,41 @@ export default async function handler(req: any, res: any) {
     if (!messages.length) return res.status(400).json({ error: 'No messages provided' });
 
     const task = detectTask(body);
-    const routed = routeProvider(task);
-    if (!routed) return res.status(503).json({ error: 'AI is not configured' });
+    const chain = providerChain(task);
+    if (!chain.length) return res.status(503).json({ error: 'AI is not configured' });
 
     const knowledge = await getKnowledge();
     const system = buildSystemPrompt(knowledge, body.answers);
 
-    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    // Stream headers are sent lazily on the first token, so if a provider
+    // fails before producing output we can still try the next one (or return
+    // a JSON error). Once tokens start flowing we're committed to that reply.
+    let started = false;
+    const write = (t: string) => {
+      if (!started) {
+        started = true;
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-cache, no-transform');
+      }
+      res.write(t);
+    };
 
-    try {
-      await routed.provider.stream({
-        system,
-        messages,
-        images: body.images,
-        onToken: (t) => res.write(t),
-      });
-    } catch (providerErr: any) {
-      console.error(`Provider "${routed.name}" failed:`, providerErr);
-      if (!res.headersSent) return res.status(502).json({ error: 'AI upstream error', provider: routed.name, detail: String(providerErr?.message || providerErr).slice(0, 500) });
-      // Already streaming — end gracefully.
+    let lastErr: any = null;
+    for (const { name, provider } of chain) {
+      try {
+        await provider.stream({ system, messages, images: body.images, onToken: write });
+        return res.end(); // success
+      } catch (err) {
+        lastErr = err;
+        console.error(`Provider "${name}" failed:`, err);
+        if (started) return res.end(); // already streaming — can't switch
+        // otherwise fall through and try the next configured provider
+      }
+    }
+
+    // Every provider failed before producing output
+    if (!res.headersSent) {
+      return res.status(502).json({ error: 'AI upstream error', detail: String(lastErr?.message || lastErr).slice(0, 300) });
     }
     res.end();
   } catch (e) {
