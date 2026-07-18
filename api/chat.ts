@@ -337,10 +337,9 @@ export default async function handler(req: any, res: any) {
       }
     }
 
-    // Every provider failed before producing output
-    if (!res.headersSent) {
-      return res.status(502).json({ error: 'AI upstream error', detail: String(lastErr?.message || lastErr).slice(0, 300) });
-    }
+    // Every provider failed before producing output (detail is server-logged)
+    void lastErr;
+    if (!res.headersSent) return res.status(502).json({ error: 'AI upstream error' });
     res.end();
   } catch (e) {
     console.error('chat handler failed:', e);
