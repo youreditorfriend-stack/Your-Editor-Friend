@@ -22,6 +22,7 @@ import Admin from './src/components/Admin';
 import { Login } from './src/components/Login';
 import { AuthProvider, useAuth } from './src/lib/auth';
 import { isAdminEmail } from './src/lib/adminAuth';
+import { ToastProvider, ConfirmProvider, PromptProvider, Spinner } from './src/components/admin/ui';
 
 // The admin panel is locked behind Google sign-in. Only the owner accounts
 // in ADMIN_EMAILS (youreditorfriend@gmail.com) can open it — anyone else,
@@ -31,8 +32,8 @@ const AdminRoute: React.FC = () => {
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', background: '#080808', color: '#666', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans','Segoe UI',sans-serif", fontSize: 14 }}>
-        Checking access…
+      <div className="min-h-screen bg-[#080808] text-zinc-500 flex items-center justify-center gap-2.5 text-sm font-sans">
+        <Spinner size={16} /> Checking access…
       </div>
     );
   }
@@ -42,7 +43,15 @@ const AdminRoute: React.FC = () => {
     return <Login />;
   }
 
-  return <Admin onLogout={() => signOut().finally(() => { window.location.href = '/'; })} />;
+  return (
+    <ToastProvider>
+      <ConfirmProvider>
+        <PromptProvider>
+          <Admin onLogout={() => signOut().finally(() => { window.location.href = '/'; })} />
+        </PromptProvider>
+      </ConfirmProvider>
+    </ToastProvider>
+  );
 };
 
 const App: React.FC = () => {

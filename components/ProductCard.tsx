@@ -1,10 +1,35 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Check, CreditCard, Download, Lock } from 'lucide-react';
+import { Check, CreditCard, Download, Flame, Lock, Sparkles, Star } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { Product } from '../src/lib/store';
-import { formatPrice } from '../src/lib/store';
+import { formatPrice, getDiscountPercent } from '../src/lib/store';
 import { usePurchase } from '../src/lib/purchase';
+
+// Small 5-star rating row — supports half stars (e.g. 4.5).
+const StarRating: React.FC<{ rating: number; reviewCount?: number }> = ({ rating, reviewCount }) => (
+  <div className="flex items-center gap-1 mb-2 md:mb-2.5">
+    <div className="flex items-center gap-0.5">
+      {Array.from({ length: 5 }).map((_, i) => {
+        const filled = rating >= i + 1;
+        const half = !filled && rating > i && rating < i + 1;
+        return (
+          <span key={i} className="relative inline-block w-3 h-3 md:w-3.5 md:h-3.5">
+            <Star size={14} className="absolute inset-0 text-zinc-700" />
+            {(filled || half) && (
+              <span className="absolute inset-0 overflow-hidden" style={{ width: half ? '50%' : '100%' }}>
+                <Star size={14} fill="#facc15" className="text-yellow-400" />
+              </span>
+            )}
+          </span>
+        );
+      })}
+    </div>
+    {reviewCount ? (
+      <span className="text-zinc-500 text-[10px] md:text-[11px] font-light">({reviewCount.toLocaleString('en-IN')})</span>
+    ) : null}
+  </div>
+);
 
 export const ProductCard: React.FC<{ product: Product; index?: number }> = ({ product: p, index = 0 }) => {
   const { owns, claimFree, buy, isLoggedIn, paying } = usePurchase();
@@ -32,11 +57,28 @@ export const ProductCard: React.FC<{ product: Product; index?: number }> = ({ pr
         className="relative aspect-square overflow-hidden bg-zinc-950/60 block"
       >
         <img src={p.image} alt={p.name} className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" />
-        {p.badge && (
-          <span className="absolute top-3 left-3 bg-[#E50914] text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full">
-            {p.badge}
-          </span>
-        )}
+        <div className="absolute top-3 left-3 flex flex-col items-start gap-1.5">
+          {p.badge && (
+            <span className="bg-[#E50914] text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full">
+              {p.badge}
+            </span>
+          )}
+          {p.bestSeller && (
+            <span className="bg-amber-500 text-black text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full">
+              Best Seller
+            </span>
+          )}
+          {p.isNew && (
+            <span className="bg-blue-500 text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full flex items-center gap-1">
+              <Sparkles size={10} /> New
+            </span>
+          )}
+          {p.trending && (
+            <span className="bg-orange-500 text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full flex items-center gap-1">
+              <Flame size={10} /> Trending
+            </span>
+          )}
+        </div>
         <span className={`absolute top-3 right-3 text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full ${p.free ? 'bg-[#25D366] text-black' : 'bg-black/70 text-white border border-white/20'}`}>
           {p.free ? 'Free' : 'Paid'}
         </span>
@@ -47,6 +89,7 @@ export const ProductCard: React.FC<{ product: Product; index?: number }> = ({ pr
         <Link to={detailPath} className="block hover:text-white transition-colors">
           <h3 className="font-semibold text-sm md:text-base mb-1 leading-snug">{p.name}</h3>
         </Link>
+        {typeof p.rating === 'number' && p.rating > 0 && <StarRating rating={p.rating} reviewCount={p.reviewCount} />}
         <p className="text-zinc-500 text-[11px] md:text-xs font-light mb-3 md:mb-4 flex-1">{p.tagline}</p>
 
         <div className="border-t border-white/5 pt-2.5 md:pt-3 mb-3 md:mb-4 space-y-1 md:space-y-1.5 text-xs md:text-sm">
@@ -62,7 +105,14 @@ export const ProductCard: React.FC<{ product: Product; index?: number }> = ({ pr
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-zinc-500">You save</span>
-                <span className="text-[#25D366] font-semibold">₹{(p.originalPrice - p.price).toLocaleString('en-IN')}</span>
+                <span className="text-[#25D366] font-semibold">
+                  ₹{(p.originalPrice - p.price).toLocaleString('en-IN')}
+                  {getDiscountPercent(p.price, p.originalPrice) != null && (
+                    <span className="ml-1.5 bg-[#25D366]/15 text-[#25D366] text-[10px] font-bold px-1.5 py-0.5 rounded">
+                      -{getDiscountPercent(p.price, p.originalPrice)}%
+                    </span>
+                  )}
+                </span>
               </div>
             </>
           ) : null}
