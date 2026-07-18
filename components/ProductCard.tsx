@@ -6,9 +6,10 @@ import type { Product } from '../src/lib/store';
 import { formatPrice, getDiscountPercent } from '../src/lib/store';
 import { usePurchase } from '../src/lib/purchase';
 
-// Small 5-star rating row — supports half stars (e.g. 4.5).
+// Small 5-star rating row — supports half stars (e.g. 4.5) — renders as
+// "★★★★☆ 4.5 (23)": star icons, the numeric average, then the review count.
 const StarRating: React.FC<{ rating: number; reviewCount?: number }> = ({ rating, reviewCount }) => (
-  <div className="flex items-center gap-1 mb-2 md:mb-2.5">
+  <div className="flex items-center gap-1.5 mb-2 md:mb-2.5">
     <div className="flex items-center gap-0.5">
       {Array.from({ length: 5 }).map((_, i) => {
         const filled = rating >= i + 1;
@@ -25,9 +26,10 @@ const StarRating: React.FC<{ rating: number; reviewCount?: number }> = ({ rating
         );
       })}
     </div>
-    {reviewCount ? (
+    <span className="text-zinc-300 text-[11px] md:text-xs font-semibold">{rating.toFixed(1)}</span>
+    {!!reviewCount && (
       <span className="text-zinc-500 text-[10px] md:text-[11px] font-light">({reviewCount.toLocaleString('en-IN')})</span>
-    ) : null}
+    )}
   </div>
 );
 
@@ -92,30 +94,28 @@ export const ProductCard: React.FC<{ product: Product; index?: number }> = ({ pr
         {typeof p.rating === 'number' && p.rating > 0 && <StarRating rating={p.rating} reviewCount={p.reviewCount} />}
         <p className="text-zinc-500 text-[11px] md:text-xs font-light mb-3 md:mb-4 flex-1">{p.tagline}</p>
 
-        <div className="border-t border-white/5 pt-2.5 md:pt-3 mb-3 md:mb-4 space-y-1 md:space-y-1.5 text-xs md:text-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-zinc-500">Price</span>
-            <span className={`font-bold ${p.free ? 'text-[#25D366]' : 'text-white'}`}>{formatPrice(p.price)}</span>
-          </div>
-          {p.originalPrice ? (
-            <>
-              <div className="flex items-center justify-between">
-                <span className="text-zinc-500">Original</span>
-                <span className="text-zinc-600 line-through">₹{p.originalPrice.toLocaleString('en-IN')}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-zinc-500">You save</span>
-                <span className="text-[#25D366] font-semibold">
-                  ₹{(p.originalPrice - p.price).toLocaleString('en-IN')}
-                  {getDiscountPercent(p.price, p.originalPrice) != null && (
-                    <span className="ml-1.5 bg-[#25D366]/15 text-[#25D366] text-[10px] font-bold px-1.5 py-0.5 rounded">
-                      -{getDiscountPercent(p.price, p.originalPrice)}%
-                    </span>
-                  )}
+        <div className="border-t border-white/5 pt-2.5 md:pt-3 mb-3 md:mb-4">
+          {(() => {
+            const hasDiscount = !!p.originalPrice && p.originalPrice > p.price;
+            const discountPercent = getDiscountPercent(p.price, p.originalPrice);
+            return (
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className={`font-extrabold text-base md:text-lg ${p.free || hasDiscount ? 'text-[#25D366]' : 'text-white'}`}>
+                  {formatPrice(p.price)}
                 </span>
+                {hasDiscount && (
+                  <span className="text-zinc-500 line-through text-xs md:text-sm">
+                    ₹{p.originalPrice!.toLocaleString('en-IN')}
+                  </span>
+                )}
+                {hasDiscount && discountPercent != null && (
+                  <span className="bg-[#E50914] text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
+                    -{discountPercent}%
+                  </span>
+                )}
               </div>
-            </>
-          ) : null}
+            );
+          })()}
         </div>
 
         {/* Action */}

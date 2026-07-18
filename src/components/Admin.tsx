@@ -1309,9 +1309,9 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
                           </div>
 
                           <div className="border-t border-white/[0.04] mt-3.5 pt-3 flex items-center justify-between gap-2">
-                            <span className="text-xs font-bold text-zinc-300 font-mono flex items-center gap-1.5">
+                            <span className={`text-xs font-bold font-mono flex items-center gap-1.5 ${p.price === 0 || discountPercent != null ? "text-[#25D366]" : "text-zinc-300"}`}>
                               {p.price === 0 ? "FREE" : `₹${p.price}`}
-                              {p.originalPrice ? <span className="text-zinc-600 font-normal line-through">₹{p.originalPrice}</span> : null}
+                              {p.originalPrice && p.originalPrice > p.price ? <span className="text-zinc-600 font-normal line-through">₹{p.originalPrice}</span> : null}
                             </span>
                             <div className="flex gap-2">
                               <button
