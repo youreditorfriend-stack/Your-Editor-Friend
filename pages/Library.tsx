@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Download, ExternalLink, Library as LibraryIcon, Lock, MessageCircle, Play, ShoppingBag } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../src/lib/auth';
-import { useStore } from '../src/lib/store';
+import { formatPrice, getPostPurchaseRecommendations, useStore } from '../src/lib/store';
 import { getWhatsAppLink } from '../src/lib/site';
 import { db } from '../src/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
@@ -260,6 +260,44 @@ export const Library: React.FC = () => {
                 </div>
               </div>
             )}
+
+            {/* Repeat-purchase upsell: buyers with at least one item see what
+                pairs well with their library. Recommendation logic is shared
+                with the post-purchase popup (free/low-cost → courses → best
+                seller), already excluding everything they own. */}
+            {(() => {
+              const upsell = getPostPurchaseRecommendations(store, "", purchases, 4);
+              if (upsell.length === 0) return null;
+              return (
+                <div className="mt-20">
+                  <div className="text-[10px] uppercase tracking-[0.25em] text-[#E50914] font-bold mb-2">Complete your toolkit</div>
+                  <h2 className="text-xl md:text-2xl font-semibold mb-8">Goes great with what you own</h2>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+                    {upsell.map(rec => {
+                      const item = rec.item;
+                      const title = "name" in item ? item.name : item.title;
+                      const image = "image" in item ? item.image : item.thumbnail;
+                      const path = rec.kind === "product" ? `/products/${item.id}` : `/courses/${item.id}`;
+                      return (
+                        <Link
+                          key={item.id}
+                          to={path}
+                          className="rounded-3xl border border-white/5 bg-zinc-900/50 overflow-hidden flex flex-col hover:border-white/15 transition-colors group"
+                        >
+                          <img src={image} alt={title} className="aspect-square object-cover bg-zinc-950/60 group-hover:scale-105 transition-transform duration-500" />
+                          <div className="p-4 flex flex-col flex-1">
+                            <h3 className="font-semibold text-sm mb-2 flex-1 line-clamp-2">{title}</h3>
+                            <span className={`font-bold text-sm ${item.price === 0 ? "text-[#25D366]" : "text-white"}`}>
+                              {formatPrice(item.price)}
+                            </span>
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
           </>
         )}
       </div>

@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { arrayUnion, doc, updateDoc } from "firebase/firestore";
 import { db } from "../firebase";
 import { useAuth } from "./auth";
 import { getWhatsAppLink } from "./site";
+import { FIRST_BUYER_DISCOUNT_PERCENT, firstBuyerWindowRemainingMs } from "./store";
 import type { Course, Product } from "./store";
 
 declare global {
@@ -36,6 +37,10 @@ function loadRazorpay(): Promise<boolean> {
 export function usePurchase() {
   const { user, profile, signIn } = useAuth();
   const [paying, setPaying] = useState<string | null>(null);
+  // Item id whose checkout actually failed this session — drives the
+  // "Checkout issues? GPay …" fallback note, which only appears after a
+  // real failure rather than sitting under every buy button permanently.
+  const [checkoutFailed, setCheckoutFailed] = useState<string | null>(null);
 
   const owns = (itemId: string) => !!profile?.purchases?.includes(itemId);
 
@@ -48,6 +53,7 @@ export function usePurchase() {
   };
 
   const whatsAppFallback = (item: Product | Course) => {
+    setCheckoutFailed(item.id);
     const name = "name" in item ? item.name : item.title;
     const msg = `Hi Janish! I want to buy *${name}* (₹${item.price}).\nMy login email: ${user?.email}\nPlease share the payment details!`;
     window.open(getWhatsAppLink(msg), "_blank");
@@ -60,6 +66,7 @@ export function usePurchase() {
     }
 
     setPaying(item.id);
+    setCheckoutFailed(null); // a fresh attempt clears the previous failure note
     try {
       // Create order server-side (price is looked up there, not trusted from client)
       const orderRes = await fetch("/api/create-order", {
@@ -106,10 +113,12 @@ export function usePurchase() {
               }),
             });
             if (!verifyRes.ok) {
+              setCheckoutFailed(item.id);
               alert("Payment received but verification failed — message me on WhatsApp and I'll unlock it for you right away!");
             }
             // On success the users/{uid} snapshot listener updates the UI automatically
           } catch {
+            setCheckoutFailed(item.id);
             alert("Payment received but verification failed — message me on WhatsApp and I'll unlock it for you right away!");
           }
         },
@@ -123,5 +132,31 @@ export function usePurchase() {
     }
   };
 
-  return { owns, claimFree, buy, isLoggedIn: !!user, paying };
+  return { owns, claimFree, buy, isLoggedIn: !!user, paying, checkoutFailed };
+}
+
+// Live view of the 5-minute first-time-buyer discount window. Purely for
+// display — /api/create-order re-derives the same window from the user doc,
+// so the countdown here can't change what actually gets charged.
+export function useFirstBuyerDiscount() {
+  const { profile } = useAuth();
+  const firstPurchaseAt = profile?.firstPurchaseAt;
+  const [remainingMs, setRemainingMs] = useState(() => firstBuyerWindowRemainingMs(firstPurchaseAt));
+
+  useEffect(() => {
+    setRemainingMs(firstBuyerWindowRemainingMs(firstPurchaseAt));
+    if (!firstBuyerWindowRemainingMs(firstPurchaseAt)) return;
+    const t = setInterval(() => {
+      const left = firstBuyerWindowRemainingMs(firstPurchaseAt);
+      setRemainingMs(left);
+      if (!left) clearInterval(t);
+    }, 1000);
+    return () => clearInterval(t);
+  }, [firstPurchaseAt]);
+
+  return {
+    active: remainingMs > 0,
+    remainingMs,
+    percent: FIRST_BUYER_DISCOUNT_PERCENT,
+  };
 }

@@ -1,8 +1,8 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Check, CreditCard, Download, Lock, Play } from 'lucide-react';
+import { Check, Clock, CreditCard, Download, Lock, Play } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useStore, formatPrice } from '../src/lib/store';
+import { useStore, formatPrice, isCourseLive } from '../src/lib/store';
 import { usePurchase } from '../src/lib/purchase';
 
 export const Courses: React.FC = () => {
@@ -36,6 +36,7 @@ export const Courses: React.FC = () => {
           <div className="grid md:grid-cols-2 gap-6 md:gap-8">
             {courses.map((c, i) => {
               const owned = owns(c.id);
+              const live = isCourseLive(c);
               return (
                 <motion.div
                   key={c.id}
@@ -59,8 +60,8 @@ export const Courses: React.FC = () => {
                         {c.badge}
                       </span>
                     )}
-                    <span className={`absolute top-3 right-3 text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full ${c.free ? 'bg-[#25D366] text-black' : 'bg-black/70 text-white border border-white/20'}`}>
-                      {c.free ? 'Free' : 'Paid'}
+                    <span className={`absolute top-3 right-3 text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full ${!live ? 'bg-amber-500 text-black' : c.free ? 'bg-[#25D366] text-black' : 'bg-black/70 text-white border border-white/20'}`}>
+                      {!live ? 'Coming Soon' : c.free ? 'Free' : 'Paid'}
                     </span>
                   </Link>
 
@@ -93,7 +94,14 @@ export const Courses: React.FC = () => {
                     </div>
 
                     {/* Action */}
-                    {owned ? (
+                    {!live && !owned ? (
+                      <button
+                        disabled
+                        className="w-full py-3.5 rounded-2xl text-base font-bold bg-white/5 text-zinc-400 border border-white/10 flex items-center justify-center gap-2 cursor-not-allowed"
+                      >
+                        <Clock size={16} /> Coming Soon
+                      </button>
+                    ) : owned ? (
                       <Link
                         to="/my-library"
                         className="w-full py-3.5 rounded-2xl text-base font-bold bg-[#25D366]/15 text-[#25D366] border border-[#25D366]/30 flex items-center justify-center gap-2 hover:bg-[#25D366]/25 transition-all"

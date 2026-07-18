@@ -51,7 +51,8 @@ service cloud.firestore {
           && data.courses is list
           && data.productCategories is list
           && data.pages is list
-          && data.coupons is list;
+          && data.coupons is list
+          && (data.get('checkoutHelp', {}) is map);
     }
 
     function isValidComment(data) {
