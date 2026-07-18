@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, Copy, CreditCard, Download, Link as LinkIcon, Lock, Tag, X, ChevronDown, ChevronUp } from "lucide-react";
+import { Check, Copy, CreditCard, Download, Link as LinkIcon, Lock, Tag, Timer, X, ChevronDown, ChevronUp } from "lucide-react";
 import { Link } from "react-router-dom";
-import { applyCoupon, formatPrice, getPostPurchaseRecommendations, useStore } from "../src/lib/store";
+import { applyCoupon, DEFAULT_CHECKOUT_HELP, formatPrice, getPostPurchaseRecommendations, isCourseLive, useStore } from "../src/lib/store";
 import type { Course, Product } from "../src/lib/store";
-import { usePurchase } from "../src/lib/purchase";
+import { useFirstBuyerDiscount, usePurchase } from "../src/lib/purchase";
 import { useAuth } from "../src/lib/auth";
 import { getWhatsAppLink } from "../src/lib/site";
 import { fireSuccessConfetti } from "../src/lib/confetti";
@@ -22,7 +22,8 @@ export const PurchaseCard: React.FC<{
 }> = ({ item, compact = false }) => {
   const { store } = useStore();
   const { profile } = useAuth();
-  const { owns, claimFree, buy, isLoggedIn, paying } = usePurchase();
+  const { owns, claimFree, buy, isLoggedIn, paying, checkoutFailed } = usePurchase();
+  const firstBuyer = useFirstBuyerDiscount();
   const owned = owns(item.id);
 
   const [code, setCode] = useState("");
@@ -39,25 +40,45 @@ export const PurchaseCard: React.FC<{
   // grant) and celebrate — confetti + a cross-sell popup, only from the full
   // (non-compact) card, since both the desktop and mobile variants of this
   // component are always mounted together on the item page.
+  // Sequenced success flow: confetti fires immediately, then the cross-sell
+  // popup slides in after a short beat so the celebration lands first.
   const wasOwnedRef = useRef(owned);
+  const recsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     const justPurchased = !wasOwnedRef.current && owned;
     wasOwnedRef.current = owned;
     if (justPurchased && !compact) {
       fireSuccessConfetti();
-      setShowRecs(true);
+      recsTimerRef.current = setTimeout(() => setShowRecs(true), 2500);
     }
   }, [owned, compact]);
+  useEffect(() => () => { if (recsTimerRef.current) clearTimeout(recsTimerRef.current); }, []);
 
   const recommendations = getPostPurchaseRecommendations(store, item.id, profile?.purchases || []);
 
   const title = "name" in item ? item.name : item.title;
 
   const price = item.price;
-  const finalPrice = applied ? applied.final : price;
+  // Mirrors /api/create-order: coupon vs the automatic first-buyer 25% —
+  // whichever discount is larger wins, they never stack.
+  const couponDiscount = applied ? applied.discount : 0;
+  const firstBuyerDiscount =
+    firstBuyer.active && !owned && !item.free
+      ? Math.round(price * (firstBuyer.percent / 100))
+      : 0;
+  const activeDiscount = Math.max(couponDiscount, firstBuyerDiscount);
+  const firstBuyerWins = firstBuyerDiscount > couponDiscount;
+  const finalPrice = Math.max(0, price - activeDiscount);
   const saved =
-    (item.originalPrice ? item.originalPrice - price : 0) +
-    (applied ? applied.discount : 0);
+    (item.originalPrice ? item.originalPrice - price : 0) + activeDiscount;
+
+  const checkoutHelp = store?.checkoutHelp || DEFAULT_CHECKOUT_HELP;
+  const helpText = checkoutHelp.message
+    .replace(/\{price\}/g, finalPrice.toLocaleString("en-IN"))
+    .replace(/\{phone\}/g, checkoutHelp.phone);
+  // Only after this purchase attempt actually failed (Razorpay unconfigured,
+  // script blocked, verification error) — never as a permanent block.
+  const showCheckoutHelp = !owned && !item.free && checkoutFailed === item.id;
 
   const doApply = () => {
     setCouponError("");
@@ -190,9 +211,15 @@ export const PurchaseCard: React.FC<{
             />
           </div>
         </div>
-        {!owned && !item.free && (
+        {firstBuyerWins && (
+          <div className="px-4 pb-2 text-[10px] font-bold text-amber-400 text-center flex items-center justify-center gap-1">
+            <Timer size={11} /> {firstBuyer.percent}% first-purchase discount · {formatCountdown(firstBuyer.remainingMs)} left
+          </div>
+        )}
+        {showCheckoutHelp && (
           <div className="px-4 pb-3 pt-1 border-t border-white/5 text-[10px] text-zinc-500 leading-normal text-center bg-black/20">
-            💡 Checkout issues? GPay <b>₹{finalPrice.toLocaleString("en-IN")}</b> to <b>+91 63743 43169</b> &amp; send screenshot on <a href={getWhatsAppLink(`Hi Janish, I have GPayed ₹${finalPrice} for "${title}". Please grant me access. My registered email is: `)} target="_blank" rel="noopener noreferrer" className="text-[#25D366] hover:underline font-bold">WhatsApp</a> for instant access!
+            💡 {helpText}{" "}
+            <a href={getWhatsAppLink(`Hi Janish, I have GPayed ₹${finalPrice} for "${title}". Please grant me access. My registered email is: `)} target="_blank" rel="noopener noreferrer" className="text-[#25D366] hover:underline font-bold">Message on WhatsApp</a>
           </div>
         )}
       </div>
@@ -220,7 +247,15 @@ export const PurchaseCard: React.FC<{
         )}
       </div>
 
-      {applied && (
+      {firstBuyerWins && (
+        <div className="mt-2 mb-1 flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-400">
+          <Timer size={13} />
+          {firstBuyer.percent}% first-purchase discount applied automatically
+          <span className="ml-auto font-mono">{formatCountdown(firstBuyer.remainingMs)}</span>
+        </div>
+      )}
+
+      {applied && !firstBuyerWins && (
         <div className="mt-1 mb-4 flex items-center gap-2 text-xs text-[#25D366]">
           <Check size={13} />
           Coupon <span className="font-mono font-semibold">{applied.code}</span> applied · -₹{applied.discount.toLocaleString("en-IN")}
@@ -295,9 +330,10 @@ export const PurchaseCard: React.FC<{
         agreed={agreed || owned}
       />
 
-      {!owned && !item.free && (
+      {showCheckoutHelp && (
         <div className="mt-4 p-4 rounded-2xl bg-zinc-950 border border-white/5 text-[11px] text-zinc-500 leading-normal">
-          💡 <b>Checkout issues?</b> If the online checkout fails, simply GPay <b>₹{finalPrice.toLocaleString("en-IN")}</b> to <b>+91 63743 43169</b> and send the receipt/screenshot on <a href={getWhatsAppLink(`Hi Janish, I GPayed ₹${finalPrice} for "${title}". Please grant me access. My registered email is: `)} target="_blank" rel="noopener noreferrer" className="text-[#25D366] hover:underline font-bold">WhatsApp</a>. I will instantly activate your access!
+          💡 {helpText}{" "}
+          <a href={getWhatsAppLink(`Hi Janish, I GPayed ₹${finalPrice} for "${title}". Please grant me access. My registered email is: `)} target="_blank" rel="noopener noreferrer" className="text-[#25D366] hover:underline font-bold">Message on WhatsApp</a>
         </div>
       )}
 
@@ -325,6 +361,11 @@ export const PurchaseCard: React.FC<{
 };
 
 // ─── internals ────────────────────────────────────────────────────────────────
+
+export const formatCountdown = (ms: number) => {
+  const total = Math.max(0, Math.ceil(ms / 1000));
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
+};
 
 const CouponBox: React.FC<{
   code: string;
@@ -383,6 +424,16 @@ const BuyButton: React.FC<{
       <Link to="/my-library" className={`${cls} bg-[#25D366]/15 text-[#25D366] border border-[#25D366]/30 hover:bg-[#25D366]/25`}>
         <Check size={17} /> Owned — Open Library
       </Link>
+    );
+  }
+  // A "Coming Soon" course is browsable but not purchasable — its detail page
+  // is still reachable by URL, so the block has to live here, not just in the
+  // catalogue grid.
+  if (item.kind === "course" && !isCourseLive(item as Course)) {
+    return (
+      <button disabled className={`${cls} bg-white/5 text-zinc-400 border border-white/10`}>
+        Coming Soon
+      </button>
     );
   }
   if (item.free) {

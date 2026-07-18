@@ -19,6 +19,9 @@ export interface SiteUser {
   lastLogin?: any;
   // ids of products/courses this user owns (granted after purchase)
   purchases: string[];
+  // ISO timestamp of the first verified paid purchase — written only by
+  // api/verify-payment (Admin SDK); starts the 5-minute 25%-off window.
+  firstPurchaseAt?: string;
 }
 
 interface AuthContextValue {
@@ -84,6 +87,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           createdAt: d.createdAt,
           lastLogin: d.lastLogin,
           purchases: d.purchases || [],
+          firstPurchaseAt: d.firstPurchaseAt || undefined,
         });
       }
     });

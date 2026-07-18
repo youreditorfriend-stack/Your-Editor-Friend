@@ -49,8 +49,16 @@ export default async function handler(req: any, res: any) {
 
     const db = adminDb();
 
+    // First verified paid purchase starts the 5-minute 25%-off window that
+    // create-order honors server-side. Set once, never overwritten — and only
+    // ever written here (Admin SDK), so the client can't restart the window.
+    const userSnap = await db.doc(`users/${uid}`).get();
+    const userData = userSnap.exists ? userSnap.data() || {} : {};
+    const isFirstPayment = !userData.firstPurchaseAt && !(userData.payments || []).length;
+
     await db.doc(`users/${uid}`).set(
       {
+        ...(isFirstPayment ? { firstPurchaseAt: new Date().toISOString() } : {}),
         purchases: FieldValue.arrayUnion(itemId),
         payments: FieldValue.arrayUnion({
           itemId,

@@ -53,7 +53,13 @@ export interface Course extends DetailContent {
   accessUrl: string; // course link delivered after purchase
   badge?: string;
   enabled: boolean;
+  // enabled + live=false → listed as "Coming Soon": visible in the catalogue
+  // but not purchasable and excluded from recommendations. Absent = live,
+  // so courses saved before this flag existed keep working unchanged.
+  live?: boolean;
 }
+
+export const isCourseLive = (c: Pick<Course, "live">) => c.live !== false;
 
 // Discount code, applied at checkout. Server re-validates and computes the
 // amount, so a tampered client can't buy at a lower price.
@@ -77,12 +83,28 @@ export interface PageConfig {
   enabled: boolean;
 }
 
+// The "Checkout issues? GPay …" fallback note shown under the buy button
+// after an actual checkout failure. Editable from Admin → Pages so the
+// wording/phone number can change without a code release. `{price}` and
+// `{phone}` are substituted at render time.
+export interface CheckoutHelp {
+  message: string;
+  phone: string;
+}
+
+export const DEFAULT_CHECKOUT_HELP: CheckoutHelp = {
+  message:
+    "Checkout issues? GPay ₹{price} to {phone} & send screenshot on WhatsApp for instant access!",
+  phone: "+91 63743 43169",
+};
+
 export interface StoreData {
   products: Product[];
   courses: Course[];
   productCategories: ProductCategory[];
   pages: PageConfig[];
   coupons: Coupon[];
+  checkoutHelp?: CheckoutHelp;
 }
 
 export const DEFAULT_PAGES: PageConfig[] = [
@@ -230,6 +252,9 @@ export function useStore() {
               : SEED_STORE.productCategories,
             pages: mergePages(d.pages),
             coupons: Array.isArray(d.coupons) ? d.coupons : [],
+            checkoutHelp: d.checkoutHelp?.message
+              ? { ...DEFAULT_CHECKOUT_HELP, ...d.checkoutHelp }
+              : DEFAULT_CHECKOUT_HELP,
           };
         } else {
           cache = SEED_STORE;
@@ -301,7 +326,9 @@ export function getPostPurchaseRecommendations(
   if (!store) return [];
   const owned = new Set(ownedIds);
   const eligibleProducts = (store.products || []).filter(p => p.enabled && p.id !== excludeItemId && !owned.has(p.id));
-  const eligibleCourses = (store.courses || []).filter(c => c.enabled && c.id !== excludeItemId && !owned.has(c.id));
+  const eligibleCourses = (store.courses || []).filter(
+    c => c.enabled && isCourseLive(c) && c.id !== excludeItemId && !owned.has(c.id)
+  );
 
   const picks: Recommendation[] = [];
   const seen = new Set<string>();
@@ -320,6 +347,26 @@ export function getPostPurchaseRecommendations(
   add(eligibleProducts.filter(p => p.bestSeller), "product", "best-seller");
 
   return picks;
+}
+
+// ─── First-time-buyer discount window ─────────────────────────────────────────
+// For 5 minutes after a user's FIRST paid purchase, any additional purchase
+// gets an automatic 25% discount. The window start (`firstPurchaseAt` on the
+// user doc) is written only by api/verify-payment via the Admin SDK — Firestore
+// rules stop users from setting it themselves — and api/create-order re-checks
+// it server-side, so the client-side mirror here is display-only.
+export const FIRST_BUYER_DISCOUNT_PERCENT = 25;
+export const FIRST_BUYER_WINDOW_MS = 5 * 60 * 1000;
+
+// Milliseconds left in the discount window; 0 when absent or expired.
+export function firstBuyerWindowRemainingMs(
+  firstPurchaseAt: string | null | undefined,
+  nowMs: number = Date.now()
+): number {
+  if (!firstPurchaseAt) return 0;
+  const start = new Date(firstPurchaseAt).getTime();
+  if (!Number.isFinite(start)) return 0;
+  return Math.max(0, start + FIRST_BUYER_WINDOW_MS - nowMs);
 }
 
 // Coupon validation used by both the purchase card (instant feedback) and the

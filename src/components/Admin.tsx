@@ -123,6 +123,9 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
   const [productCategories, setProductCategories] = useState<ProductCategory[]>([]);
   const [pageConfigs, setPageConfigs] = useState<PageConfig[]>([]);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
+  // Loaded and written back verbatim so this panel's full-doc save doesn't
+  // wipe the checkout-help message edited in the Pages panel (AdminStore.tsx).
+  const [checkoutHelp, setCheckoutHelp] = useState<any>(null);
   const [users, setUsers] = useState<any[]>([]);
 
   // -- Portfolio Schema States
@@ -220,6 +223,7 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
           setProductCategories(d.productCategories || []);
           setPageConfigs(d.pages || []);
           setCoupons(d.coupons || []);
+          setCheckoutHelp(d.checkoutHelp || null);
         } else {
           setStoreProducts(SEED_STORE.products);
           setStoreCourses(SEED_STORE.courses);
@@ -274,7 +278,8 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
         courses: activeCourses.map(c => ({ ...c, free: c.price === 0 })),
         productCategories,
         pages: pageConfigs,
-        coupons: activeCoupons
+        coupons: activeCoupons,
+        ...(checkoutHelp ? { checkoutHelp } : {})
       };
 
       await Promise.all([

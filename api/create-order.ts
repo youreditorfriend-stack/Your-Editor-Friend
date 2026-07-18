@@ -57,6 +57,22 @@ function pickCoupon(coupons: any[], code: string | undefined, itemId: string, no
   return { ok: true as const, coupon: c, discount: c.percentOff };
 }
 
+// First-time-buyer window — mirrors src/lib/store.ts (kept in sync manually,
+// same reason as pickCoupon). The window start (`firstPurchaseAt`) is written
+// exclusively by verify-payment via the Admin SDK, so reading it here is the
+// authoritative check — the client never decides whether the discount applies.
+const FIRST_BUYER_DISCOUNT_PERCENT = 25;
+const FIRST_BUYER_WINDOW_MS = 5 * 60 * 1000;
+
+async function firstBuyerWindowActive(uid: string, now: Date): Promise<boolean> {
+  const snap = await adminDb().doc(`users/${uid}`).get();
+  if (!snap.exists) return false;
+  const at = snap.data()?.firstPurchaseAt;
+  if (!at) return false;
+  const start = new Date(at).getTime();
+  return Number.isFinite(start) && now.getTime() - start <= FIRST_BUYER_WINDOW_MS;
+}
+
 export default async function handler(req: any, res: any) {
   if (req.method !== "POST") return json(res, 405, { error: "Method not allowed" });
 
@@ -72,10 +88,22 @@ export default async function handler(req: any, res: any) {
     if (!item) return json(res, 404, { error: "Item not found" });
     if (!item.price || item.price <= 0) return json(res, 400, { error: "Item is free — no payment needed" });
 
-    const check = pickCoupon(coupons, couponCode, itemId, new Date());
+    const now = new Date();
+    const check = pickCoupon(coupons, couponCode, itemId, now);
     if (!check.ok) return json(res, 400, { error: check.error });
 
-    const discountRupees = check.coupon ? Math.round(item.price * (check.discount / 100)) : 0;
+    const couponRupees = check.coupon ? Math.round(item.price * (check.discount / 100)) : 0;
+
+    // Automatic 25% first-buyer discount if within 5 minutes of the user's
+    // first verified paid purchase. Not stacked with a coupon — the buyer
+    // gets whichever discount is larger.
+    const firstBuyerActive = await firstBuyerWindowActive(uid, now);
+    const firstBuyerRupees = firstBuyerActive
+      ? Math.round(item.price * (FIRST_BUYER_DISCOUNT_PERCENT / 100))
+      : 0;
+
+    const usedFirstBuyer = firstBuyerRupees > couponRupees;
+    const discountRupees = Math.max(couponRupees, firstBuyerRupees);
     const finalPrice = Math.max(0, item.price - discountRupees);
     if (finalPrice <= 0) return json(res, 400, { error: "Coupon reduces the price to zero — grant this manually instead" });
 
@@ -88,7 +116,10 @@ export default async function handler(req: any, res: any) {
         itemId,
         uid,
         itemName: item.name,
-        couponCode: check.coupon ? (check.coupon.code || "").toUpperCase() : "",
+        // When the first-buyer discount wins, the coupon wasn't consumed —
+        // leave it out of the notes so verify-payment doesn't bump its uses.
+        couponCode: !usedFirstBuyer && check.coupon ? (check.coupon.code || "").toUpperCase() : "",
+        firstBuyerDiscount: usedFirstBuyer ? `${FIRST_BUYER_DISCOUNT_PERCENT}%` : "",
       },
     });
 
@@ -98,8 +129,9 @@ export default async function handler(req: any, res: any) {
       currency: order.currency,
       keyId,
       itemName: item.name,
-      couponCode: check.coupon ? (check.coupon.code || "").toUpperCase() : null,
+      couponCode: !usedFirstBuyer && check.coupon ? (check.coupon.code || "").toUpperCase() : null,
       discount: discountRupees,
+      firstBuyerDiscount: usedFirstBuyer,
     });
   } catch (e: any) {
     console.error("create-order failed:", e);

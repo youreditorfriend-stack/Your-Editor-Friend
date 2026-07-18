@@ -1,9 +1,10 @@
 import React from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { CreditCard, Download, Flame, GraduationCap, Lock, Sparkles, Tag, X } from "lucide-react";
+import { CreditCard, Download, Flame, GraduationCap, Lock, Sparkles, Tag, Timer, X } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { formatPrice, getDiscountPercent, type Recommendation } from "../src/lib/store";
-import { usePurchase } from "../src/lib/purchase";
+import { useFirstBuyerDiscount, usePurchase } from "../src/lib/purchase";
+import { formatCountdown } from "./PurchaseCard";
 
 const REASON_META: Record<Recommendation["reason"], { label: string; icon: React.ReactNode; toneClass: string }> = {
   free: { label: "Free download", icon: <Download size={11} />, toneClass: "bg-[#25D366]/15 text-[#25D366] border-[#25D366]/30" },
@@ -24,6 +25,7 @@ export const PostPurchaseRecommendations: React.FC<{
 }> = ({ open, onClose, purchasedTitle, recommendations }) => {
   const navigate = useNavigate();
   const { owns, claimFree, buy, isLoggedIn, paying } = usePurchase();
+  const firstBuyer = useFirstBuyerDiscount();
 
   if (recommendations.length === 0) return null;
 
@@ -68,6 +70,16 @@ export const PostPurchaseRecommendations: React.FC<{
               </button>
             </div>
 
+            {/* First-time-buyer window: 25% off anything else for 5 minutes,
+                applied automatically at checkout (server re-validates). */}
+            {firstBuyer.active && (
+              <div className="mx-5 sm:mx-7 mt-4 flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-xs font-bold text-amber-400">
+                <Timer size={14} className="shrink-0" />
+                <span>{firstBuyer.percent}% OFF everything below — first-purchase bonus</span>
+                <span className="ml-auto font-mono text-sm">{formatCountdown(firstBuyer.remainingMs)}</span>
+              </div>
+            )}
+
             {/* Recommendations grid — always wraps, never a horizontal scroller */}
             <div className="p-5 sm:p-7 grid grid-cols-1 sm:grid-cols-2 gap-4">
               {recommendations.map((rec) => {
@@ -102,9 +114,18 @@ export const PostPurchaseRecommendations: React.FC<{
                       </button>
                       <p className="text-zinc-500 text-[11px] font-light mt-0.5 mb-3 line-clamp-2 flex-1">{item.tagline}</p>
                       <div className="flex items-center justify-between gap-2">
-                        <span className={`font-bold text-sm ${item.price === 0 ? "text-[#25D366]" : "text-white"}`}>
-                          {formatPrice(item.price)}
-                        </span>
+                        {firstBuyer.active && item.price > 0 && !owned ? (
+                          <span className="flex items-baseline gap-1.5">
+                            <span className="font-bold text-sm text-amber-400">
+                              {formatPrice(Math.max(0, item.price - Math.round(item.price * (firstBuyer.percent / 100))))}
+                            </span>
+                            <span className="text-[10px] text-zinc-600 line-through">{formatPrice(item.price)}</span>
+                          </span>
+                        ) : (
+                          <span className={`font-bold text-sm ${item.price === 0 ? "text-[#25D366]" : "text-white"}`}>
+                            {formatPrice(item.price)}
+                          </span>
+                        )}
                         {owned ? (
                           <Link
                             to="/my-library"

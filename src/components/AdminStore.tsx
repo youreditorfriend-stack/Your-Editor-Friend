@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { db } from "../firebase";
 import { arrayRemove, arrayUnion, collection, doc, getDoc, getDocs, setDoc, updateDoc } from "firebase/firestore";
-import { SEED_STORE, StoreData, Product, Course, ProductCategory, PageConfig, Coupon, mergePages } from "../lib/store";
+import { DEFAULT_CHECKOUT_HELP, SEED_STORE, StoreData, Product, Course, ProductCategory, PageConfig, Coupon, mergePages } from "../lib/store";
 import { ImageField } from "./ImageField";
 import { FileField } from "./FileField";
 import {
@@ -42,6 +42,7 @@ function useAdminStore() {
             productCategories: d.productCategories || SEED_STORE.productCategories,
             pages: mergePages(d.pages),
             coupons: Array.isArray(d.coupons) ? d.coupons : [],
+            checkoutHelp: { ...DEFAULT_CHECKOUT_HELP, ...(d.checkoutHelp || {}) },
           });
         } else {
           setData(SEED_STORE);
@@ -155,6 +156,45 @@ export function AdminPagesPanel() {
               <Toggle value={p.enabled} onChange={v => toggle(p.id, v)} />
             </div>
           ))}
+        </div>
+      </Card>
+
+      {/* Fallback note shown under the buy button ONLY after a checkout
+          actually fails — edit the wording/phone here, no code change needed. */}
+      <Card>
+        <CardHeader title="Checkout-failure help message" />
+        <p className="text-zinc-500 text-[11px] leading-relaxed mb-4">
+          Shown on a purchase card only after online checkout fails for that attempt.
+          Use <code className="text-zinc-300">{"{price}"}</code> for the amount and{" "}
+          <code className="text-zinc-300">{"{phone}"}</code> for the GPay number below.
+          A "Message on WhatsApp" link is always added after the message.
+        </p>
+        <div className="space-y-4">
+          <Field>
+            <FieldLabel>Message</FieldLabel>
+            <Textarea
+              rows={3}
+              value={data.checkoutHelp?.message ?? DEFAULT_CHECKOUT_HELP.message}
+              onChange={e =>
+                setData({
+                  ...data,
+                  checkoutHelp: { ...(data.checkoutHelp || DEFAULT_CHECKOUT_HELP), message: e.target.value },
+                })
+              }
+            />
+          </Field>
+          <Field>
+            <FieldLabel>GPay phone number</FieldLabel>
+            <Input
+              value={data.checkoutHelp?.phone ?? DEFAULT_CHECKOUT_HELP.phone}
+              onChange={e =>
+                setData({
+                  ...data,
+                  checkoutHelp: { ...(data.checkoutHelp || DEFAULT_CHECKOUT_HELP), phone: e.target.value },
+                })
+              }
+            />
+          </Field>
         </div>
       </Card>
 
@@ -490,6 +530,7 @@ export function AdminCoursesPanel() {
         free: true,
         accessUrl: "",
         enabled: false,
+        live: true,
       },
       ...data.courses,
     ]);
@@ -554,6 +595,8 @@ export function AdminCoursesPanel() {
               <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mt-4 pt-4 border-t border-white/[0.05]">
                 <label className="flex items-center gap-2 text-zinc-400 text-xs font-bold">FREE <Toggle value={c.free} onChange={v => upCourse(c.id, { free: v, price: v ? 0 : c.price })} /></label>
                 <label className="flex items-center gap-2 text-zinc-400 text-xs font-bold">VISIBLE <Toggle value={c.enabled} onChange={v => upCourse(c.id, { enabled: v })} /></label>
+                {/* Visible + not live = listed as "Coming Soon": not purchasable, excluded from recommendations */}
+                <label className="flex items-center gap-2 text-zinc-400 text-xs font-bold">LIVE (PURCHASABLE) <Toggle value={c.live !== false} onChange={v => upCourse(c.id, { live: v })} /></label>
                 <div className="flex-1" />
                 <Button
                   size="sm"
