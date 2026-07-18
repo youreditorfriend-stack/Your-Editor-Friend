@@ -1,11 +1,15 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, Copy, CreditCard, Download, Link as LinkIcon, Lock, Tag, X, ChevronDown, ChevronUp } from "lucide-react";
 import { Link } from "react-router-dom";
-import { applyCoupon, formatPrice, useStore } from "../src/lib/store";
+import { applyCoupon, formatPrice, getPostPurchaseRecommendations, useStore } from "../src/lib/store";
 import type { Course, Product } from "../src/lib/store";
 import { usePurchase } from "../src/lib/purchase";
+import { useAuth } from "../src/lib/auth";
 import { getWhatsAppLink } from "../src/lib/site";
+import { fireSuccessConfetti } from "../src/lib/confetti";
+import { PostPurchaseRecommendations } from "./PostPurchaseRecommendations";
 
 // The purchase card lives on every item detail page.
 // - Desktop: rendered sticky in the right column.
@@ -17,6 +21,7 @@ export const PurchaseCard: React.FC<{
   compact?: boolean;
 }> = ({ item, compact = false }) => {
   const { store } = useStore();
+  const { profile } = useAuth();
   const { owns, claimFree, buy, isLoggedIn, paying } = usePurchase();
   const owned = owns(item.id);
 
@@ -27,6 +32,24 @@ export const PurchaseCard: React.FC<{
   const [showCoupon, setShowCoupon] = useState(!compact);
   const [agreed, setAgreed] = useState(false);
   const [termsCollapsed, setTermsCollapsed] = useState(true);
+  const [showRecs, setShowRecs] = useState(false);
+
+  // Detect a purchase completing (free claim writes instantly; a paid buy
+  // flips `owned` once the live purchases listener catches the server-side
+  // grant) and celebrate — confetti + a cross-sell popup, only from the full
+  // (non-compact) card, since both the desktop and mobile variants of this
+  // component are always mounted together on the item page.
+  const wasOwnedRef = useRef(owned);
+  useEffect(() => {
+    const justPurchased = !wasOwnedRef.current && owned;
+    wasOwnedRef.current = owned;
+    if (justPurchased && !compact) {
+      fireSuccessConfetti();
+      setShowRecs(true);
+    }
+  }, [owned, compact]);
+
+  const recommendations = getPostPurchaseRecommendations(store, item.id, profile?.purchases || []);
 
   const title = "name" in item ? item.name : item.title;
 
@@ -284,6 +307,19 @@ export const PurchaseCard: React.FC<{
       >
         {copied ? <><Check size={15} className="text-[#25D366]" /> Link copied</> : <><LinkIcon size={15} /> Share this {item.kind}</>}
       </button>
+
+      {/* Rendered via portal so it survives this card's "hidden lg:block"
+          mobile wrapper and always appears full-viewport regardless of
+          breakpoint. */}
+      {typeof document !== "undefined" && createPortal(
+        <PostPurchaseRecommendations
+          open={showRecs}
+          onClose={() => setShowRecs(false)}
+          purchasedTitle={title}
+          recommendations={recommendations}
+        />,
+        document.body
+      )}
     </div>
   );
 };
