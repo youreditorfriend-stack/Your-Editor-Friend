@@ -31,7 +31,6 @@ export const PurchaseCard: React.FC<{
   const [couponError, setCouponError] = useState("");
   const [copied, setCopied] = useState(false);
   const [showCoupon, setShowCoupon] = useState(!compact);
-  const [agreed, setAgreed] = useState(false);
   const [termsCollapsed, setTermsCollapsed] = useState(true);
   const [showRecs, setShowRecs] = useState(false);
 
@@ -140,30 +139,18 @@ export const PurchaseCard: React.FC<{
         </AnimatePresence>
 
         {!owned && (
-          <div className="px-4 py-2 border-b border-white/5 bg-zinc-950/20 text-[11px]">
-            <label className="flex items-start gap-2 cursor-pointer text-zinc-400 select-none">
-              <input
-                id="terms-checkbox-compact"
-                type="checkbox"
-                checked={agreed}
-                onChange={(e) => setAgreed(e.target.checked)}
-                className="mt-0.5 rounded border-white/20 bg-black/40 text-[#E50914] focus:ring-[#E50914] h-3.5 w-3.5"
-              />
-              <span className="leading-tight">
-                I agree to the{" "}
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setTermsCollapsed(!termsCollapsed);
-                  }}
-                  className="text-[#E50914] hover:underline font-semibold inline-flex items-center gap-0.5"
-                >
-                  Terms &amp; Conditions
-                  {termsCollapsed ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
-                </button>
-              </span>
-            </label>
+          <div className="px-4 py-1.5 border-b border-white/5 bg-zinc-950/20 text-[10px] text-zinc-500">
+            <span className="leading-tight">
+              By purchasing you agree to the{" "}
+              <button
+                type="button"
+                onClick={() => setTermsCollapsed(!termsCollapsed)}
+                className="text-[#E50914] hover:underline font-semibold inline-flex items-center gap-0.5"
+              >
+                Terms &amp; Conditions
+                {termsCollapsed ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
+              </button>
+            </span>
 
             <AnimatePresence initial={false}>
               {!termsCollapsed && (
@@ -184,7 +171,7 @@ export const PurchaseCard: React.FC<{
 
         <div className="flex items-center gap-3 p-3">
           <div className="min-w-0">
-            <div className={`text-lg font-bold ${finalPrice === 0 ? "text-[#25D366]" : "text-white"}`}>
+            <div className={`inline-block text-lg font-bold rounded-lg px-2.5 py-0.5 border ${finalPrice === 0 ? "text-[#E50914] bg-[#E50914]/10 border-[#E50914]/30" : "text-[#25D366] bg-[#25D366]/10 border-[#25D366]/30"}`}>
               {formatPrice(finalPrice)}
             </div>
             {item.originalPrice && item.originalPrice > finalPrice && (
@@ -207,7 +194,6 @@ export const PurchaseCard: React.FC<{
               isLoggedIn={isLoggedIn}
               onClaim={() => claimFree(item)}
               onBuy={() => buy(item, applied?.code)}
-              agreed={agreed || owned}
             />
           </div>
         </div>
@@ -231,7 +217,7 @@ export const PurchaseCard: React.FC<{
     <div className="rounded-3xl border border-white/10 bg-zinc-900/60 backdrop-blur-xl p-6 shadow-2xl">
       <div className="flex items-baseline justify-between mb-1">
         <div className="flex items-baseline gap-2">
-          <span className={`text-3xl font-bold ${finalPrice === 0 ? "text-[#25D366]" : "text-white"}`}>
+          <span className={`text-3xl font-bold rounded-xl px-3 py-1 border ${finalPrice === 0 ? "text-[#E50914] bg-[#E50914]/10 border-[#E50914]/30" : "text-[#25D366] bg-[#25D366]/10 border-[#25D366]/30"}`}>
             {formatPrice(finalPrice)}
           </span>
           {(item.originalPrice && item.originalPrice > finalPrice) && (
@@ -278,29 +264,17 @@ export const PurchaseCard: React.FC<{
 
       {!owned && (
         <div className="mb-4">
-          <label className="flex items-start gap-2.5 cursor-pointer text-xs text-zinc-300 select-none">
-            <input
-              id="terms-checkbox-desktop"
-              type="checkbox"
-              checked={agreed}
-              onChange={(e) => setAgreed(e.target.checked)}
-              className="mt-0.5 rounded border-white/20 bg-black/40 text-[#E50914] focus:ring-[#E50914] h-4 w-4 cursor-pointer"
-            />
-            <span className="leading-tight">
-              I agree to the{" "}
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  setTermsCollapsed(!termsCollapsed);
-                }}
-                className="text-[#E50914] hover:underline font-semibold inline-flex items-center gap-0.5"
-              >
-                Terms &amp; Conditions
-                {termsCollapsed ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
-              </button>
-            </span>
-          </label>
+          <div className="text-xs text-zinc-400 leading-tight">
+            By purchasing you agree to the{" "}
+            <button
+              type="button"
+              onClick={() => setTermsCollapsed(!termsCollapsed)}
+              className="text-[#E50914] hover:underline font-semibold inline-flex items-center gap-0.5"
+            >
+              Terms &amp; Conditions
+              {termsCollapsed ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
+            </button>
+          </div>
 
           <AnimatePresence initial={false}>
             {!termsCollapsed && (
@@ -327,7 +301,6 @@ export const PurchaseCard: React.FC<{
         isLoggedIn={isLoggedIn}
         onClaim={() => claimFree(item)}
         onBuy={() => buy(item, applied?.code)}
-        agreed={agreed || owned}
       />
 
       {showCheckoutHelp && (
@@ -414,8 +387,7 @@ const BuyButton: React.FC<{
   isLoggedIn: boolean;
   onClaim: () => void;
   onBuy: () => void;
-  agreed: boolean;
-}> = ({ item, owned, paying, isLoggedIn, onClaim, onBuy, agreed }) => {
+}> = ({ item, owned, paying, isLoggedIn, onClaim, onBuy }) => {
   const cls =
     "w-full py-3.5 rounded-xl text-base font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed";
 
@@ -436,12 +408,12 @@ const BuyButton: React.FC<{
       </button>
     );
   }
+  // Color language: green = pay/money action, brand red = free claim.
   if (item.free) {
     return (
-      <button 
-        onClick={onClaim} 
-        disabled={!agreed}
-        className={`${cls} bg-[#25D366] text-black hover:bg-green-400`}
+      <button
+        onClick={onClaim}
+        className={`${cls} bg-[#E50914] text-white hover:bg-red-700`}
       >
         {isLoggedIn ? <><Download size={17} /> Get it free</> : <><Lock size={16} /> Login to get free</>}
       </button>
@@ -450,8 +422,8 @@ const BuyButton: React.FC<{
   return (
     <button
       onClick={onBuy}
-      disabled={paying === item.id || !agreed}
-      className={`${cls} bg-[#E50914] text-white hover:bg-red-700`}
+      disabled={paying === item.id}
+      className={`${cls} bg-[#25D366] text-black hover:bg-green-400`}
     >
       {paying === item.id ? "Opening payment…" : isLoggedIn ? <><CreditCard size={17} /> Get it now</> : <><Lock size={16} /> Login to buy</>}
     </button>
