@@ -62,7 +62,13 @@ service cloud.firestore {
           && data.userName is string && data.userName.size() <= 256
           && data.userPhoto is string && data.userPhoto.size() <= 1024
           && (data.get('itemTitle', '') is string)
-          && (data.get('replies', []) is list);
+          && (data.get('replies', []) is list)
+          // parentCommentId: set on a reply (flat doc, threaded via this id
+          // rather than the older embedded `replies[]` array); absent/empty
+          // for a top-level comment.
+          && (data.get('parentCommentId', '') is string)
+          && (data.get('isAdmin', false) is bool)
+          && (data.get('editedAt', '') is string);
     }
 
     function isValidUserProfile(data) {
@@ -105,9 +111,10 @@ service cloud.firestore {
                     && incoming().uid == request.auth.uid; // Identity validation: cannot spoof uid
       
       allow update: if isVerifiedUser() && (
-        // Action 1: Creator of comment editing content or adding replies
-        (incoming().uid == request.auth.uid && isValidComment(incoming()) 
-         && incoming().diff(existing()).affectedKeys().hasOnly(['content', 'createdAt', 'replies']))
+        // Action 1: Creator editing their own comment's text (bumps editedAt),
+        // or the legacy path of appending to the embedded `replies[]` array
+        (incoming().uid == request.auth.uid && isValidComment(incoming())
+         && incoming().diff(existing()).affectedKeys().hasOnly(['content', 'createdAt', 'replies', 'editedAt']))
         ||
         // Action 2: Admin replying or moderating
         (isAdmin() && isValidComment(incoming()))
