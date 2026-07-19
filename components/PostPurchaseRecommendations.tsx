@@ -122,7 +122,7 @@ export const PostPurchaseRecommendations: React.FC<{
                             <span className="text-[10px] text-zinc-600 line-through">{formatPrice(item.price)}</span>
                           </span>
                         ) : (
-                          <span className={`font-bold text-sm ${item.price === 0 ? "text-[#25D366]" : "text-white"}`}>
+                          <span className="font-bold text-sm text-white">
                             {formatPrice(item.price)}
                           </span>
                         )}
@@ -145,7 +145,7 @@ export const PostPurchaseRecommendations: React.FC<{
                           <button
                             onClick={() => buy(item)}
                             disabled={paying === item.id}
-                            className="text-xs font-bold px-3 py-1.5 rounded-lg bg-[#E50914] text-white hover:bg-red-700 transition-colors disabled:opacity-60 flex items-center gap-1 cursor-pointer"
+                            className="text-xs font-bold px-3 py-1.5 rounded-lg bg-[#25D366] text-black hover:bg-green-400 transition-colors disabled:opacity-60 flex items-center gap-1 cursor-pointer"
                           >
                             {paying === item.id ? "…" : isLoggedIn ? <><CreditCard size={12} /> Buy now</> : <><Lock size={11} /> Login</>}
                           </button>

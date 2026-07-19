@@ -171,7 +171,7 @@ export const PurchaseCard: React.FC<{
 
         <div className="flex items-center gap-3 p-3">
           <div className="min-w-0">
-            <div className={`inline-block text-lg font-bold rounded-lg px-2.5 py-0.5 border ${finalPrice === 0 ? "text-[#E50914] bg-[#E50914]/10 border-[#E50914]/30" : "text-[#25D366] bg-[#25D366]/10 border-[#25D366]/30"}`}>
+            <div className="text-lg font-bold text-white">
               {formatPrice(finalPrice)}
             </div>
             {item.originalPrice && item.originalPrice > finalPrice && (
@@ -217,7 +217,7 @@ export const PurchaseCard: React.FC<{
     <div className="rounded-3xl border border-white/10 bg-zinc-900/60 backdrop-blur-xl p-6 shadow-2xl">
       <div className="flex items-baseline justify-between mb-1">
         <div className="flex items-baseline gap-2">
-          <span className={`text-3xl font-bold rounded-xl px-3 py-1 border ${finalPrice === 0 ? "text-[#E50914] bg-[#E50914]/10 border-[#E50914]/30" : "text-[#25D366] bg-[#25D366]/10 border-[#25D366]/30"}`}>
+          <span className="text-3xl font-bold text-white">
             {formatPrice(finalPrice)}
           </span>
           {(item.originalPrice && item.originalPrice > finalPrice) && (
@@ -408,12 +408,12 @@ const BuyButton: React.FC<{
       </button>
     );
   }
-  // Color language: green = pay/money action, brand red = free claim.
+  // All purchase actions are green — free and paid alike; price text stays white.
   if (item.free) {
     return (
       <button
         onClick={onClaim}
-        className={`${cls} bg-[#E50914] text-white hover:bg-red-700`}
+        className={`${cls} bg-[#25D366] text-black hover:bg-green-400`}
       >
         {isLoggedIn ? <><Download size={17} /> Get it free</> : <><Lock size={16} /> Login to get free</>}
       </button>
