@@ -82,7 +82,7 @@ export const Courses: React.FC = () => {
 
                     {/* Pricing */}
                     <div className="flex items-baseline gap-3 mb-4 md:mb-5">
-                      <span className={`text-2xl md:text-3xl font-bold ${c.free ? 'text-[#25D366]' : 'text-white'}`}>{formatPrice(c.price)}</span>
+                      <span className="text-2xl md:text-3xl font-bold text-white">{formatPrice(c.price)}</span>
                       {c.originalPrice ? (
                         <>
                           <span className="text-zinc-600 line-through">₹{c.originalPrice.toLocaleString('en-IN')}</span>
@@ -119,7 +119,7 @@ export const Courses: React.FC = () => {
                       <button
                         onClick={() => buy(c)}
                         disabled={paying === c.id}
-                        className="w-full py-3 md:py-3.5 rounded-xl md:rounded-2xl text-sm md:text-base font-bold bg-[#E50914] text-white flex items-center justify-center gap-2 hover:bg-red-700 transition-all disabled:opacity-60"
+                        className="w-full py-3 md:py-3.5 rounded-xl md:rounded-2xl text-sm md:text-base font-bold bg-[#25D366] text-black flex items-center justify-center gap-2 hover:bg-green-400 transition-all disabled:opacity-60"
                       >
                         {paying === c.id ? 'Opening payment…' : isLoggedIn ? <><CreditCard size={17} /> Buy This Course</> : <><Lock size={16} /> Login to Buy</>}
                       </button>

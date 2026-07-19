@@ -100,7 +100,7 @@ export const ProductCard: React.FC<{ product: Product; index?: number }> = ({ pr
             const discountPercent = getDiscountPercent(p.price, p.originalPrice);
             return (
               <div className="flex items-center gap-2 flex-wrap">
-                <span className={`font-extrabold text-base md:text-lg ${p.free || hasDiscount ? 'text-[#25D366]' : 'text-white'}`}>
+                <span className="font-extrabold text-base md:text-lg text-white">
                   {formatPrice(p.price)}
                 </span>
                 {hasDiscount && (
@@ -137,7 +137,7 @@ export const ProductCard: React.FC<{ product: Product; index?: number }> = ({ pr
           <button
             onClick={() => buy(p)}
             disabled={paying === p.id}
-            className="w-full py-2 md:py-2.5 rounded-lg md:rounded-xl text-xs md:text-sm font-semibold bg-[#E50914] text-white flex items-center justify-center gap-1.5 md:gap-2 hover:bg-red-700 transition-all disabled:opacity-60"
+            className="w-full py-2 md:py-2.5 rounded-lg md:rounded-xl text-xs md:text-sm font-semibold bg-[#25D366] text-black flex items-center justify-center gap-1.5 md:gap-2 hover:bg-green-400 transition-all disabled:opacity-60"
           >
             {paying === p.id ? 'Opening payment…' : isLoggedIn ? <><CreditCard size={14} /> Buy Now</> : <><Lock size={13} /> Login to Buy</>}
           </button>
