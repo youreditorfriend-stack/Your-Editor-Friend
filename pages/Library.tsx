@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../src/lib/auth';
 import { formatPrice, getPostPurchaseRecommendations, hasFreeAssets, useStore } from '../src/lib/store';
 import { getWhatsAppLink } from '../src/lib/site';
+import { RateWidget } from '../components/ReviewsSection';
 
 export const Library: React.FC = () => {
   const { user, profile, signIn } = useAuth();
@@ -152,6 +153,7 @@ export const Library: React.FC = () => {
                             <Download size={15} /> Free Assets
                           </a>
                         )}
+                        <RateWidget itemId={p.id} itemTitle={p.name} compact />
                       </div>
                     </motion.div>
                   ))}

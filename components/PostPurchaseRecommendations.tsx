@@ -21,13 +21,16 @@ export const PostPurchaseRecommendations: React.FC<{
   open: boolean;
   onClose: () => void;
   purchasedTitle: string;
+  savedAmount?: number; // ₹ saved vs. strike-through price + discounts
   recommendations: Recommendation[];
-}> = ({ open, onClose, purchasedTitle, recommendations }) => {
+}> = ({ open, onClose, purchasedTitle, savedAmount = 0, recommendations }) => {
   const navigate = useNavigate();
   const { owns, claimFree, buy, isLoggedIn, paying } = usePurchase();
   const firstBuyer = useFirstBuyerDiscount();
 
-  if (recommendations.length === 0) return null;
+  // Still worth popping just for the savings flex when there is nothing
+  // left to recommend.
+  if (recommendations.length === 0 && savedAmount <= 0) return null;
 
   const goTo = (path: string) => {
     onClose();
@@ -58,8 +61,17 @@ export const PostPurchaseRecommendations: React.FC<{
                   <Sparkles size={11} /> Purchase complete
                 </div>
                 <h2 className="text-lg sm:text-xl font-bold text-white leading-snug">
-                  Nice pick! People who got <span className="text-[#E50914]">{purchasedTitle}</span> also grabbed these
+                  {recommendations.length > 0 ? (
+                    <>Nice pick! People who got <span className="text-[#E50914]">{purchasedTitle}</span> also grabbed these</>
+                  ) : (
+                    <>You now own <span className="text-[#E50914]">{purchasedTitle}</span> — find it in My Library</>
+                  )}
                 </h2>
+                {savedAmount > 0 && (
+                  <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-[#25D366]/15 border border-[#25D366]/30 px-3 py-1 text-xs font-bold text-[#25D366]">
+                    🎉 You saved ₹{savedAmount.toLocaleString("en-IN")} on this purchase
+                  </div>
+                )}
               </div>
               <button
                 onClick={onClose}

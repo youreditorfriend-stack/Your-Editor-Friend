@@ -72,6 +72,17 @@ service cloud.firestore {
           && (data.get('editedAt', '') is string);
     }
 
+    function isValidReview(data) {
+      return data.itemId is string && data.itemId.size() <= 128
+          && data.uid is string && data.uid.size() <= 128
+          && data.rating is int && data.rating >= 1 && data.rating <= 5
+          && data.feedback is string && data.feedback.size() <= 1000
+          && data.userName is string && data.userName.size() <= 256
+          && data.userPhoto is string && data.userPhoto.size() <= 1024
+          && (data.get('itemTitle', '') is string)
+          && data.createdAt is string && data.createdAt.size() <= 128;
+    }
+
     function isValidUserProfile(data) {
       return data.uid is string && data.uid.size() <= 128
           && data.email is string && data.email.size() <= 256
@@ -121,6 +132,19 @@ service cloud.firestore {
         (isAdmin() && isValidComment(incoming()))
       );
 
+      allow delete: if isAdmin() || (isSignedIn() && existing().uid == request.auth.uid);
+    }
+
+    // Star ratings + feedback. One doc per buyer per item (id = uid_itemId),
+    // writable only by verified buyers of that item — the purchases check
+    // reads the caller's own user doc server-side, so it can't be spoofed.
+    match /reviews/{reviewId} {
+      allow read: if true; // Ratings are public social proof
+      allow create, update: if isVerifiedUser()
+                    && isValidReview(incoming())
+                    && incoming().uid == request.auth.uid
+                    && reviewId == request.auth.uid + '_' + incoming().itemId
+                    && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('purchases', []).hasAny([incoming().itemId]);
       allow delete: if isAdmin() || (isSignedIn() && existing().uid == request.auth.uid);
     }
 
