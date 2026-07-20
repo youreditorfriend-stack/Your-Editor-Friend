@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, Copy, CreditCard, Download, Link as LinkIcon, Lock, Tag, Timer, X, ChevronDown, ChevronUp } from "lucide-react";
 import { Link } from "react-router-dom";
-import { applyCoupon, DEFAULT_CHECKOUT_HELP, formatPrice, getPostPurchaseRecommendations, isCourseLive, useStore } from "../src/lib/store";
+import { applyCoupon, DEFAULT_CHECKOUT_HELP, formatPrice, getPostPurchaseRecommendations, hasFreeAssets, isCourseLive, useStore } from "../src/lib/store";
 import type { Course, Product } from "../src/lib/store";
 import { useFirstBuyerDiscount, usePurchase } from "../src/lib/purchase";
 import { useAuth } from "../src/lib/auth";
@@ -21,7 +21,7 @@ export const PurchaseCard: React.FC<{
   compact?: boolean;
 }> = ({ item, compact = false }) => {
   const { store } = useStore();
-  const { profile } = useAuth();
+  const { profile, signIn } = useAuth();
   const { owns, claimFree, buy, isLoggedIn, paying, checkoutFailed } = usePurchase();
   const firstBuyer = useFirstBuyerDiscount();
   const owned = owns(item.id);
@@ -195,6 +195,7 @@ export const PurchaseCard: React.FC<{
               onClaim={() => claimFree(item)}
               onBuy={() => buy(item, applied?.code)}
             />
+            <FreeAssetsButton item={item} isLoggedIn={isLoggedIn} onLogin={signIn} compact />
           </div>
         </div>
         {firstBuyerWins && (
@@ -302,6 +303,7 @@ export const PurchaseCard: React.FC<{
         onClaim={() => claimFree(item)}
         onBuy={() => buy(item, applied?.code)}
       />
+      <FreeAssetsButton item={item} isLoggedIn={isLoggedIn} onLogin={signIn} />
 
       {showCheckoutHelp && (
         <div className="mt-4 p-4 rounded-2xl bg-zinc-950 border border-white/5 text-[11px] text-zinc-500 leading-normal">
@@ -427,6 +429,30 @@ const BuyButton: React.FC<{
     >
       {paying === item.id ? "Opening payment…" : isLoggedIn ? <><CreditCard size={17} /> Get it now</> : <><Lock size={16} /> Login to buy</>}
     </button>
+  );
+};
+
+// Bonus free assets on selected paid products — an admin toggle per product.
+// Shown even before purchase, but login is required to get the link.
+const FreeAssetsButton: React.FC<{
+  item: (Product | Course) & { kind: "product" | "course" };
+  isLoggedIn: boolean;
+  onLogin: () => void;
+  compact?: boolean;
+}> = ({ item, isLoggedIn, onLogin, compact = false }) => {
+  if (item.kind !== "product" || !hasFreeAssets(item as Product)) return null;
+  const cls = `w-full ${compact ? "mt-2 py-2 text-sm" : "mt-3 py-3 text-base"} rounded-xl font-bold flex items-center justify-center gap-2 transition-all bg-[#25D366]/15 text-[#25D366] border border-[#25D366]/30 hover:bg-[#25D366]/25`;
+  if (!isLoggedIn) {
+    return (
+      <button onClick={onLogin} className={cls}>
+        <Lock size={15} /> Login for free assets
+      </button>
+    );
+  }
+  return (
+    <a href={(item as Product).freeAssetsUrl} target="_blank" rel="noopener noreferrer" className={cls}>
+      <Download size={15} /> Free Assets
+    </a>
   );
 };
 

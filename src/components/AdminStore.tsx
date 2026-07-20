@@ -479,12 +479,23 @@ export function AdminProductsPanel() {
                     onChange={url => upProd(p.id, { downloadUrl: url })}
                   />
                 </div>
+                {p.freeAssetsEnabled && (
+                  <div className="sm:col-span-3">
+                    <FileField
+                      label="FREE ASSETS FILE (extra button on product page)"
+                      hint="Upload a file, or paste a link — shown to logged-in users even before purchase"
+                      value={p.freeAssetsUrl ?? ""}
+                      onChange={url => upProd(p.id, { freeAssetsUrl: url })}
+                    />
+                  </div>
+                )}
               </div>
               <DetailFieldsEditor item={p} aspect="square" onChange={ch => upProd(p.id, ch)} />
               <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mt-4 pt-4 border-t border-white/[0.05]">
                 <label className="flex items-center gap-2 text-zinc-400 text-xs font-bold">FREE <Toggle value={p.free} onChange={v => upProd(p.id, { free: v, price: v ? 0 : p.price })} /></label>
                 <label className="flex items-center gap-2 text-zinc-400 text-xs font-bold">FEATURED (home) <Toggle value={!!p.featured} onChange={v => upProd(p.id, { featured: v })} /></label>
                 <label className="flex items-center gap-2 text-zinc-400 text-xs font-bold">VISIBLE <Toggle value={p.enabled} onChange={v => upProd(p.id, { enabled: v })} /></label>
+                <label className="flex items-center gap-2 text-zinc-400 text-xs font-bold">FREE ASSETS <Toggle value={!!p.freeAssetsEnabled} onChange={v => upProd(p.id, { freeAssetsEnabled: v })} /></label>
                 <div className="flex-1" />
                 <Button
                   size="sm"

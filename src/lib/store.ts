@@ -30,6 +30,11 @@ export interface Product extends DetailContent {
   categories?: string[]; // ProductCategory ids this product belongs to (multi-category)
   free: boolean;
   downloadUrl: string; // delivered after purchase / claim
+  // Bonus free assets on a paid product: extra button on the detail page +
+  // library card. Absent/false = hidden (default off), so existing products
+  // are unaffected.
+  freeAssetsEnabled?: boolean;
+  freeAssetsUrl?: string; // Cloudflare R2 link (or pasted URL)
   badge?: string; // legacy free-text badge, still supported alongside the flags below
   bestSeller?: boolean;
   isNew?: boolean;
@@ -60,6 +65,11 @@ export interface Course extends DetailContent {
 }
 
 export const isCourseLive = (c: Pick<Course, "live">) => c.live !== false;
+
+// Free assets are a paid-product perk only — a free product's main download
+// already covers it.
+export const hasFreeAssets = (p: Pick<Product, "freeAssetsEnabled" | "freeAssetsUrl" | "free">) =>
+  !!p.freeAssetsEnabled && !!p.freeAssetsUrl && !p.free;
 
 // Discount code, applied at checkout. Server re-validates and computes the
 // amount, so a tampered client can't buy at a lower price.
