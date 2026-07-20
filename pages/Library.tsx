@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Download, ExternalLink, Library as LibraryIcon, Lock, MessageCircle, Play, ShoppingBag } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../src/lib/auth';
-import { formatPrice, getPostPurchaseRecommendations, useStore } from '../src/lib/store';
+import { formatPrice, getPostPurchaseRecommendations, hasFreeAssets, useStore } from '../src/lib/store';
 import { getWhatsAppLink } from '../src/lib/site';
 import { db } from '../src/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
@@ -252,6 +252,16 @@ export const Library: React.FC = () => {
                             className="inline-flex items-center justify-center gap-2 bg-white/5 border border-white/10 hover:bg-white/10 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-all"
                           >
                             <ExternalLink size={14} /> Get Link
+                          </a>
+                        )}
+                        {hasFreeAssets(p) && (
+                          <a
+                            href={p.freeAssetsUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mt-2 inline-flex items-center justify-center gap-2 bg-white/5 border border-[#25D366]/30 hover:bg-[#25D366]/10 text-[#25D366] px-4 py-2.5 rounded-xl text-sm font-bold transition-all"
+                          >
+                            <Download size={15} /> Free Assets
                           </a>
                         )}
                       </div>
