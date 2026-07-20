@@ -1,58 +1,14 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { Download, ExternalLink, Library as LibraryIcon, Lock, MessageCircle, Play, ShoppingBag } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../src/lib/auth';
 import { formatPrice, getPostPurchaseRecommendations, hasFreeAssets, useStore } from '../src/lib/store';
 import { getWhatsAppLink } from '../src/lib/site';
-import { db } from '../src/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
 
 export const Library: React.FC = () => {
   const { user, profile, signIn } = useAuth();
   const { store } = useStore();
-
-  // License lookup states
-  const [lookupEmail, setLookupEmail] = useState("");
-  const [lookupResult, setLookupResult] = useState<any | null>(null);
-  const [lookupLoading, setLookupLoading] = useState(false);
-  const [lookupError, setLookupError] = useState("");
-
-  const handleLookup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!lookupEmail.trim()) return;
-    setLookupLoading(true);
-    setLookupError("");
-    setLookupResult(null);
-    try {
-      const q = query(collection(db, "users"), where("email", "==", lookupEmail.trim().toLowerCase()));
-      const snap = await getDocs(q);
-      if (snap.empty) {
-        setLookupError("No registered user found for this email address.");
-      } else {
-        const uDoc = snap.docs[0];
-        const uData = uDoc.data();
-        const activePurchases = uData.purchases || [];
-        
-        // Match with store items
-        const licensedProducts = (store?.products || []).filter(p => activePurchases.includes(p.id));
-        const licensedCourses = (store?.courses || []).filter(c => activePurchases.includes(c.id));
-        
-        setLookupResult({
-          name: uData.name || "Student",
-          email: uData.email,
-          photo: uData.photo || uData.photoURL || "",
-          products: licensedProducts,
-          courses: licensedCourses,
-        });
-      }
-    } catch (err) {
-      console.error(err);
-      setLookupError("Failed to verify license. Please try again.");
-    } finally {
-      setLookupLoading(false);
-    }
-  };
 
   if (!user) {
     return (
@@ -92,74 +48,6 @@ export const Library: React.FC = () => {
           <p className="text-zinc-400 max-w-2xl mx-auto font-light">
             Everything you own — view anytime, download anytime.
           </p>
-        </div>
-
-        {/* User License verification / Lookup section */}
-        <div className="max-w-xl mx-auto mb-16 bg-zinc-950/40 border border-white/5 rounded-3xl p-6 md:p-8">
-          <h2 className="text-sm md:text-base font-bold mb-1 text-white text-center">Verify License &amp; Purchases</h2>
-          <p className="text-zinc-500 text-[11px] text-center font-light mb-6">
-            Enter any registered Google account email ID to query active product and course licenses instantly.
-          </p>
-          <form onSubmit={handleLookup} className="flex gap-2.5">
-            <input
-              type="email"
-              required
-              value={lookupEmail}
-              onChange={(e) => setLookupEmail(e.target.value)}
-              placeholder="e.g. customer@gmail.com"
-              className="flex-1 bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#E50914] transition-all"
-            />
-            <button
-              type="submit"
-              disabled={lookupLoading}
-              className="bg-white hover:bg-zinc-200 text-black px-5 py-2.5 rounded-xl text-xs font-bold transition-all shrink-0 disabled:opacity-50 cursor-pointer"
-            >
-              {lookupLoading ? "Verifying..." : "Search"}
-            </button>
-          </form>
-
-          {lookupError && (
-            <div className="mt-4 p-3.5 rounded-xl bg-red-500/10 border border-red-500/15 text-red-400 text-xs text-center">
-              ⚠️ {lookupError}
-            </div>
-          )}
-
-          {lookupResult && (
-            <div className="mt-6 border-t border-white/5 pt-5 space-y-4">
-              <div className="flex items-center gap-3">
-                {lookupResult.photo ? (
-                  <img src={lookupResult.photo} alt="" className="w-9 h-9 rounded-full border border-white/15" referrerPolicy="no-referrer" />
-                ) : (
-                  <div className="w-9 h-9 rounded-full bg-zinc-900 flex items-center justify-center text-xs">👤</div>
-                )}
-                <div>
-                  <div className="font-semibold text-white text-xs">{lookupResult.name}</div>
-                  <div className="text-zinc-500 text-[11px]">{lookupResult.email}</div>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="text-[10px] uppercase tracking-wider text-zinc-500 font-bold">Active Licenses</div>
-                
-                {lookupResult.products.length === 0 && lookupResult.courses.length === 0 ? (
-                  <div className="text-xs text-zinc-500 italic">No active products or course licenses.</div>
-                ) : (
-                  <div className="flex flex-wrap gap-1.5">
-                    {lookupResult.products.map((p: any) => (
-                      <span key={p.id} className="bg-emerald-500/10 border border-emerald-500/15 text-[#25D366] text-[11px] px-2.5 py-1 rounded-lg flex items-center gap-1 font-medium">
-                        📦 {p.name}
-                      </span>
-                    ))}
-                    {lookupResult.courses.map((c: any) => (
-                      <span key={c.id} className="bg-amber-500/10 border border-amber-500/15 text-amber-400 text-[11px] px-2.5 py-1 rounded-lg flex items-center gap-1 font-medium">
-                        🎓 {c.title}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
         </div>
 
         {empty ? (
