@@ -57,6 +57,7 @@ import {
   Pin,
   Star,
   Flame,
+  Gift,
 } from "lucide-react";
 
 // Types
@@ -731,6 +732,17 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
                             }}
                           />
                         </div>
+
+                        {activeWorkspace.type === "product" && activeWorkspace.item.freeAssetsEnabled && (
+                          <div className="pt-2">
+                            <FileField
+                              label="Free Assets File (extra button on product page)"
+                              hint="Upload a file or paste a link — logged-in users get this even before purchase"
+                              value={activeWorkspace.item.freeAssetsUrl ?? ""}
+                              onChange={(url) => updateActiveProduct({ freeAssetsUrl: url })}
+                            />
+                          </div>
+                        )}
                       </div>
                     </Card>
 
@@ -1031,6 +1043,19 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
                               <div className="text-xs font-semibold">Trending Badge</div>
                             </div>
                             <Toggle value={!!activeWorkspace.item.trending} onChange={(v) => updateActiveProduct({ trending: v })} />
+                          </div>
+                        )}
+
+                        {activeWorkspace.type === "product" && (
+                          <div className="flex items-center justify-between gap-4">
+                            <div>
+                              <div className="flex items-center gap-1.5">
+                                <Gift size={13} className="text-[#25D366]" />
+                                <div className="text-xs font-semibold">Free Assets Button</div>
+                              </div>
+                              <div className="text-[10px] text-zinc-500 font-light mt-0.5">Extra free-download button on the product page (paid products; upload the file in the Details card)</div>
+                            </div>
+                            <Toggle value={!!activeWorkspace.item.freeAssetsEnabled} onChange={(v) => updateActiveProduct({ freeAssetsEnabled: v })} />
                           </div>
                         )}
                       </div>
