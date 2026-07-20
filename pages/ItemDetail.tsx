@@ -11,6 +11,7 @@ import { FaqAccordion } from "../components/FaqAccordion";
 import { ProductCard } from "../components/ProductCard";
 import { useDetailContext } from "../components/Layout";
 import { CommentsSection } from "../src/components/CommentsSection";
+import { ReviewsSection } from "../components/ReviewsSection";
 
 type Kind = "product" | "course";
 
@@ -201,6 +202,9 @@ export const ItemDetail: React.FC<{ kind: Kind }> = ({ kind }) => {
                 <FaqAccordion items={item.faq} />
               </div>
             )}
+
+            {/* Buyer star ratings + scrolling feedback strip */}
+            {kind === "product" && <ReviewsSection itemId={item.id} itemTitle={title} />}
 
             {/* Public Discussion / Comments Section */}
             <CommentsSection itemId={item.id} itemTitle={title} />

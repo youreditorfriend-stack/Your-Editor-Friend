@@ -327,6 +327,7 @@ export const PurchaseCard: React.FC<{
           open={showRecs}
           onClose={() => setShowRecs(false)}
           purchasedTitle={title}
+          savedAmount={saved}
           recommendations={recommendations}
         />,
         document.body
