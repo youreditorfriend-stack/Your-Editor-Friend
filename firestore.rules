@@ -157,10 +157,15 @@ service cloud.firestore {
                     && incoming().get('purchases', []).size() == 0;
                     
       allow update: if isVerifiedUser() && (
-        // Action 1: User updating basic details (excluding purchases and role fields)
+        // Action 1: User updating basic details and/or self-claiming a free
+        // item (src/lib/purchase.ts#claimFree writes `purchases` directly as
+        // the signed-in user). Paid items are never granted through this
+        // path — /api/verify-payment grants those server-side via the Admin
+        // SDK after a signature-verified Razorpay payment, independent of
+        // this rule — so trusting the client to add to its own `purchases`
+        // here carries no payment-bypass risk.
         (userId == request.auth.uid && isValidUserProfile(incoming())
-         && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'photo', 'lastLogin'])
-         && incoming().get('purchases', []) == existing().get('purchases', []))
+         && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'photo', 'lastLogin', 'purchases']))
         ||
         // Action 2: Admin granting licensing/purchases
         (isAdmin() && isValidUserProfile(incoming()))

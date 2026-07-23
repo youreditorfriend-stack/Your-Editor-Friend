@@ -69,6 +69,10 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ itemId, itemTi
   // Collapsed-by-default reply threads, keyed by top-level comment id
   const [expandedThreads, setExpandedThreads] = useState<Record<string, boolean>>({});
 
+  // Surfaced load error — the live subscription failing shouldn't just
+  // silently show an empty/stuck board.
+  const [loadError, setLoadError] = useState(false);
+
   useEffect(() => {
     if (!itemId) return;
 
@@ -96,9 +100,11 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ itemId, itemTi
       });
       setRows(fetched);
       setLoading(false);
+      setLoadError(false);
     }, (err) => {
       console.error("Comments subscription failed:", err);
       setLoading(false);
+      setLoadError(true);
     });
 
     return () => unsubscribe();
@@ -146,6 +152,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ itemId, itemTi
       setNewComment("");
     } catch (err) {
       console.error("Failed to add comment:", err);
+      alert("Couldn't post your question — please try again in a moment.");
     } finally {
       setSubmitting(false);
     }
@@ -168,6 +175,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ itemId, itemTi
       setEditText("");
     } catch (err) {
       console.error("Failed to save comment edit:", err);
+      alert("Couldn't save your edit — please try again.");
     } finally {
       setSavingEditId(null);
     }
@@ -179,6 +187,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ itemId, itemTi
       await deleteDoc(doc(db, "comments", id));
     } catch (err) {
       console.error("Failed to delete comment:", err);
+      alert("Couldn't delete this — please try again.");
     } finally {
       setDeletingId(null);
       setConfirmDeleteId(null);
@@ -215,6 +224,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ itemId, itemTi
       setExpandedThreads(prev => ({ ...prev, [parentId]: true }));
     } catch (err) {
       console.error("Failed to post reply:", err);
+      alert("Couldn't post your reply — please try again.");
     } finally {
       setPostingReply(false);
     }
@@ -399,6 +409,11 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ itemId, itemTi
       )}
 
       {/* List comments */}
+      {loadError && (
+        <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 text-sm text-red-400 mb-6">
+          Couldn't load the discussion board right now — please refresh the page.
+        </div>
+      )}
       {loading ? (
         <div className="text-zinc-600 text-xs py-4">Loading discussion board...</div>
       ) : threads.length === 0 ? (

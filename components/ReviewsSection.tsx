@@ -59,6 +59,7 @@ export const RateWidget: React.FC<{
       setOpen(false);
     } catch (e) {
       console.error("Review submit failed:", e);
+      alert("Couldn't save your rating — please try again.");
     } finally {
       setSaving(false);
     }
