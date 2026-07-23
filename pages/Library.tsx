@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Download, ExternalLink, Library as LibraryIcon, Lock, MessageCircle, Play, ShoppingBag } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../src/lib/auth';
-import { formatPrice, getPostPurchaseRecommendations, hasFreeAssets, useStore } from '../src/lib/store';
+import { formatPrice, getPostPurchaseRecommendations, hasClaimedFreeAssets, hasFreeAssets, useStore } from '../src/lib/store';
 import { getWhatsAppLink } from '../src/lib/site';
 import { RateWidget } from '../components/ReviewsSection';
 
@@ -32,9 +32,15 @@ export const Library: React.FC = () => {
   }
 
   const purchases = profile?.purchases || [];
-  const ownedProducts = (store?.products || []).filter(p => purchases.includes(p.id));
+  // A product appears here if it was actually bought/claimed OR if only its
+  // free-assets bonus was grabbed (that claim is tracked under its own id —
+  // see getFreeAssetsClaimId — so it never falsely looks like a full
+  // purchase; the Download/Get Link block below is gated on `owned` alone).
+  const libraryProducts = (store?.products || [])
+    .map(p => ({ product: p, owned: purchases.includes(p.id) }))
+    .filter(({ product: p, owned }) => owned || hasClaimedFreeAssets(purchases, p.id));
   const ownedCourses = (store?.courses || []).filter(c => purchases.includes(c.id));
-  const empty = ownedProducts.length === 0 && ownedCourses.length === 0;
+  const empty = libraryProducts.length === 0 && ownedCourses.length === 0;
 
   return (
     <div className="px-6 pb-24">
@@ -109,11 +115,11 @@ export const Library: React.FC = () => {
               </div>
             )}
 
-            {ownedProducts.length > 0 && (
+            {libraryProducts.length > 0 && (
               <div>
                 <h2 className="text-xl md:text-2xl font-semibold mb-8">My Products</h2>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-                  {ownedProducts.map((p, i) => (
+                  {libraryProducts.map(({ product: p, owned }, i) => (
                     <motion.div
                       key={p.id}
                       initial={{ opacity: 0, y: 20 }}
@@ -124,36 +130,41 @@ export const Library: React.FC = () => {
                       <img src={p.image} alt={p.name} className="aspect-square object-contain bg-zinc-950/60" />
                       <div className="p-5 flex flex-col flex-1">
                         <h3 className="font-semibold text-sm mb-3 flex-1">{p.name}</h3>
-                        {p.downloadUrl ? (
-                          <a
-                            href={p.downloadUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center justify-center gap-2 bg-[#25D366] hover:bg-green-400 text-black px-4 py-2.5 rounded-xl text-sm font-bold transition-all"
-                          >
-                            <Download size={15} /> Download
-                          </a>
-                        ) : (
-                          <a
-                            href={getWhatsAppLink(`Hi Janish! I own "${p.name}" — please share the download link. My email: ${user.email}`)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center justify-center gap-2 bg-white/5 border border-white/10 hover:bg-white/10 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-all"
-                          >
-                            <ExternalLink size={14} /> Get Link
-                          </a>
+                        {!owned && (
+                          <div className="mb-2 text-[10px] uppercase tracking-widest font-bold text-zinc-500">Free assets only</div>
+                        )}
+                        {owned && (
+                          p.downloadUrl ? (
+                            <a
+                              href={p.downloadUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center justify-center gap-2 bg-[#25D366] hover:bg-green-400 text-black px-4 py-2.5 rounded-xl text-sm font-bold transition-all"
+                            >
+                              <Download size={15} /> Download
+                            </a>
+                          ) : (
+                            <a
+                              href={getWhatsAppLink(`Hi Janish! I own "${p.name}" — please share the download link. My email: ${user.email}`)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center justify-center gap-2 bg-white/5 border border-white/10 hover:bg-white/10 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-all"
+                            >
+                              <ExternalLink size={14} /> Get Link
+                            </a>
+                          )
                         )}
                         {hasFreeAssets(p) && (
                           <a
                             href={p.freeAssetsUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="mt-2 inline-flex items-center justify-center gap-2 bg-white/5 border border-[#25D366]/30 hover:bg-[#25D366]/10 text-[#25D366] px-4 py-2.5 rounded-xl text-sm font-bold transition-all"
+                            className={`${owned ? "mt-2" : ""} inline-flex items-center justify-center gap-2 bg-white/5 border border-[#25D366]/30 hover:bg-[#25D366]/10 text-[#25D366] px-4 py-2.5 rounded-xl text-sm font-bold transition-all`}
                           >
                             <Download size={15} /> Free Assets
                           </a>
                         )}
-                        <RateWidget itemId={p.id} itemTitle={p.name} compact />
+                        {owned && <RateWidget itemId={p.id} itemTitle={p.name} compact />}
                       </div>
                     </motion.div>
                   ))}

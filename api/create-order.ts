@@ -84,11 +84,18 @@ export default async function handler(req: any, res: any) {
     const { itemId, uid, couponCode } = req.body || {};
     if (!itemId || !uid) return json(res, 400, { error: "itemId and uid are required" });
 
-    const { item, coupons } = await loadStore(itemId);
+    const now = new Date();
+    // Independent reads (store/data vs. users/{uid}) — firing them together
+    // instead of sequentially cuts this endpoint's Firestore round-trip time
+    // roughly in half on the common path (occasionally wastes the second
+    // read if itemId turns out invalid, which is the rare case).
+    const [{ item, coupons }, firstBuyerActive] = await Promise.all([
+      loadStore(itemId),
+      firstBuyerWindowActive(uid, now),
+    ]);
     if (!item) return json(res, 404, { error: "Item not found" });
     if (!item.price || item.price <= 0) return json(res, 400, { error: "Item is free — no payment needed" });
 
-    const now = new Date();
     const check = pickCoupon(coupons, couponCode, itemId, now);
     if (!check.ok) return json(res, 400, { error: check.error });
 
@@ -97,7 +104,6 @@ export default async function handler(req: any, res: any) {
     // Automatic 25% first-buyer discount if within 5 minutes of the user's
     // first verified paid purchase. Not stacked with a coupon — the buyer
     // gets whichever discount is larger.
-    const firstBuyerActive = await firstBuyerWindowActive(uid, now);
     const firstBuyerRupees = firstBuyerActive
       ? Math.round(item.price * (FIRST_BUYER_DISCOUNT_PERCENT / 100))
       : 0;

@@ -3,7 +3,7 @@ import { arrayUnion, doc, updateDoc } from "firebase/firestore";
 import { db } from "../firebase";
 import { useAuth } from "./auth";
 import { getWhatsAppLink } from "./site";
-import { FIRST_BUYER_DISCOUNT_PERCENT, firstBuyerWindowRemainingMs } from "./store";
+import { FIRST_BUYER_DISCOUNT_PERCENT, firstBuyerWindowRemainingMs, getFreeAssetsClaimId } from "./store";
 import type { Course, Product } from "./store";
 
 declare global {
@@ -26,6 +26,14 @@ function loadRazorpay(): Promise<boolean> {
     });
   }
   return rzpScript;
+}
+
+// Kicks off the checkout.js fetch as soon as a paid item's purchase card
+// mounts, instead of waiting for the Buy click — that network round-trip
+// (independent of anything server-side) was sitting directly in the
+// perceived "click Buy → payment sheet opens" delay.
+export function preloadRazorpay() {
+  loadRazorpay();
 }
 
 // Shared buy/claim flow for products & courses.
@@ -54,6 +62,23 @@ export function usePurchase() {
     } catch (e) {
       console.error("Failed to claim free item:", e);
       alert("Couldn't claim this — please try again, or message me on WhatsApp and I'll unlock it for you.");
+    }
+  };
+
+  // Records the bonus-free-assets grab under its own id (not the product's
+  // own id — grabbing the bonus doesn't mean the paid product was bought) so
+  // it reappears in My Library afterwards instead of only being a one-off
+  // link open.
+  const claimFreeAssets = async (product: Product) => {
+    if (!user) {
+      await signIn();
+      return;
+    }
+    try {
+      await updateDoc(doc(db, "users", user.uid), { purchases: arrayUnion(getFreeAssetsClaimId(product.id)) });
+    } catch (e) {
+      console.error("Failed to save free assets claim:", e);
+      alert("Couldn't save this to your library — the download link still opened, but message me on WhatsApp if it's missing from My Library later.");
     }
   };
 
@@ -137,7 +162,7 @@ export function usePurchase() {
     }
   };
 
-  return { owns, claimFree, buy, isLoggedIn: !!user, paying, checkoutFailed };
+  return { owns, claimFree, claimFreeAssets, buy, isLoggedIn: !!user, paying, checkoutFailed };
 }
 
 // Live view of the 5-minute first-time-buyer discount window. Purely for
