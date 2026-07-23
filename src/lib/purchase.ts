@@ -49,7 +49,12 @@ export function usePurchase() {
       await signIn();
       return; // profile listener will refresh; user clicks again after login
     }
-    await updateDoc(doc(db, "users", user.uid), { purchases: arrayUnion(item.id) });
+    try {
+      await updateDoc(doc(db, "users", user.uid), { purchases: arrayUnion(item.id) });
+    } catch (e) {
+      console.error("Failed to claim free item:", e);
+      alert("Couldn't claim this — please try again, or message me on WhatsApp and I'll unlock it for you.");
+    }
   };
 
   const whatsAppFallback = (item: Product | Course) => {
