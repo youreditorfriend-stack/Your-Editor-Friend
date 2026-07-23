@@ -3,9 +3,9 @@ import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, Copy, CreditCard, Download, Link as LinkIcon, Lock, Tag, Timer, X, ChevronDown, ChevronUp } from "lucide-react";
 import { Link } from "react-router-dom";
-import { applyCoupon, DEFAULT_CHECKOUT_HELP, formatPrice, getPostPurchaseRecommendations, hasFreeAssets, isCourseLive, useStore } from "../src/lib/store";
+import { applyCoupon, DEFAULT_CHECKOUT_HELP, formatPrice, getFreeAssetsClaimId, getPostPurchaseRecommendations, hasFreeAssets, isCourseLive, useStore } from "../src/lib/store";
 import type { Course, Product } from "../src/lib/store";
-import { useFirstBuyerDiscount, usePurchase } from "../src/lib/purchase";
+import { preloadRazorpay, useFirstBuyerDiscount, usePurchase } from "../src/lib/purchase";
 import { useAuth } from "../src/lib/auth";
 import { getWhatsAppLink } from "../src/lib/site";
 import { fireSuccessConfetti } from "../src/lib/confetti";
@@ -22,9 +22,17 @@ export const PurchaseCard: React.FC<{
 }> = ({ item, compact = false }) => {
   const { store } = useStore();
   const { profile, signIn } = useAuth();
-  const { owns, claimFree, buy, isLoggedIn, paying, checkoutFailed } = usePurchase();
+  const { owns, claimFree, claimFreeAssets, buy, isLoggedIn, paying, checkoutFailed } = usePurchase();
   const firstBuyer = useFirstBuyerDiscount();
   const owned = owns(item.id);
+  const freeAssetsClaimed = item.kind === "product" && owns(getFreeAssetsClaimId(item.id));
+
+  // Start fetching Razorpay's checkout.js as soon as this card mounts for a
+  // purchasable paid item, so it's already loaded by the time the buyer
+  // actually clicks Buy — removes that network fetch from the click path.
+  useEffect(() => {
+    if (!owned && !item.free) preloadRazorpay();
+  }, [owned, item.free]);
 
   const [code, setCode] = useState("");
   const [applied, setApplied] = useState<{ code: string; discount: number; final: number } | null>(null);
@@ -195,7 +203,7 @@ export const PurchaseCard: React.FC<{
               onClaim={() => claimFree(item)}
               onBuy={() => buy(item, applied?.code)}
             />
-            <FreeAssetsButton item={item} isLoggedIn={isLoggedIn} onLogin={signIn} compact />
+            <FreeAssetsButton item={item} isLoggedIn={isLoggedIn} onLogin={signIn} claimed={freeAssetsClaimed} onClaim={claimFreeAssets} compact />
           </div>
         </div>
         {firstBuyerWins && (
@@ -303,7 +311,7 @@ export const PurchaseCard: React.FC<{
         onClaim={() => claimFree(item)}
         onBuy={() => buy(item, applied?.code)}
       />
-      <FreeAssetsButton item={item} isLoggedIn={isLoggedIn} onLogin={signIn} />
+      <FreeAssetsButton item={item} isLoggedIn={isLoggedIn} onLogin={signIn} claimed={freeAssetsClaimed} onClaim={claimFreeAssets} />
 
       {showCheckoutHelp && (
         <div className="mt-4 p-4 rounded-2xl bg-zinc-950 border border-white/5 text-[11px] text-zinc-500 leading-normal">
@@ -434,15 +442,19 @@ const BuyButton: React.FC<{
 };
 
 // Bonus free assets on selected paid products — an admin toggle per product.
-// Shown even before purchase, but login is required to get the link.
+// Shown even before purchase, but login is required to get the link. Clicking
+// it also saves the claim to My Library (see getFreeAssetsClaimId) — the link
+// opens synchronously (before the async save) so popup blockers don't eat it.
 const FreeAssetsButton: React.FC<{
   item: (Product | Course) & { kind: "product" | "course" };
   isLoggedIn: boolean;
   onLogin: () => void;
+  claimed?: boolean;
+  onClaim: (product: Product) => void;
   compact?: boolean;
-}> = ({ item, isLoggedIn, onLogin, compact = false }) => {
+}> = ({ item, isLoggedIn, onLogin, claimed = false, onClaim, compact = false }) => {
   if (item.kind !== "product" || !hasFreeAssets(item as Product)) return null;
-  const cls = `w-full ${compact ? "mt-2 py-2 text-sm" : "mt-3 py-3 text-base"} rounded-xl font-bold flex items-center justify-center gap-2 transition-all bg-[#25D366]/15 text-[#25D366] border border-[#25D366]/30 hover:bg-[#25D366]/25`;
+  const cls = `w-full ${compact ? "mt-2 py-2 text-sm" : "mt-3 py-3 text-base"} rounded-xl font-bold flex items-center justify-center gap-2 transition-all bg-[#25D366]/15 text-[#25D366] border border-[#25D366]/30 hover:bg-[#25D366]/25 cursor-pointer`;
   if (!isLoggedIn) {
     return (
       <button onClick={onLogin} className={cls}>
@@ -450,10 +462,17 @@ const FreeAssetsButton: React.FC<{
       </button>
     );
   }
+  const product = item as Product;
   return (
-    <a href={(item as Product).freeAssetsUrl} target="_blank" rel="noopener noreferrer" className={cls}>
-      <Download size={15} /> Free Assets
-    </a>
+    <button
+      onClick={() => {
+        window.open(product.freeAssetsUrl, "_blank", "noopener,noreferrer");
+        onClaim(product);
+      }}
+      className={cls}
+    >
+      <Download size={15} /> {claimed ? "Free Assets — saved to Library" : "Free Assets"}
+    </button>
   );
 };
 

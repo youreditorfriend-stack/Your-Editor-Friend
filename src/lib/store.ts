@@ -71,6 +71,14 @@ export const isCourseLive = (c: Pick<Course, "live">) => c.live !== false;
 export const hasFreeAssets = (p: Pick<Product, "freeAssetsEnabled" | "freeAssetsUrl" | "free">) =>
   !!p.freeAssetsEnabled && !!p.freeAssetsUrl && !p.free;
 
+// Grabbing the free-assets bonus doesn't mean the buyer owns the paid
+// product itself, so it's tracked as its own id in `purchases` rather than
+// the product's own id (which would incorrectly flip Buy buttons to
+// "Owned"). This is what lets it reappear in My Library on its own.
+export const getFreeAssetsClaimId = (productId: string) => `${productId}::free-assets`;
+export const hasClaimedFreeAssets = (purchases: string[] | undefined, productId: string) =>
+  !!purchases?.includes(getFreeAssetsClaimId(productId));
+
 // Discount code, applied at checkout. Server re-validates and computes the
 // amount, so a tampered client can't buy at a lower price.
 export interface Coupon {

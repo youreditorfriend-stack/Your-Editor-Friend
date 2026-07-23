@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
 */
 
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { PageGate } from './components/PageGate';
@@ -17,12 +17,24 @@ import { About } from './pages/About';
 import { Contact } from './pages/Contact';
 import { Library } from './pages/Library';
 import { ItemDetail } from './pages/ItemDetail';
-import { CustomQuotePage } from './components/CustomQuotePage';
-import Admin from './src/components/Admin';
 import { Login } from './src/components/Login';
 import { AuthProvider, useAuth } from './src/lib/auth';
 import { isAdminEmail } from './src/lib/adminAuth';
 import { ToastProvider, ConfirmProvider, PromptProvider, Spinner } from './src/components/admin/ui';
+
+// Split out of the main bundle: these two routes alone pull in recharts,
+// @dnd-kit, jspdf, jspdf-autotable and html2canvas — none of which any
+// storefront visitor needs just to browse products. Lazy-loading them means
+// the homepage/catalogue no longer has to download, parse, and execute that
+// weight before becoming interactive.
+const Admin = lazy(() => import('./src/components/Admin'));
+const CustomQuotePage = lazy(() => import('./components/CustomQuotePage').then(m => ({ default: m.CustomQuotePage })));
+
+const RouteFallback: React.FC = () => (
+  <div className="min-h-screen bg-[#080808] flex items-center justify-center">
+    <div className="w-8 h-8 rounded-full border-2 border-white/10 border-t-[#E50914] animate-spin" />
+  </div>
+);
 
 // The admin panel is locked behind Google sign-in. Only the owner accounts
 // in ADMIN_EMAILS (youreditorfriend@gmail.com) can open it — anyone else,
@@ -47,7 +59,9 @@ const AdminRoute: React.FC = () => {
     <ToastProvider>
       <ConfirmProvider>
         <PromptProvider>
-          <Admin onLogout={() => signOut().finally(() => { window.location.href = '/'; })} />
+          <Suspense fallback={<RouteFallback />}>
+            <Admin onLogout={() => signOut().finally(() => { window.location.href = '/'; })} />
+          </Suspense>
         </PromptProvider>
       </ConfirmProvider>
     </ToastProvider>
@@ -71,7 +85,7 @@ const App: React.FC = () => {
             <Route path="/contact" element={<PageGate id="contact"><Contact /></PageGate>} />
             <Route path="/my-library" element={<Library />} />
           </Route>
-          <Route path="/custom-quote" element={<CustomQuotePage />} />
+          <Route path="/custom-quote" element={<Suspense fallback={<RouteFallback />}><CustomQuotePage /></Suspense>} />
           <Route path="/admin" element={<AdminRoute />} />
         </Routes>
       </Router>

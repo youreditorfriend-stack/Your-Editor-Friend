@@ -58,7 +58,7 @@ export const ProductCard: React.FC<{ product: Product; index?: number }> = ({ pr
         to={detailPath}
         className="relative aspect-square overflow-hidden bg-zinc-950/60 block"
       >
-        <img src={p.image} alt={p.name} className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" />
+        <img src={p.image} alt={p.name} loading="lazy" decoding="async" className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" />
         <div className="absolute top-3 left-3 flex flex-col items-start gap-1.5">
           {p.badge && (
             <span className="bg-[#E50914] text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full">
