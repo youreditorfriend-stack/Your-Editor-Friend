@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { db } from "../firebase";
 import { arrayRemove, arrayUnion, collection, doc, getDoc, getDocs, setDoc, updateDoc } from "firebase/firestore";
 import { DEFAULT_CHECKOUT_HELP, SEED_STORE, StoreData, Product, Course, ProductCategory, PageConfig, Coupon, mergePages } from "../lib/store";
+import { adminAuthBody } from "../lib/adminAuth";
 import { ImageField } from "./ImageField";
 import { FileField } from "./FileField";
 import {
@@ -21,7 +22,7 @@ import {
   useConfirm,
   usePrompt,
 } from "./admin/ui";
-import { Eye, Home, FileQuestion, Puzzle, Plus, Trash2, Search, RefreshCw, UserCircle2, Tag, Package, GraduationCap } from "lucide-react";
+import { Eye, Home, FileQuestion, Puzzle, Plus, Trash2, Search, RefreshCw, UserCircle2, Tag, Package, GraduationCap, Mail, Copy, Send } from "lucide-react";
 
 const toId = (s: string) => s.toLowerCase().trim().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "") || `item-${Date.now()}`;
 
@@ -641,6 +642,19 @@ interface AdminUser {
   purchases: string[];
 }
 
+// Prefilled apology template for the checkout-outage announcement — the admin
+// can edit any of it before copying or sending.
+const APOLOGY_SUBJECT = "Sorry about the checkout issue — it's fixed now ✅";
+const APOLOGY_HEADING = "We're sorry — and it's working now";
+const APOLOGY_BODY = `Hi there,
+
+You recently tried to buy something on Your Editor Friend and the checkout wasn't going through — sorry about that! The issue has now been fixed and purchases are working perfectly again.
+
+Please head back to the site and try again — everything should go through smoothly this time. If you still hit any trouble, just reply to this email or message us on WhatsApp and we'll sort it out right away.
+
+Thanks so much for your patience 🙏
+— Janish, Your Editor Friend`;
+
 export function AdminUsersPanel() {
   const [users, setUsers] = useState<AdminUser[] | null>(null);
   const [items, setItems] = useState<{ id: string; label: string; paid: boolean }[]>([]);
@@ -648,6 +662,15 @@ export function AdminUsersPanel() {
   const [search, setSearch] = useState("");
   const confirmDialog = useConfirm();
   const toast = useToast();
+
+  // ── Announcement / apology email composer ──────────────────────────────
+  const [emailOpen, setEmailOpen] = useState(false);
+  const [subject, setSubject] = useState(APOLOGY_SUBJECT);
+  const [heading, setHeading] = useState(APOLOGY_HEADING);
+  const [bodyText, setBodyText] = useState(APOLOGY_BODY);
+  const [ctaLabel, setCtaLabel] = useState("Try your purchase again");
+  const [ctaUrl, setCtaUrl] = useState("https://www.youreditorfriend.in/products");
+  const [sending, setSending] = useState(false);
 
   const load = async () => {
     try {
@@ -697,6 +720,60 @@ export function AdminUsersPanel() {
     u.name.toLowerCase().includes(search.toLowerCase())
   );
 
+  // Every distinct, valid recipient email across all logged-in users.
+  const allEmails = useMemo(
+    () => [...new Set((users || []).map(u => u.email.trim().toLowerCase()).filter(e => e.includes("@")))],
+    [users]
+  );
+
+  const copyEmails = async () => {
+    if (allEmails.length === 0) return toast.error("No recipient emails yet");
+    try {
+      await navigator.clipboard.writeText(allEmails.join(", "));
+      toast.success(`Copied ${allEmails.length} email${allEmails.length === 1 ? "" : "s"} to clipboard`);
+    } catch {
+      toast.error("Couldn't copy — your browser blocked clipboard access");
+    }
+  };
+
+  const sendEmail = async () => {
+    if (allEmails.length === 0) return toast.error("No recipient emails yet");
+    if (!subject.trim() || !bodyText.trim()) return toast.error("Subject and message are required");
+    if (!(await confirmDialog({
+      title: `Send this email to ${allEmails.length} user${allEmails.length === 1 ? "" : "s"}?`,
+      description: "Each person gets their own private copy. This can't be un-sent.",
+      confirmLabel: "Send now",
+    }))) return;
+
+    setSending(true);
+    try {
+      const res = await fetch("/api/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...(await adminAuthBody()),
+          to: allEmails,
+          subject: subject.trim(),
+          heading: heading.trim() || undefined,
+          body: bodyText.trim(),
+          ctaLabel: ctaLabel.trim() || undefined,
+          ctaUrl: ctaUrl.trim() || undefined,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error || `Send failed (${res.status})`);
+        return;
+      }
+      const failedNote = data.failed?.length ? ` · ${data.failed.length} failed` : "";
+      toast.success(`Sent to ${data.sent} user${data.sent === 1 ? "" : "s"}${failedNote}`);
+    } catch (e: any) {
+      toast.error(e?.message || "Send failed — check your connection");
+    } finally {
+      setSending(false);
+    }
+  };
+
   return (
     <div className="space-y-5">
       <div>
@@ -709,6 +786,51 @@ export function AdminUsersPanel() {
           </p>
         </div>
       </div>
+
+      {/* Announcement / apology email to all logged-in users */}
+      <Card>
+        <CardHeader
+          title="Email all users"
+          subtitle={`Announce something (e.g. the checkout fix) to everyone who's logged in — ${allEmails.length} recipient${allEmails.length === 1 ? "" : "s"}.`}
+          action={
+            <div className="flex gap-2">
+              <Button size="sm" variant="secondary" icon={<Copy size={12} />} onClick={copyEmails}>Copy emails</Button>
+              <Button size="sm" variant={emailOpen ? "secondary" : "primary"} icon={<Mail size={12} />} onClick={() => setEmailOpen(o => !o)}>
+                {emailOpen ? "Hide" : "Compose email"}
+              </Button>
+            </div>
+          }
+        />
+
+        {emailOpen && (
+          <div className="space-y-3">
+            <Field label="Subject">
+              <Input value={subject} onChange={e => setSubject(e.target.value)} />
+            </Field>
+            <Field label="Heading (big text at the top, optional)">
+              <Input value={heading} onChange={e => setHeading(e.target.value)} />
+            </Field>
+            <Field label="Message" hint="Blank line = new paragraph.">
+              <Textarea value={bodyText} onChange={e => setBodyText(e.target.value)} rows={9} />
+            </Field>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field label="Button label (optional)">
+                <Input value={ctaLabel} onChange={e => setCtaLabel(e.target.value)} placeholder="Try your purchase again" />
+              </Field>
+              <Field label="Button link (optional)">
+                <Input value={ctaUrl} onChange={e => setCtaUrl(e.target.value)} placeholder="https://www.youreditorfriend.in/products" />
+              </Field>
+            </div>
+            <div className="flex flex-wrap items-center gap-2.5 pt-1">
+              <Button variant="primary" icon={<Send size={13} />} onClick={sendEmail} disabled={sending}>
+                {sending ? "Sending…" : `Send to ${allEmails.length} user${allEmails.length === 1 ? "" : "s"}`}
+              </Button>
+              <Button variant="secondary" icon={<Copy size={13} />} onClick={copyEmails}>Copy all emails instead</Button>
+              <span className="text-zinc-600 text-[11px]">Each person gets their own private copy — they can't see each other.</span>
+            </div>
+          </div>
+        )}
+      </Card>
 
       {/* Search Input Box */}
       <div className="relative">

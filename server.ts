@@ -77,6 +77,12 @@ async function startServer() {
   app.post("/api/upload-image", (_req, res) => {
     res.status(503).json({ error: "R2 not configured", missing: ["local dev"] });
   });
+  // Bulk/apology email sender: real Resend send only works on the deployed
+  // site (needs RESEND_API_KEY). Locally, return 503 so the admin UI shows a
+  // clear "not configured" message and can still fall back to copy-to-clipboard.
+  app.post("/api/send-email", (_req, res) => {
+    res.status(503).json({ error: "Email not configured in local dev" });
+  });
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
