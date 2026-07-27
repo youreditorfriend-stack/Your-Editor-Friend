@@ -298,6 +298,16 @@ export function useStore() {
 export const formatPrice = (n: number) =>
   n === 0 ? "FREE" : `₹${n.toLocaleString("en-IN")}`;
 
+// Payment-gateway cut deducted from gross sales to estimate real take-home.
+// Razorpay is ~2% + GST (≈2.36%); we use a flat 2% per the studio's choice —
+// digital products have ~zero marginal cost, so net-of-fees ≈ profit.
+// Single source of truth: tweak this one number to change every profit figure.
+export const RAZORPAY_FEE_RATE = 0.02;
+
+// Net take-home (profit) from a gross rupee amount, after the gateway fee.
+export const netAfterFees = (gross: number) =>
+  Math.round(gross * (1 - RAZORPAY_FEE_RATE));
+
 // Every category id a product belongs to — falls back to its legacy single
 // `category` field when `categories` hasn't been set yet, so old data and
 // filters written before multi-category support keep working unchanged.

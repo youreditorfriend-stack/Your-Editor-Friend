@@ -1,7 +1,8 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { db } from "../firebase";
 import { doc, getDoc, setDoc, collection, getDocs } from "firebase/firestore";
-import { SEED_STORE, StoreData, Product, Course, ProductCategory, PageConfig, Coupon, getProductCategories, getDiscountPercent } from "../lib/store";
+import { SEED_STORE, StoreData, Product, Course, ProductCategory, PageConfig, Coupon, getProductCategories, getDiscountPercent, netAfterFees } from "../lib/store";
+import { loadAllAnalytics, AnalyticsData } from "../lib/analytics";
 import {
   DndContext,
   closestCenter,
@@ -58,6 +59,8 @@ import {
   Star,
   Flame,
   Gift,
+  TrendingUp,
+  Trophy,
 } from "lucide-react";
 
 // Types
@@ -105,6 +108,16 @@ const NAV_CONFIG = [
   { id: "settings", label: "Studio Settings", icon: <Settings size={16} /> },
 ] as const;
 
+// Sortable columns for the dashboard Product Leaderboard (all sort descending).
+const LEADER_COLS = [
+  { key: "impressions", label: "Impressions" },
+  { key: "uniqueViewers", label: "Views" },
+  { key: "purchases", label: "Purchases" },
+  { key: "revenue", label: "Revenue" },
+  { key: "netProfit", label: "Net Profit" },
+  { key: "conversion", label: "Ratio %" },
+] as const;
+
 export default function Admin({ onLogout }: { onLogout?: () => void }) {
   const toast = useToast();
   const confirmDialog = useConfirm();
@@ -128,6 +141,10 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
   // wipe the checkout-help message edited in the Pages panel (AdminStore.tsx).
   const [checkoutHelp, setCheckoutHelp] = useState<any>(null);
   const [users, setUsers] = useState<any[]>([]);
+  // Real per-item view/impression counters (analytics/{itemId}), joined on the dashboard.
+  const [analyticsMap, setAnalyticsMap] = useState<Record<string, AnalyticsData>>({});
+  // Which leaderboard column to sort by (all descending).
+  const [leaderSort, setLeaderSort] = useState<"purchases" | "revenue" | "netProfit" | "uniqueViewers" | "impressions" | "conversion">("purchases");
 
   // -- Portfolio Schema States
   const [projects, setProjects] = useState<any[]>([]);
@@ -193,11 +210,13 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
     const fetchData = async () => {
       setLoadingData(true);
       try {
-        const [portfolioSnap, storeSnap, usersSnap] = await Promise.all([
+        const [portfolioSnap, storeSnap, usersSnap, analytics] = await Promise.all([
           getDoc(doc(db, "portfolio", "data")),
           getDoc(doc(db, "store", "data")),
           getDocs(collection(db, "users")),
+          loadAllAnalytics(),
         ]);
+        setAnalyticsMap(analytics);
 
         if (portfolioSnap.exists()) {
           const d = portfolioSnap.data();
@@ -324,13 +343,13 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
 
   // Compute aggregate sales & revenue stats
   let totalRevenue = 0;
-  const productMetricsMap: { [key: string]: { name: string; count: number; rev: number } } = {};
+  const productMetricsMap: { [key: string]: { name: string; type: "product" | "course" | "other"; count: number; rev: number } } = {};
 
   storeProducts.forEach(p => {
-    productMetricsMap[p.id] = { name: p.name, count: 0, rev: 0 };
+    productMetricsMap[p.id] = { name: p.name, type: "product", count: 0, rev: 0 };
   });
   storeCourses.forEach(c => {
-    productMetricsMap[c.id] = { name: c.title, count: 0, rev: 0 };
+    productMetricsMap[c.id] = { name: c.title, type: "course", count: 0, rev: 0 };
   });
 
   users.forEach(u => {
@@ -342,7 +361,7 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
         productMetricsMap[p.itemId].count += 1;
         productMetricsMap[p.itemId].rev += amt;
       } else {
-        productMetricsMap[p.itemId] = { name: p.itemName || p.itemId, count: 1, rev: amt };
+        productMetricsMap[p.itemId] = { name: p.itemName || p.itemId, type: "other", count: 1, rev: amt };
       }
     });
 
@@ -355,11 +374,39 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
     });
   });
 
+  // Net take-home after gateway fees — the real "profit" figure.
+  const totalNetProfit = netAfterFees(totalRevenue);
+
   const chartData = Object.keys(productMetricsMap).map(id => ({
     name: productMetricsMap[id].name,
     sales: productMetricsMap[id].count,
     revenue: productMetricsMap[id].rev,
   })).filter(item => item.sales > 0 || item.revenue > 0);
+
+  // Product leaderboard — joins sales with the real view/impression counters and
+  // ranks every listing. Purchases = paid checkouts + free claims/grants.
+  const leaderboard = Object.keys(productMetricsMap).map(id => {
+    const m = productMetricsMap[id];
+    const a = analyticsMap[id] || { impressions: 0, views: 0, uniqueViewers: 0, revisits: 0 };
+    return {
+      id,
+      name: m.name,
+      type: m.type,
+      purchases: m.count,
+      revenue: m.rev,
+      netProfit: netAfterFees(m.rev),
+      impressions: a.impressions,
+      views: a.views,
+      uniqueViewers: a.uniqueViewers,
+      // Purchase ratio = purchases / unique viewers (null when nobody has viewed it yet).
+      conversion: a.uniqueViewers > 0 ? (m.count / a.uniqueViewers) * 100 : null,
+    };
+  }).filter(r => r.purchases > 0 || r.impressions > 0 || r.views > 0);
+
+  const sortedLeaderboard = [...leaderboard].sort((a, b) => {
+    const val = (r: typeof a) => (leaderSort === "conversion" ? (r.conversion ?? -1) : r[leaderSort]);
+    return val(b) - val(a);
+  });
 
   // Daily trend
   const dailyRev: { [key: string]: number } = {};
@@ -378,27 +425,9 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
     });
   });
 
-  const revenueTrendData = Object.keys(dailyRev).length > 0
-    ? Object.keys(dailyRev).map(date => ({ date, revenue: dailyRev[date] })).slice(-8)
-    : [
-        { date: "Jul 10", revenue: 2400 },
-        { date: "Jul 11", revenue: 4200 },
-        { date: "Jul 12", revenue: 3800 },
-        { date: "Jul 13", revenue: 5600 },
-        { date: "Jul 14", revenue: 7100 },
-        { date: "Jul 15", revenue: 6400 },
-        { date: "Jul 16", revenue: 8900 },
-        { date: "Jul 17", revenue: totalRevenue > 0 ? totalRevenue : 10400 },
-      ];
-
-  const productChartData = chartData.length > 0
-    ? chartData
-    : [
-        { name: "Super LUT Pack", sales: 42, revenue: 12600 },
-        { name: "Premiere Transition Presets", sales: 28, revenue: 8400 },
-        { name: "Sound FX Library Pro", sales: 15, revenue: 4500 },
-        { name: "Full-Time Bootcamp", sales: 8, revenue: 16000 },
-      ];
+  // Real data only — no fabricated fallback. Empty arrays render an empty state.
+  const revenueTrendData = Object.keys(dailyRev).map(date => ({ date, revenue: dailyRev[date] })).slice(-8);
+  const productChartData = chartData;
 
   const NavList = ({ onNavigate }: { onNavigate?: () => void }) => (
     <>
@@ -1101,9 +1130,10 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
                   </div>
 
                   {/* Channel stats row */}
-                  <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5 sm:gap-4">
+                  <div className="grid grid-cols-2 lg:grid-cols-6 gap-3.5 sm:gap-4">
                     {[
                       { label: "Total Revenue", count: `₹${totalRevenue.toLocaleString("en-IN")}`, icon: <DollarSign size={18} />, color: "text-[#25D366]" },
+                      { label: "Net Profit (after ~2% fee)", count: `₹${totalNetProfit.toLocaleString("en-IN")}`, icon: <TrendingUp size={18} />, color: "text-emerald-400" },
                       { label: "Academy Courses", count: totalCourses, icon: <BookOpen size={18} />, color: "text-amber-400" },
                       { label: "Digital Products", count: totalProducts, icon: <FolderEdit size={18} />, color: "text-emerald-400" },
                       { label: "Portfolio Videos", count: totalVideos, icon: <ExternalLink size={18} />, color: "text-blue-400" },
@@ -1121,6 +1151,65 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
                     ))}
                   </div>
 
+                  {/* Product Leaderboard — best sellers ranked, joined with real views */}
+                  <Card>
+                    <CardHeader
+                      title="Product Leaderboard"
+                      subtitle="Every listing ranked by real sales & views. Click a column to re-sort. Purchase ratio = purchases ÷ unique viewers."
+                      action={<Badge toneKey="danger"><Trophy size={11} /> Ranked by {LEADER_COLS.find(c => c.key === leaderSort)?.label}</Badge>}
+                    />
+                    {sortedLeaderboard.length === 0 ? (
+                      <EmptyState icon={<Trophy size={26} />} title="No activity yet" description="Once products get views or purchases, they'll be ranked here." />
+                    ) : (
+                      <div className="overflow-x-auto -mx-1">
+                        <table className="w-full text-left text-xs border-collapse min-w-[720px]">
+                          <thead>
+                            <tr className="border-b border-white/10 text-zinc-500">
+                              <th className="py-2.5 pr-2 font-bold uppercase tracking-wider text-[10px] w-8">#</th>
+                              <th className="py-2.5 px-2 font-bold uppercase tracking-wider text-[10px]">Item</th>
+                              {LEADER_COLS.map(col => (
+                                <th key={col.key} className="py-2.5 px-2 text-right">
+                                  <button
+                                    onClick={() => setLeaderSort(col.key)}
+                                    className={`inline-flex items-center gap-1 font-bold uppercase tracking-wider text-[10px] cursor-pointer transition-colors ${
+                                      leaderSort === col.key ? "text-[#E50914]" : "text-zinc-500 hover:text-zinc-300"
+                                    }`}
+                                  >
+                                    {col.label}
+                                    {leaderSort === col.key && <ChevronRight size={11} className="rotate-90" />}
+                                  </button>
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-white/[0.04]">
+                            {sortedLeaderboard.map((row, i) => (
+                              <tr key={row.id} className="hover:bg-white/[0.02] transition-colors">
+                                <td className="py-3 pr-2 font-mono text-zinc-500">
+                                  {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}
+                                </td>
+                                <td className="py-3 px-2">
+                                  <div className="font-semibold text-white truncate max-w-[220px]">{row.name}</div>
+                                  <div className="text-[10px] text-zinc-600 uppercase tracking-wider">{row.type}</div>
+                                </td>
+                                <td className="py-3 px-2 text-right font-mono text-zinc-400">{row.impressions.toLocaleString("en-IN")}</td>
+                                <td className="py-3 px-2 text-right font-mono text-zinc-400">{row.uniqueViewers.toLocaleString("en-IN")}</td>
+                                <td className="py-3 px-2 text-right font-mono font-bold text-white">{row.purchases.toLocaleString("en-IN")}</td>
+                                <td className="py-3 px-2 text-right font-mono text-zinc-300">₹{row.revenue.toLocaleString("en-IN")}</td>
+                                <td className="py-3 px-2 text-right font-mono font-bold text-[#25D366]">₹{row.netProfit.toLocaleString("en-IN")}</td>
+                                <td className="py-3 px-2 text-right font-mono">
+                                  {row.conversion == null
+                                    ? <span className="text-zinc-600">—</span>
+                                    : <span className="text-amber-400">{row.conversion.toFixed(1)}%</span>}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </Card>
+
                   {/* Dynamic Revenue Trends & Product Analytics Charts */}
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
                     {/* Left: Revenue Trends */}
@@ -1130,6 +1219,11 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
                         <p className="text-[11px] text-zinc-500 mt-0.5">Real-time dynamic store revenue timeline based on purchases and manual grants</p>
                       </div>
                       <div className="h-64 w-full">
+                        {revenueTrendData.length === 0 ? (
+                          <div className="h-full flex items-center justify-center text-center text-zinc-600 text-xs border border-dashed border-white/5 rounded-xl">
+                            No revenue recorded yet — sales will plot here.
+                          </div>
+                        ) : (
                         <ResponsiveContainer width="100%" height="100%">
                           <AreaChart data={revenueTrendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                             <defs>
@@ -1149,6 +1243,7 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
                             <Area type="monotone" dataKey="revenue" name="Revenue (₹)" stroke="#25D366" strokeWidth={2} fillOpacity={1} fill="url(#colorRev)" />
                           </AreaChart>
                         </ResponsiveContainer>
+                        )}
                       </div>
                     </Card>
 
@@ -1159,6 +1254,11 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
                         <p className="text-[11px] text-zinc-500 mt-0.5">Individual asset performance, claims, sales quantities and active revenue contributions</p>
                       </div>
                       <div className="h-64 w-full">
+                        {productChartData.length === 0 ? (
+                          <div className="h-full flex items-center justify-center text-center text-zinc-600 text-xs border border-dashed border-white/5 rounded-xl">
+                            No sales or claims yet — product performance will appear here.
+                          </div>
+                        ) : (
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart data={productChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#1a1a1a" />
@@ -1176,6 +1276,7 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
                             </Bar>
                           </BarChart>
                         </ResponsiveContainer>
+                        )}
                       </div>
                     </Card>
                   </div>
