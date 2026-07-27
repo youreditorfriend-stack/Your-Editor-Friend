@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { db } from "../firebase";
 import { arrayRemove, arrayUnion, collection, doc, getDoc, getDocs, setDoc, updateDoc } from "firebase/firestore";
-import { DEFAULT_CHECKOUT_HELP, SEED_STORE, StoreData, Product, Course, ProductCategory, PageConfig, Coupon, mergePages } from "../lib/store";
+import { DEFAULT_CHECKOUT_HELP, SEED_STORE, StoreData, Product, Course, ProductCategory, PageConfig, Coupon, mergePages, netAfterFees } from "../lib/store";
 import { adminAuthBody } from "../lib/adminAuth";
 import { ImageField } from "./ImageField";
 import { FileField } from "./FileField";
@@ -640,6 +640,13 @@ interface AdminUser {
   photo: string;
   lastLogin?: any;
   purchases: string[];
+  payments: any[];
+}
+
+// Per-customer money summary derived from their payments[] (amount in paise).
+function userSpend(u: AdminUser) {
+  const spent = (u.payments || []).reduce((s, p) => s + (p.amount ? p.amount / 100 : 0), 0);
+  return { spent, netProfit: netAfterFees(spent), paidCount: (u.payments || []).length };
 }
 
 // Prefilled apology template for the checkout-outage announcement — the admin
@@ -660,6 +667,7 @@ export function AdminUsersPanel() {
   const [items, setItems] = useState<{ id: string; label: string; paid: boolean }[]>([]);
   const [grantFor, setGrantFor] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState<"recent" | "spent" | "profit">("recent");
   const confirmDialog = useConfirm();
   const toast = useToast();
 
@@ -680,7 +688,7 @@ export function AdminUsersPanel() {
       ]);
       const us: AdminUser[] = uSnap.docs.map(d => {
         const x = d.data();
-        return { uid: d.id, name: x.name || "", email: x.email || "", photo: x.photo || "", lastLogin: x.lastLogin, purchases: x.purchases || [] };
+        return { uid: d.id, name: x.name || "", email: x.email || "", photo: x.photo || "", lastLogin: x.lastLogin, purchases: x.purchases || [], payments: x.payments || [] };
       });
       us.sort((a, b) => (b.lastLogin?.seconds || 0) - (a.lastLogin?.seconds || 0));
       setUsers(us);
@@ -715,10 +723,23 @@ export function AdminUsersPanel() {
   const labelOf = (id: string) => items.find(i => i.id === id)?.label || id;
   const fmtDate = (ts: any) => ts?.seconds ? new Date(ts.seconds * 1000).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "—";
 
-  const filteredUsers = (users || []).filter(u =>
-    u.email.toLowerCase().includes(search.toLowerCase()) ||
-    u.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredUsers = (users || [])
+    .filter(u =>
+      u.email.toLowerCase().includes(search.toLowerCase()) ||
+      u.name.toLowerCase().includes(search.toLowerCase())
+    )
+    .sort((a, b) => {
+      if (sortBy === "recent") return (b.lastLogin?.seconds || 0) - (a.lastLogin?.seconds || 0);
+      return userSpend(b).spent - userSpend(a).spent; // spent & profit rank identically
+    });
+
+  // Studio-wide money totals across every logged-in customer.
+  const studioTotals = useMemo(() => {
+    const list = users || [];
+    const grossRevenue = list.reduce((s, u) => s + userSpend(u).spent, 0);
+    const payingCustomers = list.filter(u => (u.payments || []).length > 0).length;
+    return { grossRevenue, netProfit: netAfterFees(grossRevenue), payingCustomers };
+  }, [users]);
 
   // Every distinct, valid recipient email across all logged-in users.
   const allEmails = useMemo(
@@ -787,6 +808,20 @@ export function AdminUsersPanel() {
         </div>
       </div>
 
+      {/* Studio money summary across every customer */}
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { label: "Paying customers", value: studioTotals.payingCustomers.toLocaleString("en-IN"), color: "text-white" },
+          { label: "Gross revenue", value: `₹${studioTotals.grossRevenue.toLocaleString("en-IN")}`, color: "text-[#25D366]" },
+          { label: "Net profit (after ~2% fee)", value: `₹${studioTotals.netProfit.toLocaleString("en-IN")}`, color: "text-emerald-400" },
+        ].map(s => (
+          <div key={s.label} className="bg-zinc-950/50 border border-white/5 rounded-2xl p-4">
+            <div className={`text-xl sm:text-2xl font-extrabold font-mono tracking-tight mb-1 truncate ${s.color}`}>{s.value}</div>
+            <div className="text-[11px] text-zinc-500 font-light">{s.label}</div>
+          </div>
+        ))}
+      </div>
+
       {/* Announcement / apology email to all logged-in users */}
       <Card>
         <CardHeader
@@ -832,15 +867,34 @@ export function AdminUsersPanel() {
         )}
       </Card>
 
-      {/* Search Input Box */}
-      <div className="relative">
-        <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-600" />
-        <Input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search users by name or email…"
-          className="pl-9"
-        />
+      {/* Search + sort */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-600" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search users by name or email…"
+            className="pl-9"
+          />
+        </div>
+        <div className="flex bg-zinc-950 border border-white/10 rounded-xl p-1 shrink-0">
+          {([
+            { id: "recent", label: "Recent" },
+            { id: "spent", label: "Top spender" },
+            { id: "profit", label: "Top profit" },
+          ] as const).map(opt => (
+            <button
+              key={opt.id}
+              onClick={() => setSortBy(opt.id)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition-all cursor-pointer whitespace-nowrap ${
+                sortBy === opt.id ? "bg-zinc-800 text-white" : "text-zinc-500 hover:text-zinc-300"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <Card>
@@ -851,7 +905,9 @@ export function AdminUsersPanel() {
         {users === null && <PanelLoading />}
         {users !== null && filteredUsers.length === 0 && <EmptyState icon={<UserCircle2 size={28} />} title="No matching users found" />}
         <div className="space-y-3">
-          {filteredUsers.map(u => (
+          {filteredUsers.map(u => {
+            const s = userSpend(u);
+            return (
             <div key={u.uid} className="bg-zinc-950/50 border border-white/5 rounded-2xl p-3.5">
               <div className="flex items-center gap-3">
                 {u.photo
@@ -866,6 +922,13 @@ export function AdminUsersPanel() {
                   <div className="text-zinc-400">{fmtDate(u.lastLogin)}</div>
                 </div>
                 <Button size="sm" variant="success" onClick={() => setGrantFor(grantFor === u.uid ? null : u.uid)}>+ Grant Access</Button>
+              </div>
+
+              {/* Per-customer spend / profit */}
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 mt-2.5 pt-2.5 border-t border-white/[0.04] text-[11px]">
+                <span className="text-zinc-500">Spent <b className="text-zinc-200 font-mono">₹{s.spent.toLocaleString("en-IN")}</b></span>
+                <span className="text-zinc-500">Net profit <b className="text-[#25D366] font-mono">₹{s.netProfit.toLocaleString("en-IN")}</b></span>
+                <span className="text-zinc-500"><b className="text-zinc-300 font-mono">{s.paidCount}</b> paid · <b className="text-zinc-300 font-mono">{u.purchases.length}</b> owned</span>
               </div>
 
               {/* Purchases */}
@@ -898,7 +961,8 @@ export function AdminUsersPanel() {
                 </div>
               )}
             </div>
-          ))}
+            );
+          })}
         </div>
       </Card>
     </div>

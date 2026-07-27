@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { db } from "../firebase";
 import { collection, getDocs, doc, getDoc } from "firebase/firestore";
-import { loadAnalytics, AnalyticsData, getProductBaseline } from "../lib/analytics";
+import { loadAnalytics, AnalyticsData } from "../lib/analytics";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from "recharts";
 import { Download, Users, TrendingUp, Eye, DollarSign, HelpCircle, ArrowRight, Award } from "lucide-react";
 
@@ -202,8 +202,11 @@ export const StudioAnalytics: React.FC<StudioAnalyticsProps> = ({ itemId, itemTi
         <div className="bg-zinc-900/40 border border-white/5 rounded-2xl p-5 lg:col-span-2">
           <div className="flex justify-between items-center mb-6">
             <div>
-              <h3 className="font-semibold text-sm tracking-wide text-zinc-300">Weekly Performance Trend</h3>
-              <p className="text-[10px] text-zinc-500">Daily breakdown of unique views vs. downloads</p>
+              <h3 className="font-semibold text-sm tracking-wide text-zinc-300 flex items-center gap-2">
+                Weekly Performance Trend
+                <span className="text-[9px] font-bold uppercase tracking-widest bg-amber-500/15 text-amber-400 border border-amber-500/20 rounded px-1.5 py-0.5">Sample shape</span>
+              </h3>
+              <p className="text-[10px] text-zinc-500">Illustrative daily split of the real totals (not day-by-day tracked)</p>
             </div>
             <div className="flex items-center gap-4 text-xs">
               <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 bg-[#E50914] rounded-full inline-block"></span> Views</span>
@@ -236,8 +239,11 @@ export const StudioAnalytics: React.FC<StudioAnalyticsProps> = ({ itemId, itemTi
         {/* Audience Demographics */}
         <div className="bg-zinc-900/40 border border-white/5 rounded-2xl p-5 flex flex-col justify-between">
           <div>
-            <h3 className="font-semibold text-sm tracking-wide text-zinc-300">Audience Demographics</h3>
-            <p className="text-[10px] text-zinc-500 mb-5">Age distribution and gender breakdown</p>
+            <h3 className="font-semibold text-sm tracking-wide text-zinc-300 flex items-center gap-2">
+              Audience Demographics
+              <span className="text-[9px] font-bold uppercase tracking-widest bg-amber-500/15 text-amber-400 border border-amber-500/20 rounded px-1.5 py-0.5">Sample</span>
+            </h3>
+            <p className="text-[10px] text-zinc-500 mb-5">Placeholder age/gender split — not collected from real visitors</p>
             
             {/* Age stats bar chart */}
             <div className="space-y-3.5 mb-6">
