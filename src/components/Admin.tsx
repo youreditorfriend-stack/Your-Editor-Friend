@@ -11,13 +11,15 @@ import {
   useSensors,
   type DragEndEvent,
 } from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
+import { SortableContext, verticalListSortingStrategy, rectSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { ImageField } from "./ImageField";
 import { FileField } from "./FileField";
 import { StudioAnalytics } from "./StudioAnalytics";
 import { StudioComments } from "./StudioComments";
-import { AdminPagesPanel, AdminProductsPanel, AdminCoursesPanel, AdminUsersPanel, AdminCouponsPanel } from "./AdminStore";
+import { AdminPagesPanel, AdminProductsPanel, AdminCoursesPanel, AdminUsersPanel, AdminCouponsPanel, AdminBundlesPanel } from "./AdminStore";
+import { PromptKitEditor } from "./PromptKitEditor";
+import { Layers, Copy as CopyIcon, Search as SearchIcon, ImagePlus, Pencil } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, CartesianGrid } from "recharts";
 import {
   Button,
@@ -64,7 +66,7 @@ import {
 } from "lucide-react";
 
 // Types
-type TabType = "overview" | "products" | "courses" | "projects" | "pages" | "comments" | "users" | "coupons" | "quote" | "settings";
+type TabType = "overview" | "products" | "bundles" | "courses" | "projects" | "pages" | "comments" | "users" | "coupons" | "quote" | "settings";
 
 interface ActiveWorkspace {
   id: string;
@@ -92,21 +94,38 @@ function SortableProductCard({
   );
 }
 
-const NAV_CORE = [
-  { id: "overview", label: "Dashboard", icon: <LayoutDashboard size={16} /> },
-  { id: "products", label: "Digital Products", icon: <FolderEdit size={16} /> },
-  { id: "courses", label: "Academy Courses", icon: <BookOpen size={16} /> },
-  { id: "projects", label: "Portfolio Videos", icon: <ExternalLink size={16} /> },
-  { id: "comments", label: "Public Comments", icon: <MessageSquare size={16} /> },
-  { id: "users", label: "Users & Licensing", icon: <Users size={16} /> },
-  { id: "coupons", label: "Discount Coupons", icon: <Tag size={16} /> },
+// Grouped by what you're doing: selling, people, the rest of the site.
+const NAV_GROUPS = [
+  {
+    title: "Sell",
+    items: [
+      { id: "overview", label: "Dashboard", icon: <LayoutDashboard size={17} /> },
+      { id: "products", label: "Products", icon: <FolderEdit size={17} /> },
+      { id: "bundles", label: "Bundles", icon: <Layers size={17} /> },
+      { id: "courses", label: "Courses", icon: <BookOpen size={17} /> },
+      { id: "coupons", label: "Coupons", icon: <Tag size={17} /> },
+    ],
+  },
+  {
+    title: "People",
+    items: [
+      { id: "users", label: "Customers", icon: <Users size={17} /> },
+      { id: "comments", label: "Comments", icon: <MessageSquare size={17} /> },
+    ],
+  },
+  {
+    title: "Site",
+    items: [
+      { id: "projects", label: "Portfolio", icon: <ExternalLink size={17} /> },
+      { id: "pages", label: "Show / hide pages", icon: <Eye size={17} /> },
+      { id: "quote", label: "Custom quote", icon: <Sliders size={17} /> },
+      { id: "settings", label: "Settings", icon: <Settings size={17} /> },
+    ],
+  },
 ] as const;
 
-const NAV_CONFIG = [
-  { id: "pages", label: "Page Visibility", icon: <Eye size={16} /> },
-  { id: "quote", label: "Custom Quote", icon: <Sliders size={16} /> },
-  { id: "settings", label: "Studio Settings", icon: <Settings size={16} /> },
-] as const;
+// Phone bottom bar: the four screens used most.
+const NAV_MOBILE = ["overview", "products", "bundles", "users"] as const;
 
 // Sortable columns for the dashboard Product Leaderboard (all sort descending).
 const LEADER_COLS = [
@@ -163,6 +182,8 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
 
   // Products tab: category filter + drag-and-drop reordering
   const [productFilterCat, setProductFilterCat] = useState("all");
+  const [productSearch, setProductSearch] = useState("");
+  const [showCatEditor, setShowCatEditor] = useState(false);
   const dndSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   const handleProductDragEnd = (e: DragEndEvent) => {
@@ -171,7 +192,9 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
     const oldIndex = storeProducts.findIndex(p => p.id === active.id);
     const newIndex = storeProducts.findIndex(p => p.id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
-    setStoreProducts(arrayMove(storeProducts, oldIndex, newIndex));
+    const next = arrayMove(storeProducts, oldIndex, newIndex);
+    setStoreProducts(next);
+    handleSave(next); // new order goes live right away
   };
 
   // Portfolio (Projects) tab: category filter + drag-and-drop reordering,
@@ -304,7 +327,8 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
 
       await Promise.all([
         setDoc(doc(db, "portfolio", "data"), pData),
-        setDoc(doc(db, "store", "data"), sData)
+        // merge: keeps fields this screen doesn't manage (e.g. bundles)
+        setDoc(doc(db, "store", "data"), sData, { merge: true })
       ]);
 
       toast.success("Workspace saved live");
@@ -327,8 +351,8 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
       <div className="min-h-screen bg-[#080808] text-zinc-500 flex flex-col items-center justify-center gap-4 font-sans">
         <div className="relative w-14 h-14">
           <div className="absolute inset-0 rounded-full border-2 border-white/5" />
-          <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-[#E50914] animate-spin" />
-          <div className="absolute inset-0 flex items-center justify-center font-mono font-bold text-[#E50914] text-sm">EF</div>
+          <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-[#FF7A1A] animate-spin" />
+          <div className="absolute inset-0 flex items-center justify-center font-mono font-bold text-[#FF7A1A] text-sm">EF</div>
         </div>
         <div className="text-xs font-semibold tracking-widest text-zinc-400 uppercase">Booting Creator Studio…</div>
       </div>
@@ -431,45 +455,39 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
 
   const NavList = ({ onNavigate }: { onNavigate?: () => void }) => (
     <>
-      <div className="space-y-1 px-3">
-        <div className="text-[10px] font-bold text-zinc-500 px-3 uppercase tracking-widest mb-2.5">Studio Core</div>
-        {NAV_CORE.map((menu) => (
-          <button
-            key={menu.id}
-            onClick={() => { setActiveTab(menu.id as TabType); onNavigate?.(); }}
-            className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all text-left cursor-pointer ${
-              activeTab === menu.id
-                ? "bg-[#E50914]/10 text-[#E50914] border border-[#E50914]/15"
-                : "text-zinc-400 hover:text-white hover:bg-white/[0.04] border border-transparent"
-            }`}
-          >
-            {menu.icon}
-            {menu.label}
-          </button>
-        ))}
-
-        <div className="text-[10px] font-bold text-zinc-500 px-3 uppercase tracking-widest pt-5 mb-2.5">Configurations</div>
-        {NAV_CONFIG.map((menu) => (
-          <button
-            key={menu.id}
-            onClick={() => { setActiveTab(menu.id as TabType); onNavigate?.(); }}
-            className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all text-left cursor-pointer ${
-              activeTab === menu.id
-                ? "bg-[#E50914]/10 text-[#E50914] border border-[#E50914]/15"
-                : "text-zinc-400 hover:text-white hover:bg-white/[0.04] border border-transparent"
-            }`}
-          >
-            {menu.icon}
-            {menu.label}
-          </button>
+      <div className="px-3 space-y-5">
+        {NAV_GROUPS.map(group => (
+          <div key={group.title} className="space-y-0.5">
+            <div className="text-[10px] font-bold text-zinc-600 px-3 uppercase tracking-[0.15em] mb-1.5">{group.title}</div>
+            {group.items.map(menu => {
+              const on = activeTab === menu.id;
+              return (
+                <button
+                  key={menu.id}
+                  onClick={() => { setActiveTab(menu.id as TabType); onNavigate?.(); }}
+                  className={`relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-semibold transition-all text-left cursor-pointer ${
+                    on ? "bg-[#FF7A1A]/[0.12] text-white" : "text-zinc-400 hover:text-white hover:bg-white/[0.04]"
+                  }`}
+                >
+                  {on && <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full bg-[#FF7A1A]" />}
+                  <span className={on ? "text-[#FF7A1A]" : ""}>{menu.icon}</span>
+                  {menu.label}
+                  {menu.id === "products" && <span className="ml-auto text-[11px] text-zinc-500 font-medium">{storeProducts.length}</span>}
+                </button>
+              );
+            })}
+          </div>
         ))}
       </div>
 
-      <div className="px-5 py-4 border-t border-white/[0.05] text-[10px] text-zinc-600 font-mono mt-4">
-        Workspace v2.2.0<br />Creator Studio
-      </div>
+      <a href="/" target="_blank" rel="noopener noreferrer"
+        className="mx-3 mt-6 flex items-center justify-center gap-2 h-10 rounded-xl border border-white/10 text-xs font-semibold text-zinc-300 hover:border-white/25 hover:text-white">
+        <ExternalLink size={13} /> View live site
+      </a>
     </>
   );
+
+  const allNavItems = NAV_GROUPS.flatMap(g => g.items as readonly { id: string; label: string; icon: ReactNode }[]);
 
   return (
     <div className="min-h-screen bg-[#080808] text-white flex flex-col font-sans antialiased">
@@ -485,12 +503,10 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
               <Menu size={20} />
             </button>
           )}
-          <div className="w-8 h-8 rounded-lg bg-[#E50914] flex items-center justify-center font-bold text-white text-base font-mono shrink-0">
-            S
-          </div>
-          <span className="font-semibold text-sm tracking-wider uppercase font-mono hidden sm:inline">
-            Creator <span className="text-[#E50914]">Studio</span>
+          <span className="font-extrabold text-[13px] sm:text-sm tracking-wide whitespace-nowrap">
+            YOUR EDITOR <span className="text-[#FF7A1A]">FRIEND</span>
           </span>
+          <span className="text-[10px] font-bold tracking-widest text-zinc-500 border border-white/10 rounded-md px-1.5 py-0.5">ADMIN</span>
         </div>
 
         <div className="flex items-center gap-2 sm:gap-4">
@@ -501,7 +517,7 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
             disabled={saving}
             icon={saving ? <Spinner size={13} /> : <Save size={13} />}
           >
-            <span className="hidden sm:inline">{saving ? "Saving…" : "Save Workspace"}</span>
+            <span className="hidden sm:inline">{saving ? "Saving…" : "Save changes"}</span>
           </Button>
           {onLogout && (
             <button
@@ -515,12 +531,33 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
         </div>
       </header>
 
+      {/* ── PHONE BOTTOM BAR (thumb-reach) ── */}
+      {!activeWorkspace && (
+        <nav className="lg:hidden fixed bottom-0 inset-x-0 z-[70] bg-[#0c0c0c]/95 backdrop-blur border-t border-white/10 grid grid-cols-5 pb-[env(safe-area-inset-bottom)]">
+          {NAV_MOBILE.map(id => {
+            const item = allNavItems.find(n => n.id === id)!;
+            const on = activeTab === id;
+            return (
+              <button key={id} onClick={() => setActiveTab(id as TabType)}
+                className={`flex flex-col items-center justify-center gap-1 h-16 text-[10px] font-semibold ${on ? "text-[#FF7A1A]" : "text-zinc-500"}`}>
+                {item.icon}
+                {item.label}
+              </button>
+            );
+          })}
+          <button onClick={() => setMobileNavOpen(true)} className="flex flex-col items-center justify-center gap-1 h-16 text-[10px] font-semibold text-zinc-500">
+            <Menu size={17} />
+            More
+          </button>
+        </nav>
+      )}
+
       {/* ── WORKSPACE SHELL ── */}
       <div className="flex flex-1 min-h-[calc(100vh-56px)]">
 
         {/* SIDEBAR NAVIGATION — desktop */}
         {!activeWorkspace && (
-          <aside className="w-56 shrink-0 bg-zinc-950/60 border-r border-white/5 hidden lg:flex flex-col justify-between py-4">
+          <aside className="w-60 shrink-0 bg-[#0c0c0c] border-r border-white/5 hidden lg:flex flex-col py-5 sticky top-14 h-[calc(100vh-56px)] overflow-y-auto">
             <NavList />
           </aside>
         )}
@@ -532,8 +569,8 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
             <aside className="absolute left-0 top-0 bottom-0 w-64 bg-zinc-950 border-r border-white/10 flex flex-col justify-between py-4 shadow-2xl">
               <div>
                 <div className="flex items-center justify-between px-4 mb-4">
-                  <span className="font-semibold text-sm tracking-wider uppercase font-mono">
-                    Creator <span className="text-[#E50914]">Studio</span>
+                  <span className="font-extrabold text-sm tracking-wide">
+                    YOUR EDITOR <span className="text-[#FF7A1A]">FRIEND</span>
                   </span>
                   <button onClick={() => setMobileNavOpen(false)} className="p-1.5 text-zinc-400 hover:text-white cursor-pointer">
                     <X size={18} />
@@ -546,7 +583,7 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
         )}
 
         {/* PRIMARY WORKSPACE AREA */}
-        <main className="flex-1 bg-zinc-900/10 p-4 sm:p-6 overflow-y-auto max-w-full">
+        <main className="flex-1 min-w-0 bg-[#0a0a0a] p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8 overflow-y-auto max-w-full">
 
           {/* A. ITEM DEDICATED WORKSPACE IF SELECTED */}
           {activeWorkspace ? (
@@ -559,7 +596,7 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
                     onClick={() => setActiveWorkspace(null)}
                     className="p-2 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-xl transition-all cursor-pointer flex items-center gap-1 text-xs font-bold"
                   >
-                    <ArrowLeft size={16} /> Content
+                    <ArrowLeft size={16} /> Back
                   </button>
                   <div className="h-6 w-[1px] bg-white/10 hidden sm:block"></div>
                   <div className="min-w-0">
@@ -710,7 +747,7 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
                                       updateActiveProduct({ categories: next, category: next[0] || "" });
                                     }}
                                     className={`rounded-full px-3 py-1 text-[11px] font-bold cursor-pointer transition-colors border ${
-                                      on ? "bg-[#E50914]/20 border-[#E50914] text-[#E50914]" : "bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10"
+                                      on ? "bg-[#FF7A1A]/20 border-[#FF7A1A] text-[#FF7A1A]" : "bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10"
                                     }`}
                                   >
                                     {on ? "✓ " : ""}{cat.label}
@@ -901,6 +938,22 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
                         </div>
                       )}
                     </Card>
+
+                    {/* Prompt kit: PSD files → layers → prompts + references */}
+                    {activeWorkspace.type === "product" && (
+                      <Card>
+                        <PromptKitEditor
+                          productId={activeWorkspace.id}
+                          isFree={(activeWorkspace.item.price ?? 0) === 0}
+                          onSaved={(summary) => {
+                            const next = storeProducts.map(p => (p.id === activeWorkspace.id ? { ...p, promptKit: summary } : p));
+                            setStoreProducts(next);
+                            setActiveWorkspace(prev => (prev ? { ...prev, item: { ...prev.item, promptKit: summary } } : null));
+                            handleSave(next);
+                          }}
+                        />
+                      </Card>
+                    )}
                   </div>
 
                   {/* Right asset sidebar column */}
@@ -1172,7 +1225,7 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
                                   <button
                                     onClick={() => setLeaderSort(col.key)}
                                     className={`inline-flex items-center gap-1 font-bold uppercase tracking-wider text-[10px] cursor-pointer transition-colors ${
-                                      leaderSort === col.key ? "text-[#E50914]" : "text-zinc-500 hover:text-zinc-300"
+                                      leaderSort === col.key ? "text-[#FF7A1A]" : "text-zinc-500 hover:text-zinc-300"
                                     }`}
                                   >
                                     {col.label}
@@ -1271,7 +1324,7 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
                             />
                             <Bar dataKey="sales" name="Sales (Qty)" fill="#e63027" radius={[4, 4, 0, 0]}>
                               {productChartData.map((_, index) => (
-                                <Cell key={`cell-${index}`} fill={index % 2 === 0 ? "#E50914" : "#f87171"} />
+                                <Cell key={`cell-${index}`} fill={index % 2 === 0 ? "#FF7A1A" : "#f87171"} />
                               ))}
                             </Bar>
                           </BarChart>
@@ -1286,8 +1339,8 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
                     <Card>
                       <h2 className="text-sm font-semibold tracking-wide text-zinc-300 mb-4">Quick Content Shortcuts</h2>
                       <div className="grid grid-cols-2 gap-3">
-                        <button onClick={() => setActiveTab("products")} className="bg-white/[0.02] border border-white/5 p-4 rounded-xl text-left hover:border-[#E50914]/50 hover:bg-white/[0.04] transition-all cursor-pointer group">
-                          <FolderEdit size={20} className="text-[#E50914] mb-2 group-hover:scale-110 transition-transform" />
+                        <button onClick={() => setActiveTab("products")} className="bg-white/[0.02] border border-white/5 p-4 rounded-xl text-left hover:border-[#FF7A1A]/50 hover:bg-white/[0.04] transition-all cursor-pointer group">
+                          <FolderEdit size={20} className="text-[#FF7A1A] mb-2 group-hover:scale-110 transition-transform" />
                           <div className="text-xs font-semibold">Store Catalog</div>
                           <div className="text-[10px] text-zinc-500 font-light mt-0.5">Manage products and categories</div>
                         </button>
@@ -1318,202 +1371,232 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
                 </div>
               )}
 
-              {/* 2. PRODUCTS MASTER LIST */}
-              {activeTab === "products" && (
-                <div className="space-y-6">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/5 pb-4">
-                    <div>
-                      <h1 className="text-2xl font-bold tracking-tight">Store Catalog</h1>
-                      <p className="text-xs text-zinc-500 font-light mt-0.5 max-w-xl">Add, reorder, or edit individual digital products. Click any item to launch its detailed analytics, sales records, and FAQ configurations.</p>
-                    </div>
-                    <Button
-                      variant="success"
-                      icon={<Plus size={14} />}
-                      className="shrink-0"
-                      onClick={() => {
-                        const newProd: Product = {
-                          id: `product-${Date.now()}`,
-                          name: "New Asset Pack",
-                          tagline: "High-quality premium editor presets",
-                          price: 499,
-                          image: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=500",
-                          category: productCategories[0]?.id || "presets",
-                          categories: productCategories[0] ? [productCategories[0].id] : [],
-                          free: false,
-                          downloadUrl: "",
-                          pinned: false,
-                          enabled: false,
-                        };
-                        const nextProds = [newProd, ...storeProducts];
-                        setStoreProducts(nextProds);
-                        handleSave(nextProds);
-                      }}
-                    >
-                      Add Product
-                    </Button>
-                  </div>
+              {/* 2. PRODUCTS — search, filter, quick Live/Draft, duplicate, delete, drag to reorder */}
+              {activeTab === "products" && (() => {
+                const q = productSearch.trim().toLowerCase();
+                const byCat = productFilterCat === "all" ? storeProducts
+                  : productFilterCat === "__draft" ? storeProducts.filter(p => !p.enabled)
+                  : storeProducts.filter(p => getProductCategories(p).includes(productFilterCat));
+                const visibleProducts = q ? byCat.filter(p => p.name.toLowerCase().includes(q)) : byCat;
+                const canDrag = productFilterCat === "all" && !q;
+                const liveCount = storeProducts.filter(p => p.enabled).length;
+                const draftCount = storeProducts.length - liveCount;
 
-                  {/* High Density Store Categories Setup */}
-                  <Card>
-                    <CardHeader
-                      title="Store Catalog Categories"
-                      action={
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          icon={<Plus size={11} />}
-                          onClick={() => {
-                            const label = window.prompt("Enter new category name:");
-                            if (!label?.trim()) return;
-                            const nextCats = [...productCategories, { id: label.toLowerCase().trim().replace(/\s+/g, "-"), label: label.trim(), enabled: true }];
-                            setProductCategories(nextCats);
-                          }}
-                        >
-                          Add Category
-                        </Button>
-                      }
-                    />
+                const commit = (next: Product[]) => { setStoreProducts(next); handleSave(next); };
+                const updateProduct = (id: string, ch: Partial<Product>) => commit(storeProducts.map(p => (p.id === id ? { ...p, ...ch } : p)));
+                const openEditor = (p: Product) => setActiveWorkspace({ id: p.id, type: "product", item: p, workspaceTab: "details" });
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                      {productCategories.map((cat) => (
-                        <div key={cat.id} className="bg-white/[0.02] border border-white/5 rounded-xl px-4 py-2.5 flex items-center justify-between gap-3">
-                          <span className="text-xs font-semibold font-mono tracking-wider text-zinc-300">{cat.label}</span>
-                          <button
-                            onClick={async () => {
-                              if (await confirmDialog({ title: `Delete category "${cat.label}"?`, danger: true, confirmLabel: "Delete" })) {
-                                setProductCategories(productCategories.filter(c => c.id !== cat.id));
-                              }
-                            }}
-                            className="p-1 text-zinc-600 hover:text-red-400 transition-colors cursor-pointer"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                    {productCategories.length === 0 && (
-                      <EmptyState title="No categories yet" description="Add a category to organize your products." />
-                    )}
-                  </Card>
+                const addProduct = () => {
+                  const newProd: Product = {
+                    id: `product-${Date.now()}`,
+                    name: "Untitled product",
+                    tagline: "",
+                    price: 199,
+                    image: "",
+                    category: productCategories[0]?.id || "",
+                    categories: productCategories[0] ? [productCategories[0].id] : [],
+                    free: false,
+                    downloadUrl: "",
+                    pinned: false,
+                    enabled: false,
+                  };
+                  commit([newProd, ...storeProducts]);
+                  openEditor(newProd);
+                };
+                const duplicate = (p: Product) => {
+                  const copy: Product = { ...p, id: `product-${Date.now()}`, name: `${p.name} (copy)`, enabled: false, pinned: false };
+                  const i = storeProducts.findIndex(x => x.id === p.id);
+                  commit([...storeProducts.slice(0, i + 1), copy, ...storeProducts.slice(i + 1)]);
+                  toast.success("Copy created as a draft");
+                };
+                const remove = async (p: Product) => {
+                  if (await confirmDialog({ title: `Delete "${p.name}"?`, description: "It disappears from the shop. People who bought it keep it in their library.", danger: true, confirmLabel: "Delete" })) {
+                    commit(storeProducts.filter(x => x.id !== p.id));
+                  }
+                };
 
-                  {/* Category filter tabs */}
-                  <div className="flex flex-wrap items-center gap-2">
-                    {[{ id: "all", label: "All" }, ...productCategories].map((cat) => (
+                const card = (p: Product, dragHandle?: ReactNode) => {
+                  const hasDiscount = !!p.originalPrice && p.originalPrice > p.price;
+                  const catLabel = productCategories.find(c => c.id === getProductCategories(p)[0])?.label;
+                  return (
+                    <div className={`group relative h-full flex flex-col rounded-2xl bg-[#131313] overflow-hidden border transition-colors ${
+                      p.enabled ? "border-white/[0.08]" : "border-dashed border-white/20"
+                    } hover:border-[#FF7A1A]/60`}>
+                      {/* Image — click to edit */}
+                      <button onClick={() => openEditor(p)} className="relative block w-full aspect-square bg-zinc-900 cursor-pointer">
+                        {p.image ? (
+                          <img src={p.image} alt={p.name} className={`w-full h-full object-cover ${p.enabled ? "" : "opacity-60"}`} />
+                        ) : (
+                          <span className="w-full h-full flex flex-col items-center justify-center gap-2 text-zinc-500 text-xs font-semibold">
+                            <ImagePlus size={26} /> Add image
+                          </span>
+                        )}
+                        <span className="absolute inset-0 hidden sm:flex items-center justify-center bg-black/55 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <span className="flex items-center gap-1.5 bg-[#FF7A1A] text-black text-xs font-bold px-3.5 py-2 rounded-full"><Pencil size={13} /> Edit</span>
+                        </span>
+                      </button>
+
+                      {/* Drag + pin */}
+                      <div className="absolute top-2 left-2 flex items-center gap-1">
+                        {dragHandle}
+                        {p.pinned && <span className="w-7 h-7 flex items-center justify-center bg-black/70 text-amber-400 rounded-lg" title="Pinned to top"><Pin size={13} /></span>}
+                      </div>
+
+                      {/* Live / Draft — one tap */}
                       <button
-                        key={cat.id}
-                        onClick={() => setProductFilterCat(cat.id)}
-                        className={`rounded-full px-3.5 py-1.5 text-[11px] font-bold cursor-pointer transition-colors border ${
-                          productFilterCat === cat.id ? "bg-white text-black border-white" : "bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10"
+                        onClick={() => updateProduct(p.id, { enabled: !p.enabled })}
+                        title={p.enabled ? "Live on the shop — tap to hide" : "Hidden draft — tap to put live"}
+                        className={`absolute top-2 right-2 h-7 px-2.5 rounded-full text-[11px] font-bold flex items-center gap-1.5 cursor-pointer backdrop-blur ${
+                          p.enabled ? "bg-[#25D366] text-black" : "bg-black/75 text-zinc-300 border border-white/20"
                         }`}
                       >
-                        {cat.label}
+                        <span className={`w-1.5 h-1.5 rounded-full ${p.enabled ? "bg-black" : "bg-zinc-400"}`} />
+                        {p.enabled ? "Live" : "Draft"}
                       </button>
-                    ))}
-                    {productFilterCat !== "all" && (
-                      <span className="text-zinc-600 text-[11px]">Switch to "All" to drag-and-drop reorder.</span>
-                    )}
-                  </div>
 
-                  {/* Grid layout of high-density product cards (draggable to reorder while viewing "All") */}
-                  {(() => {
-                    const visibleProducts = productFilterCat === "all"
-                      ? storeProducts
-                      : storeProducts.filter(p => getProductCategories(p).includes(productFilterCat));
+                      {/* Info */}
+                      <div className="px-3 pt-2.5 pb-2 flex-1">
+                        <h3 className="text-[13px] font-semibold leading-snug line-clamp-2">{p.name}</h3>
+                        <div className="flex items-baseline gap-1.5 mt-1">
+                          <span className={`text-sm font-extrabold ${p.price === 0 ? "text-[#25D366]" : "text-white"}`}>{p.price === 0 ? "FREE" : `₹${p.price.toLocaleString("en-IN")}`}</span>
+                          {hasDiscount && <span className="text-[11px] text-zinc-600 line-through">₹{p.originalPrice}</span>}
+                        </div>
+                        <div className="flex items-center gap-2 mt-1 text-[11px] text-zinc-500">
+                          {catLabel && <span className="truncate">{catLabel}</span>}
+                          {typeof p.rating === "number" && p.rating > 0 && (
+                            <span className="flex items-center gap-0.5 shrink-0"><Star size={10} fill="#facc15" className="text-yellow-400" />{p.rating.toFixed(1)}</span>
+                          )}
+                        </div>
+                      </div>
 
-                    const renderProductCard = (p: Product, dragHandle?: ReactNode) => {
-                      const discountPercent = getDiscountPercent(p.price, p.originalPrice);
-                      return (
-                        <Card hoverable className="!p-4 flex flex-col justify-between group">
-                          <div>
-                            {/* Square Thumbnail Preview */}
-                            <div className="relative aspect-square w-full rounded-xl overflow-hidden bg-zinc-900 border border-white/5 mb-3.5">
-                              <img
-                                src={p.image}
-                                alt={p.name}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                              />
-                              <div className="absolute top-2 right-2 flex flex-col items-end gap-1">
-                                <Badge toneKey={p.enabled ? "success" : "neutral"}>{p.enabled ? "Live" : "Draft"}</Badge>
-                                {discountPercent != null && <Badge toneKey="danger">-{discountPercent}%</Badge>}
-                              </div>
-                              <div className="absolute top-2 left-2 flex items-center gap-1">
-                                {dragHandle}
-                                {p.pinned && (
-                                  <span className="w-6 h-6 flex items-center justify-center bg-black/60 text-amber-400 rounded-lg" title="Pinned">
-                                    <Pin size={12} />
-                                  </span>
-                                )}
-                              </div>
-                              <div className="absolute bottom-2 left-2 flex flex-wrap gap-1">
-                                {p.bestSeller && <Badge toneKey="amber">Best Seller</Badge>}
-                                {p.isNew && <Badge toneKey="info">New</Badge>}
-                                {p.trending && <Badge toneKey="danger"><Flame size={9} /> Trending</Badge>}
-                              </div>
-                            </div>
+                      {/* Actions */}
+                      <div className="grid grid-cols-[1fr_auto_auto] border-t border-white/[0.06]">
+                        <button onClick={() => openEditor(p)} className="h-10 flex items-center justify-center gap-1.5 text-xs font-bold text-zinc-200 hover:bg-white/[0.04] cursor-pointer">
+                          <Pencil size={13} /> Edit
+                        </button>
+                        <button onClick={() => duplicate(p)} title="Duplicate" className="h-10 w-11 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/[0.04] border-l border-white/[0.06] cursor-pointer">
+                          <CopyIcon size={14} />
+                        </button>
+                        <button onClick={() => remove(p)} title="Delete" className="h-10 w-11 flex items-center justify-center text-zinc-500 hover:text-red-400 hover:bg-red-500/10 border-l border-white/[0.06] cursor-pointer">
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                };
 
-                            <h3 className="font-semibold text-xs tracking-wide text-white group-hover:text-[#E50914] transition-colors line-clamp-1">
-                              {p.name}
-                            </h3>
-                            {typeof p.rating === "number" && p.rating > 0 && (
-                              <div className="flex items-center gap-1 mt-1">
-                                <Star size={11} fill="#facc15" className="text-yellow-400" />
-                                <span className="text-[10px] text-zinc-400 font-semibold">{p.rating.toFixed(1)}</span>
-                                {!!p.reviewCount && <span className="text-[10px] text-zinc-600">({p.reviewCount})</span>}
-                              </div>
-                            )}
-                            <p className="text-[10px] text-zinc-500 font-light mt-1 line-clamp-2 h-7 leading-relaxed">
-                              {p.tagline || "No description tagline provided."}
-                            </p>
-                          </div>
+                const addCard = (
+                  <button onClick={addProduct}
+                    className="min-h-[220px] h-full rounded-2xl border-2 border-dashed border-white/15 hover:border-[#FF7A1A] text-zinc-400 hover:text-[#FF7A1A] flex flex-col items-center justify-center gap-2 text-sm font-bold transition-colors cursor-pointer">
+                    <span className="w-12 h-12 rounded-full bg-[#FF7A1A]/10 flex items-center justify-center"><Plus size={22} /></span>
+                    Add product
+                  </button>
+                );
 
-                          <div className="border-t border-white/[0.04] mt-3.5 pt-3 flex items-center justify-between gap-2">
-                            <span className={`text-xs font-bold font-mono flex items-center gap-1.5 ${p.price === 0 || discountPercent != null ? "text-[#25D366]" : "text-zinc-300"}`}>
-                              {p.price === 0 ? "FREE" : `₹${p.price}`}
-                              {p.originalPrice && p.originalPrice > p.price ? <span className="text-zinc-600 font-normal line-through">₹{p.originalPrice}</span> : null}
-                            </span>
-                            <div className="flex gap-2">
+                const chips = [
+                  { id: "all", label: "All", count: storeProducts.length },
+                  ...productCategories.map(c => ({ id: c.id, label: c.label, count: storeProducts.filter(p => getProductCategories(p).includes(c.id)).length })),
+                  ...(draftCount ? [{ id: "__draft", label: "Drafts", count: draftCount }] : []),
+                ];
+
+                return (
+                  <div className="space-y-5">
+                    {/* Header */}
+                    <div className="flex items-end justify-between gap-4">
+                      <div>
+                        <h1 className="text-2xl sm:text-[28px] font-extrabold tracking-tight">Products</h1>
+                        <p className="text-xs text-zinc-500 mt-1">
+                          <span className="text-[#25D366] font-semibold">{liveCount} live</span> · {draftCount} draft{draftCount === 1 ? "" : "s"}
+                        </p>
+                      </div>
+                      <Button variant="primary" icon={<Plus size={15} />} className="shrink-0" onClick={addProduct}>Add product</Button>
+                    </div>
+
+                    {/* Search + filters */}
+                    <div className="flex flex-col gap-3">
+                      <div className="relative max-w-sm">
+                        <SearchIcon size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+                        <input value={productSearch} onChange={e => setProductSearch(e.target.value)} placeholder="Search products"
+                          className="w-full h-11 bg-[#131313] border border-white/10 rounded-xl pl-9 pr-3 text-sm outline-none focus:border-[#FF7A1A]" />
+                      </div>
+                      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap">
+                        {chips.map(c => (
+                          <button key={c.id} onClick={() => setProductFilterCat(c.id)}
+                            className={`shrink-0 h-9 rounded-full px-3.5 text-xs font-bold cursor-pointer transition-colors border flex items-center gap-1.5 ${
+                              productFilterCat === c.id ? "bg-white text-black border-white" : "border-white/10 text-zinc-400 hover:text-white hover:border-white/25"
+                            }`}>
+                            {c.label} <span className={productFilterCat === c.id ? "text-zinc-500" : "text-zinc-600"}>{c.count}</span>
+                          </button>
+                        ))}
+                        <button onClick={() => setShowCatEditor(v => !v)}
+                          className="shrink-0 h-9 rounded-full px-3.5 text-xs font-bold text-[#FF7A1A] border border-dashed border-[#FF7A1A]/40 hover:bg-[#FF7A1A]/10 cursor-pointer">
+                          {showCatEditor ? "Done" : "Edit categories"}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Inline category editor */}
+                    {showCatEditor && (
+                      <div className="rounded-2xl border border-white/10 bg-[#131313] p-4 space-y-3">
+                        <div className="flex flex-wrap gap-2">
+                          {productCategories.map(cat => (
+                            <span key={cat.id} className="h-9 pl-3.5 pr-1.5 rounded-full bg-white/[0.05] border border-white/10 text-xs font-semibold flex items-center gap-1.5">
+                              {cat.label}
                               <button
                                 onClick={async () => {
-                                  if (await confirmDialog({ title: `Delete "${p.name}"?`, description: "This removes it from the store permanently.", danger: true, confirmLabel: "Delete" })) {
-                                    const next = storeProducts.filter(x => x.id !== p.id);
-                                    setStoreProducts(next);
-                                    handleSave(next);
+                                  if (await confirmDialog({ title: `Delete category "${cat.label}"?`, description: "Products stay — they just lose this label.", danger: true, confirmLabel: "Delete" })) {
+                                    setProductCategories(productCategories.filter(c => c.id !== cat.id));
                                   }
                                 }}
-                                className="p-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-lg transition-colors cursor-pointer"
-                                title="Delete Item"
-                              >
-                                <Trash2 size={13} />
+                                className="w-6 h-6 rounded-full flex items-center justify-center text-zinc-500 hover:text-red-400 hover:bg-red-500/10 cursor-pointer" title="Delete category">
+                                <X size={13} />
                               </button>
-                              <Button
-                                size="sm"
-                                variant="primary"
-                                onClick={() => setActiveWorkspace({ id: p.id, type: "product", item: p, workspaceTab: "details" })}
-                              >
-                                Edit Details <ChevronRight size={11} />
-                              </Button>
-                            </div>
-                          </div>
-                        </Card>
-                      );
-                    };
+                            </span>
+                          ))}
+                          {productCategories.length === 0 && <span className="text-xs text-zinc-500">No categories yet.</span>}
+                        </div>
+                        <form
+                          className="flex gap-2 max-w-sm"
+                          onSubmit={e => {
+                            e.preventDefault();
+                            const input = (e.currentTarget.elements.namedItem("cat") as HTMLInputElement);
+                            const label = input.value.trim();
+                            if (!label) return;
+                            const id = label.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "") || `cat-${Date.now()}`;
+                            if (productCategories.some(c => c.id === id)) { toast.error("That category already exists"); return; }
+                            setProductCategories([...productCategories, { id, label, enabled: true }]);
+                            input.value = "";
+                          }}>
+                          <input name="cat" placeholder="New category, e.g. Title Cards"
+                            className="flex-1 h-10 bg-zinc-950 border border-white/10 rounded-xl px-3 text-sm outline-none focus:border-[#FF7A1A]" />
+                          <Button variant="primary" size="sm" icon={<Plus size={13} />}>Add</Button>
+                        </form>
+                        <p className="text-[11px] text-zinc-500">Category changes go live when you press <b className="text-zinc-300">Save changes</b> at the top.</p>
+                      </div>
+                    )}
 
-                    return productFilterCat === "all" ? (
+                    <p className="text-[11px] text-zinc-500">
+                      {canDrag ? "Drag the grip handle (top-left of a card) to reorder — the shop shows products in this order. Tap Live / Draft to show or hide." : "Pick All and clear search to reorder."}
+                    </p>
+
+                    {/* Grid */}
+                    {canDrag ? (
                       <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleProductDragEnd}>
-                        <SortableContext items={storeProducts.map(p => p.id)} strategy={verticalListSortingStrategy}>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-                            {storeProducts.map((p) => (
+                        <SortableContext items={storeProducts.map(p => p.id)} strategy={rectSortingStrategy}>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 sm:gap-4">
+                            {addCard}
+                            {storeProducts.map(p => (
                               <SortableProductCard key={p.id} id={p.id}>
-                                {(drag) => renderProductCard(
+                                {(drag) => card(
                                   p,
                                   <button
                                     ref={drag.setActivatorNodeRef}
                                     {...drag.attributes}
                                     {...drag.listeners}
-                                    className="w-6 h-6 flex items-center justify-center bg-black/60 text-zinc-300 hover:text-white rounded-lg cursor-grab active:cursor-grabbing touch-none"
+                                    className="w-7 h-7 flex items-center justify-center bg-black/70 text-zinc-200 hover:text-white rounded-lg cursor-grab active:cursor-grabbing touch-none"
                                     title="Drag to reorder"
                                   >
-                                    <GripVertical size={12} />
+                                    <GripVertical size={14} />
                                   </button>
                                 )}
                               </SortableProductCard>
@@ -1521,23 +1604,16 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
                           </div>
                         </SortableContext>
                       </DndContext>
-                    ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-                        {visibleProducts.map((p) => <div key={p.id}>{renderProductCard(p)}</div>)}
+                    ) : visibleProducts.length > 0 ? (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 sm:gap-4">
+                        {visibleProducts.map(p => <div key={p.id}>{card(p)}</div>)}
                       </div>
-                    );
-                  })()}
-
-                  {storeProducts.length === 0 && (
-                    <EmptyState
-                      icon={<FolderEdit size={32} />}
-                      title="No products yet"
-                      description="Your digital store shelf is empty — add your first product to start selling."
-                    />
-                  )}
-
-                </div>
-              )}
+                    ) : (
+                      <EmptyState icon={<FolderEdit size={32} />} title="Nothing matches" description="Try another search or category." />
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* 3. COURSES MASTER LIST */}
               {activeTab === "courses" && (
@@ -1645,6 +1721,12 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
               {activeTab === "users" && (
                 <Card>
                   <AdminUsersPanel />
+                </Card>
+              )}
+
+              {activeTab === "bundles" && (
+                <Card>
+                  <AdminBundlesPanel />
                 </Card>
               )}
 

@@ -1,179 +1,261 @@
-import React from 'react';
-import { ArrowRight, Youtube, ShoppingBag, Briefcase, ExternalLink } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useStore, formatPrice, usePageEnabled } from '../src/lib/store';
-import { YOUTUBE, youtubeThumb, useYouTubeStats } from '../src/lib/site';
-import { ProductCard } from '../components/ProductCard';
-import { ServiceList } from '../components/ServiceList';
+import React, { useMemo, useState } from 'react';
+import { motion, type Variants } from 'framer-motion';
+import { ArrowRight, Youtube, Briefcase, Film, Bell } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { useStore, usePageEnabled, sortByPinned, getProductCategories, isCourseLive, formatPrice } from '../src/lib/store';
+import { YOUTUBE, useYouTubeStats, getWhatsAppLink } from '../src/lib/site';
+import { ProductCard, ProductMasonry } from '../components/ProductCard';
+import { BundleShowcase } from '../components/BundleShowcase';
+
+const EASE = [0.2, 0.8, 0.2, 1] as const;
+
+// Hero text: each line rises in, one after another.
+const rise: Variants = {
+  hidden: { opacity: 0, y: 26 },
+  show: (i: number) => ({ opacity: 1, y: 0, transition: { duration: 0.8, delay: 0.05 + i * 0.11, ease: EASE } }),
+};
+
+// Hero fan of real product art: flies up, settles in a fan, spreads on hover.
+const FAN = [
+  { r: -10, y: 30, s: 1, hx: -46 },
+  { r: -5, y: 8, s: 1, hx: -22 },
+  { r: 0, y: 0, s: 1.12, hx: 0 },
+  { r: 5, y: 8, s: 1, hx: 22 },
+  { r: 10, y: 30, s: 1, hx: 46 },
+];
+const fanCard: Variants = {
+  hidden: { opacity: 0, y: 120, rotate: 0, scale: 0.8, x: 0 },
+  rest: (i: number) => ({
+    opacity: 1, x: 0, y: FAN[i].y, rotate: FAN[i].r, scale: FAN[i].s,
+    transition: { duration: 1, delay: 0.55 + i * 0.09, ease: [0.2, 0.9, 0.2, 1] },
+  }),
+  spread: (i: number) => ({
+    opacity: 1, x: FAN[i].hx, y: FAN[i].y - 10, rotate: FAN[i].r, scale: FAN[i].s,
+    transition: { duration: 0.35, ease: EASE },
+  }),
+};
+
+const Pill: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <span className="text-[11px] sm:text-[13px] text-zinc-400 border border-white/[0.08] px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full whitespace-nowrap">
+    <span className="text-[#FF7A1A]">✓</span> {children}
+  </span>
+);
+
+const SectionHead: React.FC<{ title: string; sub?: string; to?: string; cta?: string }> = ({ title, sub, to, cta }) => (
+  <div className="flex items-end justify-between gap-4 mb-4 md:mb-6">
+    <div>
+      <h2 className="text-[22px] md:text-[28px] font-extrabold tracking-tight">{title}</h2>
+      {sub && <p className="text-zinc-500 text-[13px] md:text-sm mt-0.5">{sub}</p>}
+    </div>
+    {to && (
+      <Link to={to} className="shrink-0 text-[13px] md:text-sm text-zinc-400 hover:text-white flex items-center gap-1 whitespace-nowrap">
+        {cta || 'View all'} <ArrowRight size={14} />
+      </Link>
+    )}
+  </div>
+);
 
 export const Home: React.FC = () => {
-  const navigate = useNavigate();
-  const { store } = useStore();
+  const { store, loading } = useStore();
   const yt = useYouTubeStats();
   const isEnabled = usePageEnabled();
+  const [cat, setCat] = useState('all');
 
   const showProducts = isEnabled('products');
+  const showCourses = isEnabled('courses');
   const showServices = isEnabled('services');
+  const showPortfolio = isEnabled('portfolio');
   const showYoutube = isEnabled('youtube');
 
-  const products = showProducts ? (store?.products || []).filter(p => p.enabled) : [];
-  // Duplicate list so the marquee loops seamlessly
-  const marqueeItems = [...products, ...products];
+  const products = useMemo(
+    () => (showProducts ? sortByPinned((store?.products || []).filter(p => p.enabled)) : []),
+    [store, showProducts]
+  );
+  const categories = (store?.productCategories || []).filter(c => c.enabled && products.some(p => getProductCategories(p).includes(c.id)));
+  const hasFree = products.some(p => p.free);
+  const filtered = cat === 'all' ? products : cat === 'free' ? products.filter(p => p.free) : products.filter(p => getProductCategories(p).includes(cat));
+  const shown = filtered.slice(0, 12);
+
+  // Fan: featured/best-sellers first, 5 cards, centre card = strongest product.
+  const fanPicks = useMemo(() => {
+    const ranked = [...products].sort((a, b) => Number(!!b.featured || !!b.bestSeller) - Number(!!a.featured || !!a.bestSeller));
+    const top = ranked.slice(0, 5);
+    return top.length === 5 ? [top[3], top[1], top[0], top[2], top[4]] : top;
+  }, [products]);
+
+  const bundles = (store?.bundles || [])
+    .filter(b => b.enabled && b.productIds?.length)
+    .sort((a, b) => Number(!!b.featured) - Number(!!a.featured))
+    .slice(0, 2);
+
+  const courses = showCourses ? (store?.courses || []).filter(c => c.enabled).slice(0, 2) : [];
 
   return (
-    <div>
-      {/* ── Scrolling products strip (replaces old hero) ── */}
-      <section className="relative pt-6 pb-10 overflow-hidden">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-[#E50914]/10 rounded-full blur-[120px] pointer-events-none" />
+    <div className="px-4 md:px-6 pb-20 overflow-x-clip">
+      <div className="max-w-[1200px] mx-auto">
 
-        <div className="relative z-10 text-center mb-6 md:mb-8 px-6">
-          <div className="text-[10px] uppercase tracking-[0.25em] text-[#E50914] font-bold mb-2">Your Editor Friend</div>
-          <h1 className="text-lg md:text-3xl font-semibold tracking-tight">Editing products, courses &amp; services — all in one place</h1>
-        </div>
+        {/* ── HERO ── */}
+        <section className="text-center pt-8 md:pt-16 pb-6 md:pb-10">
+          <motion.span custom={0} variants={rise} initial="hidden" animate="show"
+            className="inline-block text-[11px] md:text-xs font-semibold tracking-[0.15em] text-[#FF7A1A] bg-[#FF7A1A]/[0.12] px-3.5 py-1.5 rounded-full">
+            MADE FOR TAMIL EDITORS
+          </motion.span>
+          <motion.h1 custom={1} variants={rise} initial="hidden" animate="show"
+            className="text-[clamp(32px,8.5vw,60px)] leading-[1.05] font-extrabold tracking-[-0.03em] mt-4 md:mt-5 mb-3">
+            Mass title cards.<br /><span className="text-[#FF7A1A]">Ready in minutes.</span>
+          </motion.h1>
+          <motion.p custom={2} variants={rise} initial="hidden" animate="show"
+            className="text-zinc-400 text-[15px] md:text-[17px] max-w-md mx-auto">
+            Tamil cinema-style templates for After Effects &amp; Premiere Pro.
+          </motion.p>
 
-        {/* Marquee */}
-        {products.length > 0 && (
-          <div className="relative">
-            <div className="flex gap-3 md:gap-5 w-max animate-[marquee_35s_linear_infinite] hover:[animation-play-state:paused]">
-              {marqueeItems.map((p, i) => (
-                <Link
-                  key={`${p.id}-${i}`}
-                  to={`/products/${p.id}`}
-                  className="group w-36 md:w-56 shrink-0 rounded-xl md:rounded-2xl border border-white/5 bg-zinc-900/60 overflow-hidden hover:border-white/20 transition-all"
-                >
-                  <div className="relative aspect-square overflow-hidden bg-zinc-950/60">
-                    <img src={p.image} alt={p.name} loading="lazy" decoding="async" className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" />
-                    <span className={`absolute top-2 right-2 text-[9px] font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full ${p.free ? 'bg-[#25D366] text-black' : 'bg-black/70 text-white border border-white/20'}`}>
-                      {p.free ? 'Free' : 'Paid'}
-                    </span>
-                  </div>
-                  <div className="p-3">
-                    <div className="text-xs md:text-sm font-semibold truncate">{p.name}</div>
-                    <div className={`text-xs font-bold mt-0.5 ${p.free ? 'text-[#25D366]' : 'text-[#E50914]'}`}>{formatPrice(p.price)}</div>
-                  </div>
-                </Link>
+          <motion.div custom={3} variants={rise} initial="hidden" animate="show"
+            className="flex gap-2.5 justify-center mt-6 md:mt-7 max-w-sm sm:max-w-none mx-auto">
+            <a href="#shop"
+              className="yef-shine flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 h-12 px-4 sm:px-6 rounded-xl bg-[#FF7A1A] text-black font-bold text-sm sm:text-[15px] whitespace-nowrap hover:brightness-110 active:scale-[.98] transition">
+              Browse templates <ArrowRight size={16} />
+            </a>
+            {hasFree && (
+              <a href="#shop" onClick={() => setCat('free')}
+                className="flex-1 sm:flex-none inline-flex items-center justify-center h-12 px-4 sm:px-6 rounded-xl border border-white/10 bg-[#131313] font-bold text-sm sm:text-[15px] whitespace-nowrap hover:border-white/25 transition">
+                Free packs
+              </a>
+            )}
+          </motion.div>
+
+          {showYoutube && (
+            <motion.div custom={4} variants={rise} initial="hidden" animate="show"
+              className="flex justify-center items-center gap-2 mt-5 text-[13px] text-zinc-500">
+              <img src={yt.avatar} alt="" referrerPolicy="no-referrer" className="w-6 h-6 rounded-full" />
+              <span>Trusted by <b className="text-white">{yt.subscribers}</b> editors on YouTube</span>
+            </motion.div>
+          )}
+
+          {/* Fan */}
+          {fanPicks.length >= 3 && (
+            <motion.div initial="hidden" animate="rest" whileHover="spread"
+              className="flex justify-center items-end h-[180px] sm:h-[220px] md:h-[250px] mt-8 md:mt-12 mx-auto max-w-[900px]">
+              {fanPicks.map((p, i) => (
+                <motion.div key={p.id} custom={fanPicks.length === 5 ? i : i + 1} variants={fanCard}
+                  className={`shrink-0 w-[30vw] max-w-[200px] -mx-[5vw] sm:-mx-6 rounded-xl md:rounded-2xl overflow-hidden border shadow-[0_20px_40px_rgba(0,0,0,.6)] ${
+                    (fanPicks.length === 5 ? i : i + 1) === 2 ? 'border-[#FF7A1A] z-10' : 'border-[#333]'
+                  } ${fanPicks.length === 5 && (i === 0 || i === 4) ? 'hidden sm:block' : ''}`}>
+                  <Link to={`/products/${p.id}`} className="block yef-float" style={{ animationDelay: `${i * -1.1}s` }}>
+                    <img src={p.image} alt={p.name} className="block w-full aspect-[4/5] object-cover" />
+                  </Link>
+                </motion.div>
+              ))}
+            </motion.div>
+          )}
+
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.2, duration: 0.7 }}
+            className="flex flex-wrap gap-1.5 sm:gap-2.5 justify-center mt-8 md:mt-10">
+            <Pill>Instant download</Pill><Pill>UPI / Card</Pill><Pill>Lifetime access</Pill><Pill>Secure checkout</Pill>
+          </motion.div>
+        </section>
+
+        {/* ── SHOP ── */}
+        {showProducts && (
+          <section id="shop" className="scroll-mt-28 pt-8 md:pt-12">
+            <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 md:mx-0 md:px-0 md:flex-wrap mb-4 md:mb-6">
+              {[{ id: 'all', label: 'All' }, ...categories, ...(hasFree ? [{ id: 'free', label: 'Free' }] : [])].map(c => (
+                <button key={c.id} onClick={() => setCat(c.id)}
+                  className={`shrink-0 whitespace-nowrap text-[13px] md:text-sm px-3.5 md:px-4 py-2 rounded-[10px] border transition ${
+                    cat === c.id ? 'bg-white text-black border-white font-semibold' : 'border-white/[0.08] text-zinc-400 hover:text-white hover:border-white/25'
+                  }`}>
+                  {c.label}
+                </button>
               ))}
             </div>
-            {/* Edge fades */}
-            <div className="pointer-events-none absolute inset-y-0 left-0 w-16 md:w-32 bg-gradient-to-r from-[#0A0A0A] to-transparent" />
-            <div className="pointer-events-none absolute inset-y-0 right-0 w-16 md:w-32 bg-gradient-to-l from-[#0A0A0A] to-transparent" />
+
+            {loading ? (
+              <div className="text-center text-zinc-600 py-16">Loading…</div>
+            ) : shown.length === 0 ? (
+              <div className="text-center text-zinc-600 py-16 border border-dashed border-white/10 rounded-2xl">Nothing here yet.</div>
+            ) : (
+              <ProductMasonry>
+                {shown.map((p, i) => <ProductCard key={p.id} product={p} index={i} />)}
+              </ProductMasonry>
+            )}
+
+            {filtered.length > shown.length && (
+              <div className="text-center mt-4">
+                <Link to="/products" className="inline-flex items-center gap-1.5 h-11 px-5 rounded-xl border border-white/10 bg-[#131313] text-sm font-semibold hover:border-white/25">
+                  See all {filtered.length} <ArrowRight size={14} />
+                </Link>
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* ── BUNDLES ── */}
+        {store && bundles.length > 0 && (
+          <div className="mt-16 md:mt-24 space-y-8">
+            {bundles.map(b => <BundleShowcase key={b.id} bundle={b} store={store} />)}
           </div>
         )}
 
-        {/* CTA buttons */}
-        <div className="relative z-10 flex flex-row items-center justify-center gap-2.5 md:gap-4 mt-8 md:mt-10 px-4">
-          {showProducts && (
-            <button
-              onClick={() => navigate('/products')}
-              className="bg-[#E50914] hover:bg-red-700 text-white px-5 md:px-10 py-3 md:py-4 rounded-full text-xs md:text-base font-medium flex items-center justify-center gap-1.5 md:gap-2 transition-all transform hover:scale-105 active:scale-95 shadow-xl shadow-red-900/10"
-            >
-              <ShoppingBag size={16} /> Explore Products
-            </button>
-          )}
-          {showServices && (
-            <button
-              onClick={() => navigate('/services')}
-              className="bg-white text-black hover:bg-zinc-200 px-5 md:px-10 py-3 md:py-4 rounded-full text-xs md:text-base font-medium flex items-center justify-center gap-1.5 md:gap-2 transition-all transform hover:scale-105 active:scale-95"
-            >
-              <Briefcase size={16} /> Get My Services
-            </button>
-          )}
-        </div>
-      </section>
-
-      {/* ── Products (top) ── */}
-      {showProducts && (
-      <section className="py-10 md:py-16 px-4 md:px-6 bg-[#080808]">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-end justify-between mb-6 md:mb-10">
-            <div>
-              <div className="text-[10px] uppercase tracking-[0.25em] text-[#E50914] font-bold mb-2">Digital Products</div>
-              <h2 className="text-2xl md:text-4xl font-semibold tracking-tight">Featured Products</h2>
+        {/* ── COURSES ── */}
+        {courses.length > 0 && (
+          <section className="mt-16 md:mt-24">
+            <SectionHead title="Courses" sub="Learn the full workflow, in Tamil." to="/courses" />
+            <div className="grid sm:grid-cols-2 gap-3 md:gap-5">
+              {courses.map((c, i) => {
+                const live = isCourseLive(c);
+                return (
+                  <motion.div key={c.id}
+                    initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+                    transition={{ duration: 0.6, delay: i * 0.1, ease: EASE }}
+                    className="flex items-center gap-3 md:gap-4 rounded-2xl border border-white/[0.08] bg-[#131313] p-3 md:p-4">
+                    <img src={c.thumbnail} alt="" className="w-24 md:w-32 aspect-video object-cover rounded-lg shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      {!live && <span className="text-[10px] font-bold tracking-wide text-zinc-400 border border-zinc-600 px-1.5 py-0.5 rounded">COMING SOON</span>}
+                      <h3 className="text-[15px] md:text-base font-bold leading-snug mt-1 line-clamp-2">{c.title}</h3>
+                      {live && <div className="text-sm font-extrabold mt-0.5">{formatPrice(c.price)}</div>}
+                    </div>
+                    {live ? (
+                      <Link to={`/courses/${c.id}`} className="shrink-0 text-[13px] font-bold text-[#FF7A1A] whitespace-nowrap">View →</Link>
+                    ) : (
+                      <a href={getWhatsAppLink(`Hi Janish! Notify me when "${c.title}" launches.`)} target="_blank" rel="noopener noreferrer"
+                        className="shrink-0 inline-flex items-center gap-1 text-[12px] md:text-[13px] font-bold px-3 py-2 rounded-lg border border-[#FF7A1A] text-[#FF7A1A] whitespace-nowrap">
+                        <Bell size={13} /> Notify me
+                      </a>
+                    )}
+                  </motion.div>
+                );
+              })}
             </div>
-            <Link to="/products" className="text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-1 whitespace-nowrap">
-              View all <ArrowRight size={14} />
-            </Link>
-          </div>
+          </section>
+        )}
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
-            {products.filter(p => p.featured).slice(0, 4).map((p, i) => (
-              <ProductCard key={p.id} product={p} index={i} />
-            ))}
-          </div>
-        </div>
-      </section>
-      )}
-
-      {/* ── Services (below products) ── */}
-      {showServices && (
-      <section className="py-10 md:py-16 px-4 md:px-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-end justify-between mb-6 md:mb-10">
-            <div>
-              <div className="text-[10px] uppercase tracking-[0.25em] text-[#E50914] font-bold mb-2">Freelance Editing</div>
-              <h2 className="text-2xl md:text-4xl font-semibold tracking-tight">My Services</h2>
-            </div>
-            <Link to="/services" className="text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-1 whitespace-nowrap">
-              All services <ArrowRight size={14} />
-            </Link>
-          </div>
-
-          <ServiceList to="/services" />
-        </div>
-      </section>
-      )}
-
-      {/* ── YouTube Channel Banner ── */}
-      {showYoutube && (
-      <section className="py-10 md:py-16 px-4 md:px-6 bg-[#080808]">
-        <div className="max-w-7xl mx-auto">
-          <div className="rounded-3xl border border-white/5 bg-gradient-to-br from-zinc-900/80 to-[#1a0505] overflow-hidden">
-            <div className="p-8 md:p-12 flex flex-col md:flex-row items-center gap-8">
-              <img
-                src={yt.avatar}
-                alt="Your Editor Friend YouTube channel"
-                referrerPolicy="no-referrer"
-                className="w-24 h-24 md:w-32 md:h-32 rounded-full border-4 border-[#E50914]/30"
-              />
-              <div className="flex-1 text-center md:text-left">
-                <div className="text-[10px] uppercase tracking-[0.25em] text-[#E50914] font-bold mb-2 flex items-center justify-center md:justify-start gap-2">
-                  <Youtube size={14} /> YouTube Channel
-                </div>
-                <h2 className="text-2xl md:text-3xl font-semibold tracking-tight mb-2">Your Editor Friend</h2>
-                <p className="text-zinc-400 font-light text-sm md:text-base mb-4">
-                  {yt.subscribers} subscribers · {yt.videoCount} videos — Tamil video editing tutorials, tips &amp; breakdowns.
-                </p>
-                <a
-                  href={`${YOUTUBE.url}?sub_confirmation=1`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 bg-[#E50914] hover:bg-red-700 text-white px-8 py-3 rounded-full text-sm font-semibold transition-all"
-                >
-                  <Youtube size={16} /> Subscribe
-                </a>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-px bg-white/5">
-              {yt.latestVideoIds.slice(0, 3).map(id => (
-                <a
-                  key={id}
-                  href={`https://www.youtube.com/watch?v=${id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="group relative aspect-video overflow-hidden bg-black"
-                >
-                  <img src={youtubeThumb(id)} alt="Latest video" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500" />
-                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <div className="bg-black/60 rounded-full p-3"><ExternalLink size={18} /></div>
-                  </div>
-                </a>
-              ))}
+        {/* ── CREATOR STRIP (portfolio / YouTube / services live here, secondary) ── */}
+        <motion.section
+          initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.7, ease: EASE }}
+          className="mt-16 md:mt-24 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-5 border-y border-white/[0.08] py-6 md:py-7">
+          <div className="flex items-center gap-4 flex-1 min-w-0">
+            <img src={yt.avatar} alt="Janish" referrerPolicy="no-referrer" className="w-14 h-14 md:w-16 md:h-16 rounded-full shrink-0" />
+            <div className="min-w-0">
+              <h3 className="text-base md:text-lg font-bold">Made by Janish — Your Editor Friend</h3>
+              <p className="text-zinc-500 text-[13px] md:text-sm">{yt.subscribers} on YouTube · Tamil editing tutorials</p>
             </div>
           </div>
-        </div>
-      </section>
-      )}
+          <div className="grid grid-cols-3 sm:flex gap-2">
+            {showPortfolio && (
+              <Link to="/portfolio" className="inline-flex items-center justify-center gap-1.5 h-10 md:h-11 px-3 md:px-4 rounded-xl border border-white/10 bg-[#131313] text-[13px] font-semibold whitespace-nowrap hover:border-white/25">
+                <Film size={14} /> Portfolio
+              </Link>
+            )}
+            <a href={YOUTUBE.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-1.5 h-10 md:h-11 px-3 md:px-4 rounded-xl border border-white/10 bg-[#131313] text-[13px] font-semibold whitespace-nowrap hover:border-white/25">
+              <Youtube size={14} /> YouTube
+            </a>
+            {showServices && (
+              <Link to="/services" className="inline-flex items-center justify-center gap-1.5 h-10 md:h-11 px-3 md:px-4 rounded-xl border border-white/10 bg-[#131313] text-[13px] font-semibold whitespace-nowrap hover:border-white/25">
+                <Briefcase size={14} /> Hire me
+              </Link>
+            )}
+          </div>
+        </motion.section>
+      </div>
     </div>
   );
 };

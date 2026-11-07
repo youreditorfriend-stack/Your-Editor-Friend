@@ -8,7 +8,7 @@ export function fireSuccessConfetti() {
   if (typeof window === "undefined") return;
   if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
 
-  const colors = ["#E50914", "#25D366", "#ffffff", "#facc15"];
+  const colors = ["#FF7A1A", "#25D366", "#ffffff", "#facc15"];
 
   // Center celebratory burst
   confetti({

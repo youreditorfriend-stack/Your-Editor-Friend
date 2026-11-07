@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { db } from "../firebase";
 import { arrayRemove, arrayUnion, collection, doc, getDoc, getDocs, setDoc, updateDoc } from "firebase/firestore";
-import { DEFAULT_CHECKOUT_HELP, SEED_STORE, StoreData, Product, Course, ProductCategory, PageConfig, Coupon, mergePages, netAfterFees } from "../lib/store";
+import { DEFAULT_CHECKOUT_HELP, SEED_STORE, StoreData, Product, Course, ProductCategory, PageConfig, Coupon, Bundle, mergePages, netAfterFees } from "../lib/store";
 import { adminAuthBody } from "../lib/adminAuth";
 import { ImageField } from "./ImageField";
 import { FileField } from "./FileField";
@@ -43,6 +43,7 @@ function useAdminStore() {
             productCategories: d.productCategories || SEED_STORE.productCategories,
             pages: mergePages(d.pages),
             coupons: Array.isArray(d.coupons) ? d.coupons : [],
+            bundles: Array.isArray(d.bundles) ? d.bundles : [],
             checkoutHelp: { ...DEFAULT_CHECKOUT_HELP, ...(d.checkoutHelp || {}) },
           });
         } else {
@@ -59,7 +60,8 @@ function useAdminStore() {
   const save = async () => {
     if (!data) return;
     try {
-      await setDoc(doc(db, "store", "data"), data);
+      // merge: never wipe top-level fields another panel owns (e.g. bundles)
+      await setDoc(doc(db, "store", "data"), data, { merge: true });
       toast.success("Store changes saved live");
     } catch (e) {
       console.error(e);
@@ -92,7 +94,7 @@ function PanelLoading() {
 function PageTitle({ children, accent }: { children: React.ReactNode; accent: React.ReactNode }) {
   return (
     <h1 className="text-2xl font-bold tracking-tight mb-1">
-      {children} <span className="text-[#E50914]">{accent}</span>
+      {children} <span className="text-[#FF7A1A]">{accent}</span>
     </h1>
   );
 }
@@ -226,7 +228,7 @@ function DetailFieldsEditor<T extends DetailContent & { id: string }>({
 
   return (
     <div className="mt-4 pt-4 border-t border-white/[0.05] space-y-4">
-      <div className="text-[#E50914] text-[10px] font-bold tracking-widest uppercase">Detail page content</div>
+      <div className="text-[#FF7A1A] text-[10px] font-bold tracking-widest uppercase">Detail page content</div>
 
       {/* Preview video URL */}
       <Field label="Preview video URL (optional)">
@@ -238,7 +240,7 @@ function DetailFieldsEditor<T extends DetailContent & { id: string }>({
         />
         {desc && <div className="text-[#25D366] text-[11px] mt-1">✓ Detected: {desc}</div>}
         {item.previewVideo && !desc && (
-          <div className="text-[#E50914] text-[11px] mt-1">⚠ Not a recognised YouTube / Instagram / video-file URL</div>
+          <div className="text-[#FF7A1A] text-[11px] mt-1">⚠ Not a recognised YouTube / Instagram / video-file URL</div>
         )}
       </Field>
 
@@ -911,7 +913,7 @@ export function AdminUsersPanel() {
             <div key={u.uid} className="bg-zinc-950/50 border border-white/5 rounded-2xl p-3.5">
               <div className="flex items-center gap-3">
                 {u.photo
-                  ? <img src={u.photo} alt="" referrerPolicy="no-referrer" className="w-10 h-10 rounded-full border-2 border-[#E50914]/40 shrink-0" />
+                  ? <img src={u.photo} alt="" referrerPolicy="no-referrer" className="w-10 h-10 rounded-full border-2 border-[#FF7A1A]/40 shrink-0" />
                   : <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center shrink-0"><UserCircle2 size={20} className="text-zinc-500" /></div>}
                 <div className="flex-1 min-w-0">
                   <div className="font-bold text-white text-sm truncate">{u.name || "(no name)"}</div>
@@ -965,6 +967,203 @@ export function AdminUsersPanel() {
           })}
         </div>
       </Card>
+    </div>
+  );
+}
+
+// ═══ BUNDLE BUILDER ════════════════════════════════════════════════════════════
+// Pick products → name it → set a price (quick "% off" buttons) → live preview.
+// Bundle ids never change after creation: purchases are stored by id.
+const BUNDLE_FAN: [number, number, number][] = [[-30, -4, -10], [30, -4, 10], [-10, 3, -3], [10, 6, 3]];
+
+function BundlePreview({ name, items, price }: { name: string; items: Product[]; price: number }) {
+  const value = items.reduce((s, p) => s + (p.price || 0), 0);
+  const save = value > price ? Math.round(((value - price) / value) * 100) : 0;
+  return (
+    <div className="rounded-2xl overflow-hidden border border-white/10 border-t-[3px] border-t-[#FF7A1A] bg-[#131313]">
+      <div className="relative h-48 bg-[#0e0e0e] grid place-items-center overflow-hidden">
+        {items.length === 0 && <span className="text-zinc-600 text-xs">Pick products to see the preview</span>}
+        {items.slice(0, 4).map((p, i) => {
+          const [x, y, r] = BUNDLE_FAN[i];
+          return (
+            <div key={p.id} className="absolute w-[38%] rounded-lg overflow-hidden border border-[#333] shadow-xl transition-all duration-500"
+              style={{ transform: `translate(${x}%, ${y}%) rotate(${r}deg)`, zIndex: i === 3 ? 2 : 1 }}>
+              <img src={p.image} alt="" className="block w-full aspect-[4/5] object-cover" />
+            </div>
+          );
+        })}
+        {items.length > 0 && <span className="absolute top-3 left-3 bg-[#FF7A1A] text-black text-[11px] font-extrabold px-2.5 py-1 rounded-full">{items.length} in 1</span>}
+      </div>
+      <div className="p-4">
+        <div className="font-extrabold text-lg leading-tight truncate">{name || "Untitled bundle"}</div>
+        <div className="flex items-end justify-between mt-3">
+          <div>
+            {value > price && <div className="text-[11px] text-zinc-500">Separately <s>₹{value.toLocaleString("en-IN")}</s></div>}
+            <div className="text-2xl font-extrabold">₹{(price || 0).toLocaleString("en-IN")}</div>
+          </div>
+          {save > 0 && <span className="text-[11px] font-extrabold text-black bg-[#FF7A1A] px-2 py-1 rounded-md">SAVE {save}%</span>}
+        </div>
+        <div className="mt-3 h-10 rounded-lg bg-[#FF7A1A] text-black font-bold text-sm grid place-items-center">Get all {items.length} — ₹{(price || 0).toLocaleString("en-IN")}</div>
+      </div>
+    </div>
+  );
+}
+
+export function AdminBundlesPanel() {
+  const { data, setData, save } = useAdminStore();
+  const confirmDialog = useConfirm();
+  const [selId, setSelId] = useState<string | null>(null);
+  const [q, setQ] = useState("");
+  if (!data) return <PanelLoading />;
+
+  const bundles = data.bundles || [];
+  const products = (data.products || []).filter(p => !p.free);
+  const setBundles = (bs: Bundle[]) => setData({ ...data, bundles: bs });
+  const sel = bundles.find(b => b.id === selId) || bundles[0] || null;
+  const up = (ch: Partial<Bundle>) => sel && setBundles(bundles.map(b => (b.id === sel.id ? { ...b, ...ch } : b)));
+
+  const create = () => {
+    const nb: Bundle = { id: `bundle-${Date.now().toString(36)}`, name: "New bundle", productIds: [], price: 0, enabled: false };
+    setBundles([nb, ...bundles]);
+    setSelId(nb.id);
+  };
+
+  const items = sel ? sel.productIds.map(id => data.products.find(p => p.id === id)).filter((p): p is Product => !!p) : [];
+  const value = items.reduce((s, p) => s + (p.price || 0), 0);
+  const toggle = (id: string) => {
+    if (!sel) return;
+    const has = sel.productIds.includes(id);
+    up({ productIds: has ? sel.productIds.filter(x => x !== id) : [...sel.productIds, id] });
+  };
+  const visible = products.filter(p => p.name.toLowerCase().includes(q.toLowerCase()));
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <PageTitle accent="Builder">Bundle</PageTitle>
+        <p className="text-zinc-500 text-xs max-w-xl leading-relaxed">
+          Pick products, name it, set a price. Buyers get every product in the bundle in My Library. Turn on "Live" and save to show it on the site.
+        </p>
+      </div>
+      <SaveBar onSave={save} />
+
+      {/* Bundle list */}
+      <div className="flex gap-3 overflow-x-auto pb-1">
+        <button onClick={create}
+          className="shrink-0 w-40 h-24 rounded-2xl border-2 border-dashed border-white/15 text-zinc-400 hover:text-white hover:border-[#FF7A1A] flex flex-col items-center justify-center gap-1 text-sm font-semibold transition">
+          <Plus size={18} /> New bundle
+        </button>
+        {bundles.map(b => {
+          const thumbs = b.productIds.slice(0, 3).map(id => data.products.find(p => p.id === id)?.image).filter(Boolean) as string[];
+          const active = sel?.id === b.id;
+          return (
+            <button key={b.id} onClick={() => setSelId(b.id)}
+              className={`shrink-0 w-56 h-24 rounded-2xl border p-3 text-left flex gap-3 items-center transition ${active ? "border-[#FF7A1A] bg-[#FF7A1A]/[0.06]" : "border-white/10 bg-zinc-950/50 hover:border-white/25"}`}>
+              <div className="relative w-14 h-16 shrink-0">
+                {thumbs.length === 0 && <div className="w-full h-full rounded-lg bg-white/5 grid place-items-center"><Package size={18} className="text-zinc-600" /></div>}
+                {thumbs.map((t, i) => (
+                  <img key={i} src={t} alt="" className="absolute w-10 h-12 object-cover rounded-md border border-black" style={{ left: i * 7, top: i * 3, transform: `rotate(${(i - 1) * 6}deg)` }} />
+                ))}
+              </div>
+              <div className="min-w-0">
+                <div className="text-sm font-bold truncate">{b.name || "Untitled"}</div>
+                <div className="text-xs text-zinc-500">{b.productIds.length} items · ₹{(b.price || 0).toLocaleString("en-IN")}</div>
+                <div className={`text-[10px] font-bold mt-1 ${b.enabled ? "text-[#25D366]" : "text-zinc-500"}`}>{b.enabled ? "● LIVE" : "○ DRAFT"}</div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {!sel ? (
+        <Card><EmptyState icon={<Package size={28} />} title="No bundles yet" description="Click New bundle to combine products into one deal." /></Card>
+      ) : (
+        <div className="grid lg:grid-cols-[1fr_320px] gap-5 items-start">
+          <div className="space-y-5">
+            {/* Step 1 */}
+            <Card>
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <div className="text-sm font-bold"><span className="text-[#FF7A1A]">1.</span> Pick products <span className="text-zinc-500 font-normal">({sel.productIds.length} selected)</span></div>
+                <div className="relative w-44">
+                  <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500" />
+                  <Input value={q} onChange={e => setQ(e.target.value)} placeholder="Search" className="pl-7" />
+                </div>
+              </div>
+              {products.length === 0 && <p className="text-zinc-500 text-xs">Add some paid products first.</p>}
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2.5">
+                {visible.map(p => {
+                  const idx = sel.productIds.indexOf(p.id);
+                  const on = idx >= 0;
+                  return (
+                    <button key={p.id} onClick={() => toggle(p.id)}
+                      className={`relative text-left rounded-xl overflow-hidden border-2 transition ${on ? "border-[#FF7A1A] scale-[0.97]" : "border-transparent hover:border-white/20"}`}>
+                      <img src={p.image} alt="" className={`block w-full aspect-square object-cover transition ${on ? "" : "opacity-70"}`} />
+                      {on && <span className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-[#FF7A1A] text-black text-xs font-extrabold grid place-items-center">{idx + 1}</span>}
+                      <div className="px-2 py-1.5 bg-zinc-950">
+                        <div className="text-[11px] font-semibold truncate">{p.name}</div>
+                        <div className="text-[10px] text-zinc-500">₹{p.price.toLocaleString("en-IN")}</div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </Card>
+
+            {/* Step 2 */}
+            <Card>
+              <div className="text-sm font-bold mb-3"><span className="text-[#FF7A1A]">2.</span> Name &amp; price</div>
+              <div className="grid sm:grid-cols-2 gap-3">
+                <Field label="Bundle name"><Input value={sel.name} onChange={e => up({ name: e.target.value })} placeholder="Tamil Title Card Pack" /></Field>
+                <Field label="Short line (optional)"><Input value={sel.tagline || ""} onChange={e => up({ tagline: e.target.value })} placeholder="4 movie title cards, one download" /></Field>
+              </div>
+              <div className="mt-4 rounded-xl bg-zinc-950/60 border border-white/5 p-3.5">
+                <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-400 mb-3">
+                  Separately <b className="text-white">₹{value.toLocaleString("en-IN")}</b> · quick price:
+                  {[30, 40, 50, 60].map(pct => (
+                    <button key={pct} disabled={!value} onClick={() => up({ price: Math.round((value * (100 - pct)) / 100 / 10) * 10 - 1 })}
+                      className="px-2.5 py-1 rounded-full border border-[#FF7A1A]/50 text-[#FF7A1A] font-bold hover:bg-[#FF7A1A] hover:text-black disabled:opacity-30 transition">
+                      {pct}% off
+                    </button>
+                  ))}
+                </div>
+                <Field label="Bundle price (₹)">
+                  <Input type="number" min={1} value={sel.price || ""} onChange={e => up({ price: Math.max(0, Number(e.target.value)) })} placeholder="449" />
+                </Field>
+                {sel.price > 0 && value > 0 && sel.price >= value && (
+                  <p className="text-amber-400 text-[11px] mt-2">Price is not lower than buying separately — buyers won't see a saving.</p>
+                )}
+              </div>
+            </Card>
+
+            {/* Step 3 */}
+            <Card>
+              <div className="text-sm font-bold mb-3"><span className="text-[#FF7A1A]">3.</span> Go live</div>
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+                <label className="flex items-center gap-2 text-zinc-400 text-xs font-bold">LIVE ON SITE <Toggle value={sel.enabled} onChange={v => up({ enabled: v })} /></label>
+                <label className="flex items-center gap-2 text-zinc-400 text-xs font-bold">SHOW FIRST ON HOME <Toggle value={!!sel.featured} onChange={v => up({ featured: v })} /></label>
+                <div className="flex-1" />
+                <Button size="sm" variant="danger" icon={<Trash2 size={12} />}
+                  onClick={async () => {
+                    if (await confirmDialog({ title: `Delete "${sel.name}"?`, description: "People who already bought it keep their products.", danger: true, confirmLabel: "Delete" })) {
+                      setBundles(bundles.filter(b => b.id !== sel.id));
+                      setSelId(null);
+                    }
+                  }}>Delete</Button>
+              </div>
+              {sel.enabled && (sel.productIds.length < 2 || !sel.price) && (
+                <p className="text-amber-400 text-[11px] mt-3">Add at least 2 products and a price before going live.</p>
+              )}
+            </Card>
+          </div>
+
+          {/* Live preview */}
+          <div className="lg:sticky lg:top-4 space-y-2">
+            <div className="text-[11px] font-bold tracking-widest text-zinc-500">LIVE PREVIEW</div>
+            <BundlePreview name={sel.name} items={items} price={sel.price} />
+            <p className="text-zinc-600 text-[11px]">Remember to click Save Store Changes.</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

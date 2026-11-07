@@ -11,7 +11,7 @@ export const About: React.FC = () => {
       <div className="max-w-6xl mx-auto">
         {/* Page header */}
         <div className="text-center py-8 md:py-24">
-          <div className="text-[10px] uppercase tracking-[0.25em] text-[#E50914] font-bold mb-3">About</div>
+          <div className="text-[10px] uppercase tracking-[0.25em] text-[#FF7A1A] font-bold mb-3">About</div>
           <h1 className="text-2xl md:text-5xl font-semibold tracking-tight mb-3 md:mb-4">Hi, I'm Janish Prabu 👋</h1>
           <p className="text-zinc-400 max-w-2xl mx-auto font-light leading-relaxed">
             Founder of <span className="text-white">Your Editor Friend</span> — a YouTuber teaching video editing in Tamil,
@@ -34,7 +34,7 @@ export const About: React.FC = () => {
               transition={{ duration: 0.5, delay: i * 0.1 }}
               className="rounded-2xl border border-white/5 bg-zinc-900/50 p-6 text-center"
             >
-              <div className="text-[#E50914] flex justify-center mb-3">{s.icon}</div>
+              <div className="text-[#FF7A1A] flex justify-center mb-3">{s.icon}</div>
               <div className="text-2xl font-bold">{s.value}</div>
               <div className="text-zinc-500 text-xs uppercase tracking-widest mt-1">{s.label}</div>
             </motion.div>
@@ -45,7 +45,7 @@ export const About: React.FC = () => {
         <div className="mb-16">
           <div className="flex items-center justify-between mb-8">
             <h2 className="text-2xl md:text-3xl font-semibold tracking-tight flex items-center gap-3">
-              <Youtube className="text-[#E50914]" /> Latest Videos
+              <Youtube className="text-[#FF7A1A]" /> Latest Videos
             </h2>
             <a
               href={YOUTUBE.url}
@@ -86,7 +86,7 @@ export const About: React.FC = () => {
 
         {/* Subscribe CTA */}
         <div className="text-center rounded-3xl border border-white/5 bg-gradient-to-br from-zinc-900/80 to-[#1a0505] py-14 px-6">
-          <img src={yt.avatar} alt="Channel avatar" referrerPolicy="no-referrer" className="w-20 h-20 rounded-full border-4 border-[#E50914]/30 mx-auto mb-6" />
+          <img src={yt.avatar} alt="Channel avatar" referrerPolicy="no-referrer" className="w-20 h-20 rounded-full border-4 border-[#FF7A1A]/30 mx-auto mb-6" />
           <h2 className="text-2xl md:text-3xl font-semibold mb-3">Learn editing with me — free</h2>
           <p className="text-zinc-400 font-light mb-8 max-w-xl mx-auto">
             New Tamil editing tutorials every week. Join {yt.subscribers}+ creators leveling up their edits.
@@ -95,7 +95,7 @@ export const About: React.FC = () => {
             href={`${YOUTUBE.url}?sub_confirmation=1`}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 bg-[#E50914] hover:bg-red-700 text-white px-10 py-4 rounded-full text-base font-semibold transition-all transform hover:scale-105"
+            className="inline-flex items-center gap-2 bg-[#FF7A1A] hover:brightness-110 text-black px-10 py-4 rounded-full text-base font-semibold transition-all transform hover:scale-105"
           >
             <Youtube size={20} /> Subscribe on YouTube
           </a>

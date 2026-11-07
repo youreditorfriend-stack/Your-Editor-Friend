@@ -42,7 +42,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({ open, onClose }) => 
             <div className="relative px-8 pt-8 pb-6 border-b border-white/5">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-[10px] uppercase tracking-[0.25em] text-[#E50914] font-bold mb-1">Let's Work Together</div>
+                  <div className="text-[10px] uppercase tracking-[0.25em] text-[#FF7A1A] font-bold mb-1">Let's Work Together</div>
                   <h3 className="text-2xl font-black tracking-tight text-white">Start Your Project</h3>
                 </div>
                 <button onClick={onClose} className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 transition-all">
@@ -52,7 +52,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({ open, onClose }) => 
               {/* Step indicator */}
               <div className="flex gap-2 mt-5">
                 {[0, 1, 2, 3].map(i => (
-                  <div key={i} className={`h-1 flex-1 rounded-full transition-all duration-300 ${i <= step ? 'bg-[#E50914]' : 'bg-white/10'}`} />
+                  <div key={i} className={`h-1 flex-1 rounded-full transition-all duration-300 ${i <= step ? 'bg-[#FF7A1A]' : 'bg-white/10'}`} />
                 ))}
               </div>
             </div>
@@ -60,7 +60,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({ open, onClose }) => 
             {/* Step 0 — Name */}
             {step === 0 && (
               <motion.div key="step0" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="px-8 py-8">
-                <div className="w-14 h-14 rounded-2xl bg-[#E50914]/10 border border-[#E50914]/20 flex items-center justify-center mb-6">
+                <div className="w-14 h-14 rounded-2xl bg-[#FF7A1A]/10 border border-[#FF7A1A]/20 flex items-center justify-center mb-6">
                   <span className="text-2xl">👋</span>
                 </div>
                 <label className="block text-[10px] uppercase tracking-[0.2em] text-zinc-500 font-bold mb-3">Your Name *</label>
@@ -71,12 +71,12 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({ open, onClose }) => 
                   value={form.name}
                   onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                   onKeyDown={e => { if (e.key === 'Enter' && form.name.trim()) setStep(1); }}
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white text-base outline-none focus:border-[#E50914] transition-all placeholder:text-zinc-700"
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white text-base outline-none focus:border-[#FF7A1A] transition-all placeholder:text-zinc-700"
                 />
                 <button
                   onClick={() => { if (form.name.trim()) setStep(1); }}
                   disabled={!form.name.trim()}
-                  className="mt-6 w-full bg-[#E50914] disabled:opacity-30 disabled:cursor-not-allowed hover:bg-red-700 text-white py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  className="mt-6 w-full bg-[#FF7A1A] disabled:opacity-30 disabled:cursor-not-allowed hover:brightness-110 text-black py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 transition-all cursor-pointer"
                 >
                   Continue <ArrowRight size={18} />
                 </button>
@@ -107,12 +107,12 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({ open, onClose }) => 
                       onClick={() => setForm(f => ({ ...f, service: s }))}
                       className={`w-full text-left px-4 py-3 rounded-xl border text-xs font-semibold transition-all flex items-center justify-between ${
                         form.service === s 
-                          ? "bg-[#E50914]/15 border-[#E50914] text-white" 
+                          ? "bg-[#FF7A1A]/15 border-[#FF7A1A] text-white" 
                           : "bg-white/5 border-white/10 text-zinc-400 hover:border-white/25 hover:text-white"
                       }`}
                     >
                       <span>{s}</span>
-                      {form.service === s && <span className="text-[#E50914]">✓</span>}
+                      {form.service === s && <span className="text-[#FF7A1A]">✓</span>}
                     </button>
                   ))}
                 </div>
@@ -124,7 +124,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({ open, onClose }) => 
                   <button 
                     onClick={() => { if (form.service) setStep(2); }} 
                     disabled={!form.service}
-                    className="flex-[2] bg-[#E50914] hover:bg-red-700 disabled:opacity-30 disabled:cursor-not-allowed text-white py-3.5 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all cursor-pointer"
+                    className="flex-[2] bg-[#FF7A1A] hover:brightness-110 disabled:opacity-30 disabled:cursor-not-allowed text-black py-3.5 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all cursor-pointer"
                   >
                     Continue <ArrowRight size={16} />
                   </button>

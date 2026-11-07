@@ -8,10 +8,11 @@ import { parseVideo } from "../src/lib/video";
 import { renderMarkdown } from "../src/lib/markdown";
 import { PurchaseCard } from "../components/PurchaseCard";
 import { FaqAccordion } from "../components/FaqAccordion";
-import { ProductCard } from "../components/ProductCard";
+import { ProductCard, ProductMasonry } from "../components/ProductCard";
 import { useDetailContext } from "../components/Layout";
 import { CommentsSection } from "../src/components/CommentsSection";
 import { ReviewsSection } from "../components/ReviewsSection";
+import { PromptKitViewer } from "../components/PromptKitViewer";
 
 type Kind = "product" | "course";
 
@@ -96,6 +97,9 @@ export const ItemDetail: React.FC<{ kind: Kind }> = ({ kind }) => {
           <ArrowLeft size={15} /> {backLabel}
         </button>
 
+        {/* Prompt kit products: PSD files → layers → prompts viewer on top */}
+        {kind === "product" && (item as Product).promptKit && <PromptKitViewer product={item as Product} />}
+
         <div className="lg:grid lg:grid-cols-[1fr_380px] lg:gap-10 xl:gap-14">
           {/* ── Left column ─────────────────────────────────────────────── */}
           <div className="min-w-0">
@@ -135,7 +139,7 @@ export const ItemDetail: React.FC<{ kind: Kind }> = ({ kind }) => {
                   </div>
                 )}
                 {item.badge && (
-                  <span className="absolute top-3 left-3 bg-[#E50914] text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full z-10 shadow-lg">
+                  <span className="absolute top-3 left-3 bg-[#FF7A1A] text-black text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full z-10 shadow-lg">
                     {item.badge}
                   </span>
                 )}
@@ -147,7 +151,7 @@ export const ItemDetail: React.FC<{ kind: Kind }> = ({ kind }) => {
 
             {/* Title + tagline */}
             <div className="mt-6">
-              <div className="text-[10px] uppercase tracking-[0.25em] text-[#E50914] font-bold mb-2">
+              <div className="text-[10px] uppercase tracking-[0.25em] text-[#FF7A1A] font-bold mb-2">
                 {kind === "product" ? "Digital product" : "Course"}
               </div>
               <h1 className="text-2xl md:text-4xl font-semibold tracking-tight text-white leading-tight">{title}</h1>
@@ -215,11 +219,11 @@ export const ItemDetail: React.FC<{ kind: Kind }> = ({ kind }) => {
                 <div className="flex items-end justify-between mb-6">
                   <h2 className="text-xl md:text-2xl font-semibold text-white">You might also like</h2>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6">
+                <ProductMasonry>
                   {(similar as Product[]).map((s, i) => (
                     <ProductCard key={s.id} product={s} index={i} />
                   ))}
-                </div>
+                </ProductMasonry>
               </div>
             )}
 
@@ -239,7 +243,7 @@ export const ItemDetail: React.FC<{ kind: Kind }> = ({ kind }) => {
                         <div className="text-xs text-zinc-500 mt-1 line-clamp-1">{c.tagline}</div>
                         <div className="text-sm font-bold text-white mt-2 flex items-center gap-2">
                           {c.free ? "FREE" : `₹${c.price.toLocaleString("en-IN")}`}
-                          <ArrowRight size={13} className="text-[#E50914] group-hover:translate-x-0.5 transition-transform" />
+                          <ArrowRight size={13} className="text-[#FF7A1A] group-hover:translate-x-0.5 transition-transform" />
                         </div>
                       </div>
                     </button>

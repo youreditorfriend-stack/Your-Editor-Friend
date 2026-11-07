@@ -44,7 +44,31 @@ export interface Product extends DetailContent {
   pinned?: boolean; // pinned products always sort first in the catalog
   featured?: boolean;
   enabled: boolean;
+  // Set by the admin prompt-kit editor: this product page shows the
+  // PSD-files → layers → prompt viewer (data in promptKits* collections).
+  promptKit?: { files: number; layers: number } | null;
 }
+
+// ─── Prompt kits (one product = one video, made from several PSD files) ──────
+export interface PromptLayerPublic {
+  id: string;
+  name: string;
+  image: string;   // the layer rendered on the full PSD canvas (transparent)
+  refs: string[];  // reference images to give the AI
+  blend?: string;  // CSS mix-blend-mode from the PSD (screen, multiply…)
+}
+export interface PromptFilePublic {
+  id: string;
+  name: string;      // "Cold open"
+  fileName: string;  // "01_cold-open.psd"
+  cover: string;     // flattened preview of the whole PSD
+  width: number;
+  height: number;
+  layers: PromptLayerPublic[]; // bottom → top
+}
+export interface PromptKitPublic { files: PromptFilePublic[] }
+// layerId → prompt text + params. Readable only by buyers (or all, if free).
+export interface PromptKitPrivate { free: boolean; prompts: Record<string, { prompt: string; params?: string }> }
 
 export interface Course extends DetailContent {
   id: string;
@@ -116,14 +140,39 @@ export const DEFAULT_CHECKOUT_HELP: CheckoutHelp = {
   phone: "+91 63743 43169",
 };
 
+// A bundle sells several products together at one price. Buying it grants the
+// bundle id AND every product id in it (done server-side in verify-payment),
+// so each product shows up in My Library on its own.
+export interface Bundle {
+  id: string;
+  name: string;
+  tagline?: string;
+  productIds: string[];
+  price: number;
+  enabled: boolean;
+  featured?: boolean; // shown in the big bundle block on the home page
+}
+
 export interface StoreData {
   products: Product[];
   courses: Course[];
   productCategories: ProductCategory[];
   pages: PageConfig[];
   coupons: Coupon[];
+  bundles?: Bundle[];
   checkoutHelp?: CheckoutHelp;
 }
+
+// Products inside a bundle (skips ids that were deleted from the catalog).
+export function bundleProducts(store: Pick<StoreData, "products"> | null | undefined, b: Bundle): Product[] {
+  if (!store) return [];
+  return b.productIds
+    .map(id => store.products.find(p => p.id === id))
+    .filter((p): p is Product => !!p);
+}
+
+// Sum of the individual selling prices — the "you'd pay this separately" anchor.
+export const bundleValue = (items: Product[]) => items.reduce((s, p) => s + (p.price || 0), 0);
 
 export const DEFAULT_PAGES: PageConfig[] = [
   { id: "products", label: "Products", path: "/products", enabled: true },
@@ -270,6 +319,7 @@ export function useStore() {
               : SEED_STORE.productCategories,
             pages: mergePages(d.pages),
             coupons: Array.isArray(d.coupons) ? d.coupons : [],
+            bundles: Array.isArray(d.bundles) ? d.bundles : [],
             checkoutHelp: d.checkoutHelp?.message
               ? { ...DEFAULT_CHECKOUT_HELP, ...d.checkoutHelp }
               : DEFAULT_CHECKOUT_HELP,

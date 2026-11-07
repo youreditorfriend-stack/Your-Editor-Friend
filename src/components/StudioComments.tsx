@@ -130,7 +130,7 @@ export const StudioComments: React.FC = () => {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-zinc-500">
-        <div className="animate-spin text-[#E50914] text-2xl mb-3">⏳</div>
+        <div className="animate-spin text-[#FF7A1A] text-2xl mb-3">⏳</div>
         <p className="text-xs font-mono tracking-wider">LOADING PUBLIC INTERACTIONS...</p>
       </div>
     );
@@ -241,7 +241,7 @@ export const StudioComments: React.FC = () => {
                     <button
                       onClick={() => handlePostReply(c.id)}
                       disabled={submitting[c.id] || !(replyTexts[c.id]?.trim())}
-                      className="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-bold text-xs p-2 rounded-lg shrink-0 flex items-center justify-center cursor-pointer transition-colors"
+                      className="bg-red-600 hover:brightness-110 disabled:opacity-50 text-white font-bold text-xs p-2 rounded-lg shrink-0 flex items-center justify-center cursor-pointer transition-colors"
                     >
                       {submitting[c.id] ? "⏳" : <Send size={12} />}
                     </button>

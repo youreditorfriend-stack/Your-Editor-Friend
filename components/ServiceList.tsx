@@ -15,7 +15,7 @@ const RowContent: React.FC<{ s: ServiceItem; linked: boolean }> = ({ s, linked }
       <span className="block text-[11px] md:text-xs text-zinc-500 font-light truncate">{s.desc}</span>
     </span>
     {linked && (
-      <ArrowRight size={15} className="text-zinc-600 group-hover:text-[#E50914] group-hover:translate-x-0.5 transition-all shrink-0" />
+      <ArrowRight size={15} className="text-zinc-600 group-hover:text-[#FF7A1A] group-hover:translate-x-0.5 transition-all shrink-0" />
     )}
   </>
 );

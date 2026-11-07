@@ -4,7 +4,9 @@ import { db } from "../firebase";
 import { useAuth } from "./auth";
 import { getWhatsAppLink } from "./site";
 import { FIRST_BUYER_DISCOUNT_PERCENT, firstBuyerWindowRemainingMs, getFreeAssetsClaimId } from "./store";
-import type { Course, Product } from "./store";
+import type { Bundle, Course, Product } from "./store";
+
+type Buyable = Product | Course | Bundle;
 
 declare global {
   interface Window {
@@ -82,14 +84,14 @@ export function usePurchase() {
     }
   };
 
-  const whatsAppFallback = (item: Product | Course) => {
+  const whatsAppFallback = (item: Buyable) => {
     setCheckoutFailed(item.id);
     const name = "name" in item ? item.name : item.title;
     const msg = `Hi Janish! I want to buy *${name}* (₹${item.price}).\nMy login email: ${user?.email}\nPlease share the payment details!`;
     window.open(getWhatsAppLink(msg), "_blank");
   };
 
-  const buy = async (item: Product | Course, couponCode?: string) => {
+  const buy = async (item: Buyable, couponCode?: string) => {
     if (!user) {
       await signIn();
       return;
@@ -130,7 +132,7 @@ export function usePurchase() {
           name: user.displayName || "",
           email: user.email || "",
         },
-        theme: { color: "#E50914" },
+        theme: { color: "#FF7A1A" },
         handler: async (resp: any) => {
           try {
             const verifyRes = await fetch("/api/verify-payment", {

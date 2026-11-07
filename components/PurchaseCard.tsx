@@ -153,7 +153,7 @@ export const PurchaseCard: React.FC<{
               <button
                 type="button"
                 onClick={() => setTermsCollapsed(!termsCollapsed)}
-                className="text-[#E50914] hover:underline font-semibold inline-flex items-center gap-0.5"
+                className="text-[#FF7A1A] hover:underline font-semibold inline-flex items-center gap-0.5"
               >
                 Terms &amp; Conditions
                 {termsCollapsed ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
@@ -278,7 +278,7 @@ export const PurchaseCard: React.FC<{
             <button
               type="button"
               onClick={() => setTermsCollapsed(!termsCollapsed)}
-              className="text-[#E50914] hover:underline font-semibold inline-flex items-center gap-0.5"
+              className="text-[#FF7A1A] hover:underline font-semibold inline-flex items-center gap-0.5"
             >
               Terms &amp; Conditions
               {termsCollapsed ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
@@ -368,7 +368,7 @@ const CouponBox: React.FC<{
         value={code}
         onChange={(e) => onCode(e.target.value.toUpperCase())}
         placeholder="LAUNCH50"
-        className="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white uppercase tracking-wider outline-none focus:border-[#E50914]"
+        className="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white uppercase tracking-wider outline-none focus:border-[#FF7A1A]"
       />
       {applied ? (
         <button
@@ -386,7 +386,7 @@ const CouponBox: React.FC<{
         </button>
       )}
     </div>
-    {error && <div className="mt-2 text-xs text-[#E50914]">{error}</div>}
+    {error && <div className="mt-2 text-xs text-[#FF7A1A]">{error}</div>}
   </div>
 );
 

@@ -28,6 +28,8 @@ async function loadStore(itemId: string) {
   const items = [
     ...(d.products || []).map((p: any) => ({ id: p.id, price: p.price, name: p.name })),
     ...(d.courses || []).map((c: any) => ({ id: c.id, price: c.price, name: c.title })),
+    // Bundles: only enabled ones can be bought.
+    ...(d.bundles || []).filter((b: any) => b.enabled).map((b: any) => ({ id: b.id, price: b.price, name: b.name })),
   ];
   const item = items.find((i: any) => i.id === itemId) || null;
   return { item, coupons: (d.coupons || []) as any[] };

@@ -79,7 +79,7 @@ export const Layout: React.FC = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-[#EDEDED] font-sans selection:bg-[#E50914] selection:text-white antialiased">
+    <div className="min-h-screen bg-[#0A0A0A] text-[#EDEDED] font-sans selection:bg-[#FF7A1A] selection:text-white antialiased">
 
       {/* Sign-in error toast */}
       <AnimatePresence>
@@ -88,10 +88,10 @@ export const Layout: React.FC = () => {
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="fixed top-4 left-1/2 -translate-x-1/2 z-[70] w-[92%] max-w-md bg-[#2a0a0a] border border-[#E50914]/40 rounded-xl px-4 py-3 shadow-2xl"
+            className="fixed top-4 left-1/2 -translate-x-1/2 z-[70] w-[92%] max-w-md bg-[#2a0a0a] border border-[#FF7A1A]/40 rounded-xl px-4 py-3 shadow-2xl"
           >
             <div className="flex items-start gap-3">
-              <span className="text-[#E50914] text-sm font-bold shrink-0">⚠</span>
+              <span className="text-[#FF7A1A] text-sm font-bold shrink-0">⚠</span>
               <p className="text-xs md:text-sm text-zinc-200 flex-1">{authError}</p>
               <button onClick={() => setAuthError('')} className="text-zinc-500 hover:text-white text-sm shrink-0">✕</button>
             </div>
@@ -129,7 +129,7 @@ export const Layout: React.FC = () => {
           initial={{ scale: 0, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           whileTap={{ scale: 0.9 }}
-          className="sm:hidden fixed bottom-24 right-8 z-[60] bg-gradient-to-br from-[#E50914] to-purple-600 text-white p-4 rounded-full shadow-2xl shadow-[#E50914]/30 flex items-center justify-center"
+          className="sm:hidden fixed bottom-24 right-8 z-[60] bg-gradient-to-br from-[#FF7A1A] to-purple-600 text-white p-4 rounded-full shadow-2xl shadow-[#FF7A1A]/30 flex items-center justify-center"
         >
           <Sparkles size={26} className="text-white" />
         </motion.button>
@@ -141,7 +141,7 @@ export const Layout: React.FC = () => {
           {/* Top row: brand + auth */}
           <div className="flex justify-between items-center py-2.5 md:py-3">
             <Link to="/" className="flex items-center cursor-pointer group shrink-0">
-              <span className="font-semibold text-sm md:text-lg tracking-tight">YOUR EDITOR FRIEND</span>
+              <span className="font-extrabold text-sm md:text-base tracking-wide">YOUR EDITOR <span className="text-[#FF7A1A]">FRIEND</span></span>
             </Link>
 
             <div className="flex items-center gap-2 md:gap-3">
@@ -156,9 +156,9 @@ export const Layout: React.FC = () => {
                 <div className="relative" ref={userMenuRef}>
                   <button onClick={() => setShowUserMenu(v => !v)} className="flex items-center gap-2">
                     {user.photoURL ? (
-                      <img src={user.photoURL} alt={user.displayName || 'Account'} className="w-9 h-9 rounded-full border-2 border-[#E50914]/50" referrerPolicy="no-referrer" />
+                      <img src={user.photoURL} alt={user.displayName || 'Account'} className="w-9 h-9 rounded-full border-2 border-[#FF7A1A]/50" referrerPolicy="no-referrer" />
                     ) : (
-                      <div className="w-9 h-9 rounded-full bg-[#E50914]/20 border-2 border-[#E50914]/50 flex items-center justify-center"><UserIcon size={16} /></div>
+                      <div className="w-9 h-9 rounded-full bg-[#FF7A1A]/20 border-2 border-[#FF7A1A]/50 flex items-center justify-center"><UserIcon size={16} /></div>
                     )}
                   </button>
                   <AnimatePresence>
@@ -174,7 +174,7 @@ export const Layout: React.FC = () => {
                           <div className="text-xs text-zinc-500 truncate">{user.email}</div>
                         </div>
                         <Link to="/my-library" onClick={() => setShowUserMenu(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-zinc-300 hover:bg-white/5 transition-colors">
-                          <Library size={15} className="text-[#E50914]" /> My Library
+                          <Library size={15} className="text-[#FF7A1A]" /> My Library
                         </Link>
                         <button onClick={() => { signOut(); setShowUserMenu(false); }} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-zinc-400 hover:bg-white/5 transition-colors">
                           <LogOut size={15} /> Sign out
@@ -186,7 +186,7 @@ export const Layout: React.FC = () => {
               ) : (
                 <button
                   onClick={handleLogin}
-                  className="bg-[#E50914] hover:bg-red-700 text-white px-3.5 md:px-5 py-1.5 md:py-2 rounded-full text-xs md:text-sm font-medium transition-all active:scale-95 flex items-center gap-1.5 md:gap-2"
+                  className="bg-[#FF7A1A] hover:brightness-110 text-black px-3.5 md:px-5 py-1.5 md:py-2 rounded-full text-xs md:text-sm font-medium transition-all active:scale-95 flex items-center gap-1.5 md:gap-2"
                 >
                   <UserIcon size={14} /> Login
                 </button>
@@ -204,7 +204,7 @@ export const Layout: React.FC = () => {
                 className={({ isActive }) =>
                   `whitespace-nowrap px-3 md:px-4 py-1.5 rounded-full text-xs md:text-sm transition-all ${
                     isActive
-                      ? 'bg-[#E50914]/15 text-white font-semibold border border-[#E50914]/40'
+                      ? 'bg-[#FF7A1A]/15 text-white font-semibold border border-[#FF7A1A]/40'
                       : 'text-zinc-400 hover:text-white border border-transparent'
                   }`
                 }
@@ -244,7 +244,7 @@ export const Layout: React.FC = () => {
           <div className="flex flex-col md:flex-row justify-between items-center gap-6 pt-8 border-t border-white/5">
             <div className="flex flex-col md:flex-row items-center gap-3 md:gap-6 text-sm text-zinc-400">
               <a href={`mailto:${EMAIL}`} className="flex items-center gap-2 hover:text-white transition-colors">
-                <Mail size={14} className="text-[#E50914]" /> {EMAIL}
+                <Mail size={14} className="text-[#FF7A1A]" /> {EMAIL}
               </a>
               <a href={WHATSAPP_LINK} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 hover:text-white transition-colors">
                 <MessageCircle size={14} fill="currentColor" className="text-[#25D366]" /> {WHATSAPP_DISPLAY}

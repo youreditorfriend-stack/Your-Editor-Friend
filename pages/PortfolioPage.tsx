@@ -38,7 +38,7 @@ export const PortfolioPage: React.FC = () => {
       <div className="max-w-7xl mx-auto">
         {/* Page header */}
         <div className="text-center py-8 md:py-24">
-          <div className="text-[10px] uppercase tracking-[0.25em] text-[#E50914] font-bold mb-3">Portfolio</div>
+          <div className="text-[10px] uppercase tracking-[0.25em] text-[#FF7A1A] font-bold mb-3">Portfolio</div>
           <h1 className="text-2xl md:text-5xl font-semibold tracking-tight mb-3 md:mb-4">Recent Projects</h1>
           <p className="text-zinc-400 max-w-2xl mx-auto font-light">
             Cinematic, high-retention edits for creators and brands.
@@ -78,10 +78,10 @@ export const PortfolioPage: React.FC = () => {
                     initial={{ scale: 1, opacity: 0.5 }}
                     animate={{ scale: 2.2, opacity: 0 }}
                     transition={{ duration: 2.5, repeat: Infinity, delay: i * 0.8, ease: "easeOut" }}
-                    className="absolute inset-0 rounded-full border border-[#E50914]/30"
+                    className="absolute inset-0 rounded-full border border-[#FF7A1A]/30"
                   />
                 ))}
-                <div className="w-20 h-20 bg-[#E50914]/10 rounded-full flex items-center justify-center text-[#E50914] group-hover:bg-[#E50914]/20 transition-colors shadow-lg shadow-red-900/20">
+                <div className="w-20 h-20 bg-[#FF7A1A]/10 rounded-full flex items-center justify-center text-[#FF7A1A] group-hover:bg-[#FF7A1A]/20 transition-colors shadow-lg shadow-orange-900/20">
                   <Zap size={32} fill="currentColor" />
                 </div>
               </div>

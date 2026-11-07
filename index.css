@@ -2,7 +2,7 @@
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --color-brand-accent: #E50914;
+  --color-brand-accent: #FF7A1A;
   --color-brand-bg: #0A0A0A;
 }
 
@@ -29,7 +29,7 @@
     border-radius: 10px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #E50914;
+    background: #FF7A1A;
   }
 
   .no-scrollbar::-webkit-scrollbar {
@@ -38,6 +38,57 @@
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
+  }
+
+  /* ── Store v2 motion ── */
+  @keyframes yef-float { 0%,100% { translate: 0 0; } 50% { translate: 0 -10px; } }
+  .yef-float { animation: yef-float 5s ease-in-out infinite; }
+  @keyframes yef-shine { 0%,70% { left: -60%; } 100% { left: 130%; } }
+  .yef-shine { position: relative; overflow: hidden; }
+  .yef-shine::after {
+    content: ""; position: absolute; top: 0; left: -60%; width: 40%; height: 100%;
+    background: rgba(255,255,255,.35); transform: skewX(-20deg);
+    animation: yef-shine 3.5s ease-in-out infinite; pointer-events: none;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .yef-float, .yef-shine::after { animation: none; }
+  }
+
+  /* ── Prompt kit 3D layer stack (each layer carries its own perspective,
+        so it renders the same on every phone — no preserve-3d needed) ── */
+  .kit-layer {
+    --tilt: 0deg; --spin: 0deg; --sc: 1; --z: 0px; --lift: 0px; --dy: 0%;
+    position: absolute; inset: 0; border-radius: 6px; overflow: hidden;
+    transform: perspective(1500px) translateY(var(--dy)) rotateX(var(--tilt)) rotateZ(var(--spin)) scale(var(--sc)) translateZ(calc(var(--z) + var(--lift)));
+    transition: transform .9s cubic-bezier(.2,.8,.2,1), opacity .45s, outline-color .3s;
+    outline: 2px solid transparent;
+  }
+  .kit-stage.exploded .kit-layer {
+    --tilt: 58deg; --spin: -34deg; --sc: .56; --z: calc(var(--i) * 64px); --dy: 24%;
+    outline-color: rgba(255,255,255,.16); box-shadow: 0 30px 60px rgba(0,0,0,.55);
+    background-color: rgba(20,20,20,.3); cursor: pointer; mix-blend-mode: normal !important;
+  }
+  .kit-stage.exploded .kit-layer.dim { opacity: .4; }
+  .kit-stage.exploded .kit-layer.sel { --lift: 42px; opacity: 1; outline: 3px solid #FF7A1A; }
+  .kit-stage.exploded .kit-layer.isdone:not(.sel) { outline-color: rgba(61,220,132,.7); }
+  .kit-stage .kit-lbl { opacity: 0; transition: opacity .4s; }
+  .kit-stage.exploded .kit-lbl { opacity: 1; }
+  @media (max-width: 1023px) {
+    .kit-stage.exploded .kit-layer { --sc: .5; --z: calc(var(--i) * 48px); --dy: 30%; }
+    .kit-stage.exploded .kit-layer.sel { --lift: 32px; }
+  }
+  .kit-checker {
+    background-color: #1a1a1a;
+    background-image: conic-gradient(#222 25%, #2b2b2b 0 50%, #222 0 75%, #2b2b2b 0);
+    background-size: 14px 14px;
+  }
+  .kit-fade { transition: opacity .25s, transform .25s; }
+  .kit-fade.swap { opacity: 0; transform: translateY(6px); }
+  @keyframes kit-fly { to { transform: translate(var(--x), var(--y)) rotate(var(--r)); opacity: 0; } }
+  .kit-spark { position: fixed; width: 8px; height: 8px; border-radius: 2px; pointer-events: none; z-index: 80; animation: kit-fly .9s cubic-bezier(.2,.8,.2,1) forwards; }
+  @media (prefers-reduced-motion: reduce) {
+    .kit-layer, .kit-fade { transition: none; }
+    .kit-spark { display: none; }
   }
 
   @keyframes marquee {

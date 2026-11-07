@@ -8,7 +8,7 @@ import { AlertTriangle, Check, Info, Loader2, X, XCircle } from "lucide-react";
    ──────────────────────────────────────────────────────────────────────── */
 
 export const tone = {
-  danger: { text: "text-red-400", bg: "bg-red-500/10", border: "border-red-500/20", solid: "bg-[#E50914]", solidHover: "hover:bg-red-700" },
+  danger: { text: "text-red-400", bg: "bg-red-500/10", border: "border-red-500/20", solid: "bg-red-600", solidHover: "hover:bg-red-500" },
   success: { text: "text-[#25D366]", bg: "bg-[#25D366]/10", border: "border-[#25D366]/20", solid: "bg-[#25D366]", solidHover: "hover:bg-green-600" },
   info: { text: "text-blue-400", bg: "bg-blue-500/10", border: "border-blue-500/20", solid: "bg-blue-500", solidHover: "hover:bg-blue-600" },
   neutral: { text: "text-zinc-300", bg: "bg-white/5", border: "border-white/10", solid: "bg-zinc-800", solidHover: "hover:bg-zinc-700" },
@@ -92,7 +92,7 @@ export function Button({
     "inline-flex items-center justify-center gap-1.5 font-bold tracking-wide rounded-xl transition-all duration-150 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950";
   const sizes = size === "sm" ? "text-[11px] px-3 py-1.5" : "text-xs px-4 py-2.5";
   const variants: Record<ButtonVariant, string> = {
-    primary: "bg-[#E50914] hover:bg-red-600 text-white shadow-lg shadow-red-900/20 focus-visible:ring-[#E50914]",
+    primary: "bg-[#FF7A1A] hover:brightness-110 text-black shadow-lg shadow-orange-900/20 focus-visible:ring-[#FF7A1A]",
     success: "bg-[#25D366] hover:bg-green-500 text-black shadow-lg shadow-green-900/10 focus-visible:ring-[#25D366]",
     secondary: "bg-white/[0.06] hover:bg-white/[0.1] text-zinc-200 border border-white/10 focus-visible:ring-white/30",
     ghost: "bg-transparent hover:bg-white/[0.06] text-zinc-400 hover:text-white focus-visible:ring-white/20",
@@ -195,7 +195,7 @@ export function Field({
 }
 
 const inputBase =
-  "w-full bg-zinc-950 border border-white/10 rounded-lg px-3.5 py-2.5 text-xs text-white placeholder-zinc-600 outline-none transition-all focus:border-[#E50914] focus:ring-1 focus:ring-[#E50914]/30";
+  "w-full bg-zinc-950 border border-white/10 rounded-lg px-3.5 py-2.5 text-xs text-white placeholder-zinc-600 outline-none transition-all focus:border-[#FF7A1A] focus:ring-1 focus:ring-[#FF7A1A]/30";
 
 export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(
   ({ className = "", ...props }, ref) => <input ref={ref} className={`${inputBase} ${className}`} {...props} />

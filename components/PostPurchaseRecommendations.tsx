@@ -62,9 +62,9 @@ export const PostPurchaseRecommendations: React.FC<{
                 </div>
                 <h2 className="text-lg sm:text-xl font-bold text-white leading-snug">
                   {recommendations.length > 0 ? (
-                    <>Nice pick! People who got <span className="text-[#E50914]">{purchasedTitle}</span> also grabbed these</>
+                    <>Nice pick! People who got <span className="text-[#FF7A1A]">{purchasedTitle}</span> also grabbed these</>
                   ) : (
-                    <>You now own <span className="text-[#E50914]">{purchasedTitle}</span> — find it in My Library</>
+                    <>You now own <span className="text-[#FF7A1A]">{purchasedTitle}</span> — find it in My Library</>
                   )}
                 </h2>
                 {savedAmount > 0 && (
@@ -115,14 +115,14 @@ export const PostPurchaseRecommendations: React.FC<{
                         {reasonMeta.icon} {reasonMeta.label}
                       </span>
                       {discountPercent != null && (
-                        <span className="absolute top-2 right-2 bg-[#E50914] text-white text-[9px] font-bold px-2 py-1 rounded-full">
+                        <span className="absolute top-2 right-2 bg-[#FF7A1A] text-black text-[9px] font-bold px-2 py-1 rounded-full">
                           -{discountPercent}%
                         </span>
                       )}
                     </button>
                     <div className="p-3.5 flex flex-col flex-1">
                       <button onClick={() => goTo(detailPath)} className="text-left">
-                        <h3 className="font-semibold text-sm text-white line-clamp-1 hover:text-[#E50914] transition-colors">{title}</h3>
+                        <h3 className="font-semibold text-sm text-white line-clamp-1 hover:text-[#FF7A1A] transition-colors">{title}</h3>
                       </button>
                       <p className="text-zinc-500 text-[11px] font-light mt-0.5 mb-3 line-clamp-2 flex-1">{item.tagline}</p>
                       <div className="flex items-center justify-between gap-2">

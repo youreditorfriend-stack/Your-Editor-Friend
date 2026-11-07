@@ -18,7 +18,7 @@ export const Contact: React.FC = () => {
     },
     {
       icon: <Mail size={24} />,
-      color: 'text-[#E50914]',
+      color: 'text-[#FF7A1A]',
       title: 'Email',
       detail: EMAIL,
       sub: 'For detailed briefs and collaborations',
@@ -34,7 +34,7 @@ export const Contact: React.FC = () => {
     },
     {
       icon: <Youtube size={24} />,
-      color: 'text-[#E50914]',
+      color: 'text-[#FF7A1A]',
       title: 'YouTube',
       detail: YOUTUBE.handle,
       sub: 'Comment on any video — I read them all',
@@ -47,7 +47,7 @@ export const Contact: React.FC = () => {
       <div className="max-w-5xl mx-auto">
         {/* Page header */}
         <div className="text-center py-8 md:py-24">
-          <div className="text-[10px] uppercase tracking-[0.25em] text-[#E50914] font-bold mb-3">Contact</div>
+          <div className="text-[10px] uppercase tracking-[0.25em] text-[#FF7A1A] font-bold mb-3">Contact</div>
           <h1 className="text-2xl md:text-5xl font-semibold tracking-tight mb-3 md:mb-4">Ready to level up your content?</h1>
           <p className="text-zinc-400 max-w-2xl mx-auto font-light">
             Project idea, product doubt, or collab — pick whichever channel works for you.
@@ -84,7 +84,7 @@ export const Contact: React.FC = () => {
           </p>
           <button
             onClick={openProjectModal}
-            className="bg-[#E50914] hover:bg-red-700 text-white px-10 md:px-12 py-4 md:py-5 rounded-full text-lg font-bold inline-flex items-center gap-3 transition-all transform hover:scale-105 active:scale-95 shadow-2xl shadow-red-900/20"
+            className="bg-[#FF7A1A] hover:brightness-110 text-black px-10 md:px-12 py-4 md:py-5 rounded-full text-lg font-bold inline-flex items-center gap-3 transition-all transform hover:scale-105 active:scale-95 shadow-2xl shadow-orange-900/20"
           >
             Start Your Project <ArrowRight className="w-5 h-5" />
           </button>

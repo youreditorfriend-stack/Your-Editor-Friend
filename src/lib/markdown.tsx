@@ -35,7 +35,7 @@ function renderInline(text: string, keyPrefix: string): React.ReactNode[] {
           href={m[4]}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-[#E50914] hover:underline"
+          className="text-[#FF7A1A] hover:underline"
         >
           {m[3]}
         </a>

@@ -75,7 +75,7 @@ export const StudioAnalytics: React.FC<StudioAnalyticsProps> = ({ itemId, itemTi
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-zinc-500">
-        <div className="animate-spin text-[#E50914] text-3xl mb-3">⏳</div>
+        <div className="animate-spin text-[#FF7A1A] text-3xl mb-3">⏳</div>
         <p className="text-sm font-mono tracking-wider">LOADING PRODUCT INSIGHTS...</p>
       </div>
     );
@@ -118,7 +118,7 @@ export const StudioAnalytics: React.FC<StudioAnalyticsProps> = ({ itemId, itemTi
   
   const ageData = [
     { name: "13-17", percentage: 5 + (seed % 8), color: "#3f3f46" },
-    { name: "18-24", percentage: 40 + (seed % 15), color: "#E50914" },
+    { name: "18-24", percentage: 40 + (seed % 15), color: "#FF7A1A" },
     { name: "25-34", percentage: 25 + (seed % 10), color: "#ef4444" },
     { name: "35-44", percentage: 8 + (seed % 6), color: "#f87171" },
     { name: "45+", percentage: 2 + (seed % 4), color: "#71717a" },
@@ -209,7 +209,7 @@ export const StudioAnalytics: React.FC<StudioAnalyticsProps> = ({ itemId, itemTi
               <p className="text-[10px] text-zinc-500">Illustrative daily split of the real totals (not day-by-day tracked)</p>
             </div>
             <div className="flex items-center gap-4 text-xs">
-              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 bg-[#E50914] rounded-full inline-block"></span> Views</span>
+              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 bg-[#FF7A1A] rounded-full inline-block"></span> Views</span>
               <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 bg-[#25D366] rounded-full inline-block"></span> Downloads</span>
             </div>
           </div>
@@ -218,8 +218,8 @@ export const StudioAnalytics: React.FC<StudioAnalyticsProps> = ({ itemId, itemTi
               <AreaChart data={graphData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorViews" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#E50914" stopOpacity={0.2}/>
-                    <stop offset="95%" stopColor="#E50914" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#FF7A1A" stopOpacity={0.2}/>
+                    <stop offset="95%" stopColor="#FF7A1A" stopOpacity={0}/>
                   </linearGradient>
                   <linearGradient id="colorDownloads" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#25D366" stopOpacity={0.2}/>
@@ -229,7 +229,7 @@ export const StudioAnalytics: React.FC<StudioAnalyticsProps> = ({ itemId, itemTi
                 <XAxis dataKey="day" stroke="#3f3f46" fontSize={11} tickLine={false} />
                 <YAxis stroke="#3f3f46" fontSize={11} tickLine={false} />
                 <Tooltip contentStyle={{ backgroundColor: "#18181b", borderColor: "#27272a", borderRadius: "10px", color: "#fff" }} />
-                <Area type="monotone" dataKey="views" stroke="#E50914" strokeWidth={2} fillOpacity={1} fill="url(#colorViews)" />
+                <Area type="monotone" dataKey="views" stroke="#FF7A1A" strokeWidth={2} fillOpacity={1} fill="url(#colorViews)" />
                 <Area type="monotone" dataKey="downloads" stroke="#25D366" strokeWidth={2} fillOpacity={1} fill="url(#colorDownloads)" />
               </AreaChart>
             </ResponsiveContainer>
@@ -263,7 +263,7 @@ export const StudioAnalytics: React.FC<StudioAnalyticsProps> = ({ itemId, itemTi
           <div className="border-t border-white/5 pt-4">
             <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3">Gender Breakdown</div>
             <div className="flex h-5 bg-zinc-800 rounded-lg overflow-hidden font-mono text-[10px] font-bold text-center">
-              <div style={{ width: `${malePercent}%` }} className="bg-[#E50914] text-white flex items-center justify-center">M {malePercent}%</div>
+              <div style={{ width: `${malePercent}%` }} className="bg-[#FF7A1A] text-black flex items-center justify-center">M {malePercent}%</div>
               <div style={{ width: `${femalePercent}%` }} className="bg-[#ef4444] text-white flex items-center justify-center">F {femalePercent}%</div>
               <div style={{ width: `${otherPercent}%` }} className="bg-zinc-600 text-zinc-300 flex items-center justify-center">O {otherPercent}%</div>
             </div>

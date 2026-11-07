@@ -172,7 +172,7 @@ export const CustomQuotePage: React.FC = () => {
             particleCount: 100,
             spread: 70,
             origin: { y: 0.6 },
-            colors: ['#E50914', '#ffffff', '#ff0000'],
+            colors: ['#FF7A1A', '#ffffff', '#ff0000'],
           });
         }
       });
@@ -478,13 +478,13 @@ Looking forward to working with you! 🎬`;
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-[#E50914]/20 border-t-[#E50914] rounded-full animate-spin"></div>
+        <div className="w-12 h-12 border-4 border-[#FF7A1A]/20 border-t-[#FF7A1A] rounded-full animate-spin"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-white font-sans selection:bg-[#E50914] custom-quote-container">
+    <div className="min-h-screen bg-[#0A0A0A] text-white font-sans selection:bg-[#FF7A1A] custom-quote-container">
       {/* Navigation */}
       <nav className="fixed top-0 w-full z-50 bg-[#0A0A0A]/80 backdrop-blur-xl border-b border-white/10 py-4">
         <div className="max-w-7xl mx-auto px-6 flex justify-between items-center">
@@ -504,7 +504,7 @@ Looking forward to working with you! 🎬`;
               animate={{ opacity: 1, y: 0 }}
               className="text-3xl md:text-6xl font-black tracking-tighter mb-4"
             >
-              BUILD YOUR <span className="text-[#E50914]">CUSTOM</span> PLAN
+              BUILD YOUR <span className="text-[#FF7A1A]">CUSTOM</span> PLAN
             </motion.h1>
             <motion.p 
               initial={{ opacity: 0, y: 20 }}
@@ -520,7 +520,7 @@ Looking forward to working with you! 🎬`;
             {/* Style Selection Section */}
             <section className="space-y-8">
               <h2 className="text-xl md:text-2xl font-bold flex items-center gap-2">
-                <Smartphone size={24} className="text-[#E50914]" /> 1. Select Your Style
+                <Smartphone size={24} className="text-[#FF7A1A]" /> 1. Select Your Style
               </h2>
               
               <div className="flex flex-wrap gap-3">
@@ -530,7 +530,7 @@ Looking forward to working with you! 🎬`;
                     onClick={() => { setActiveCategory(cat); setSelectedStyle(cat.styles[0] || null); setIsPreviewMuted(true); }}
                     className={`px-5 py-2 rounded-full text-sm font-bold uppercase tracking-wide transition-all ${
                       activeCategory?.id === cat.id
-                        ? 'bg-[#E50914] text-white'
+                        ? 'bg-[#FF7A1A] text-black'
                         : 'bg-zinc-900 text-zinc-400 border border-zinc-800 hover:text-white'
                     }`}
                   >
@@ -630,11 +630,11 @@ Looking forward to working with you! 🎬`;
                           key={style.id}
                           onClick={() => { setSelectedStyle(style); setIsPreviewMuted(true); }}
                           className={`p-4 rounded-xl border cursor-pointer transition-all duration-200 flex justify-between items-center ${
-                            selectedStyle?.id === style.id ? 'border-[#E50914] bg-[#1a1a1a]' : 'border-zinc-800 bg-[#121212] hover:border-zinc-600'
+                            selectedStyle?.id === style.id ? 'border-[#FF7A1A] bg-[#1a1a1a]' : 'border-zinc-800 bg-[#121212] hover:border-zinc-600'
                           }`}
                         >
                           <span className="font-semibold text-sm">{style.name} | {style.price}</span>
-                          {selectedStyle?.id === style.id && <CheckCircle2 size={16} className="text-[#E50914]" />}
+                          {selectedStyle?.id === style.id && <CheckCircle2 size={16} className="text-[#FF7A1A]" />}
                         </div>
                       ))}
                     </div>
@@ -646,7 +646,7 @@ Looking forward to working with you! 🎬`;
             {/* Requirements Section */}
             <section className="space-y-8 md:space-y-12">
               <h2 className="text-xl md:text-2xl font-bold flex items-center gap-2">
-                <Zap size={24} className="text-[#E50914]" /> 2. Tell us what you need
+                <Zap size={24} className="text-[#FF7A1A]" /> 2. Tell us what you need
               </h2>
 
               <div className="space-y-8 md:space-y-12">
@@ -654,7 +654,7 @@ Looking forward to working with you! 🎬`;
                 <div className="bg-zinc-900/30 p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] border border-white/5">
                   <div className="flex justify-between items-end mb-6">
                     <label className="text-[9px] md:text-[10px] uppercase tracking-[0.2em] font-bold text-zinc-500">Videos needed per month</label>
-                    <span className="text-[#E50914] font-black text-3xl md:text-4xl">{quantity}</span>
+                    <span className="text-[#FF7A1A] font-black text-3xl md:text-4xl">{quantity}</span>
                   </div>
                   <input 
                     type="range" 
@@ -662,7 +662,7 @@ Looking forward to working with you! 🎬`;
                     max="30" 
                     value={quantity}
                     onChange={(e) => setQuantity(Number(e.target.value))}
-                    className="w-full h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-[#E50914]"
+                    className="w-full h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-[#FF7A1A]"
                   />
                   <div className="flex justify-between mt-4 text-[9px] md:text-[10px] uppercase tracking-widest text-zinc-700 font-bold">
                       <span>1 Video</span>
@@ -680,16 +680,16 @@ Looking forward to working with you! 🎬`;
                         onClick={() => toggleAddon(addon.id)}
                         className={`p-4 rounded-2xl border text-[10px] font-bold text-left transition-all flex flex-col gap-2 ${
                           selectedAddons[addon.id]
-                            ? 'bg-[#E50914]/20 border-[#E50914] text-white'
+                            ? 'bg-[#FF7A1A]/20 border-[#FF7A1A] text-white'
                             : 'bg-zinc-900/50 border-white/5 text-zinc-400 hover:bg-white/5 hover:border-white/10'
                         }`}
                       >
                         <div className="flex items-center gap-3">
-                          {selectedAddons[addon.id] ? <CheckCircle2 size={14} className="text-[#E50914]" /> : <div className="w-3.5 h-3.5 rounded-full border border-white/10" />}
+                          {selectedAddons[addon.id] ? <CheckCircle2 size={14} className="text-[#FF7A1A]" /> : <div className="w-3.5 h-3.5 rounded-full border border-white/10" />}
                           <span>{addon.label}</span>
                         </div>
                         {addon.price > 0 && (
-                          <div className={`text-[11px] font-black tracking-wide ${selectedAddons[addon.id] ? 'text-[#E50914]' : 'text-zinc-500'}`}>
+                          <div className={`text-[11px] font-black tracking-wide ${selectedAddons[addon.id] ? 'text-[#FF7A1A]' : 'text-zinc-500'}`}>
                             + ₹{Number(addon.price).toLocaleString('en-IN')} / video
                           </div>
                         )}
@@ -699,7 +699,7 @@ Looking forward to working with you! 🎬`;
                   {/* Addon subtotal indicator */}
                   {addonCostPerVideo > 0 && Object.values(selectedAddons).some(Boolean) && (
                     <div className="text-[10px] text-zinc-500 font-medium">
-                      Add-ons total: <span className="text-[#E50914] font-bold">₹{(addonCostPerVideo * quantity).toLocaleString('en-IN')}</span>
+                      Add-ons total: <span className="text-[#FF7A1A] font-bold">₹{(addonCostPerVideo * quantity).toLocaleString('en-IN')}</span>
                       <span className="text-zinc-600"> (₹{addonCostPerVideo.toLocaleString('en-IN')} × {quantity} videos)</span>
                     </div>
                   )}
@@ -717,7 +717,7 @@ Looking forward to working with you! 🎬`;
                         placeholder="Instagram / TikTok / YouTube link"
                         value={refLink}
                         onChange={(e) => setRefLink(e.target.value)}
-                        className="w-full bg-zinc-900/50 border border-white/5 rounded-2xl px-6 py-4 text-sm focus:border-[#E50914] outline-none transition-all placeholder:text-zinc-700"
+                        className="w-full bg-zinc-900/50 border border-white/5 rounded-2xl px-6 py-4 text-sm focus:border-[#FF7A1A] outline-none transition-all placeholder:text-zinc-700"
                       />
                     </div>
                     <div>
@@ -727,7 +727,7 @@ Looking forward to working with you! 🎬`;
                         placeholder="Tell us more about your vision..."
                         value={requirements}
                         onChange={(e) => setRequirements(e.target.value)}
-                        className="w-full bg-zinc-900/50 border border-white/5 rounded-2xl px-6 py-4 text-sm focus:border-[#E50914] outline-none transition-all placeholder:text-zinc-700 resize-none"
+                        className="w-full bg-zinc-900/50 border border-white/5 rounded-2xl px-6 py-4 text-sm focus:border-[#FF7A1A] outline-none transition-all placeholder:text-zinc-700 resize-none"
                       />
                     </div>
                   </div>
@@ -743,7 +743,7 @@ Looking forward to working with you! 🎬`;
                         placeholder="John Doe"
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
-                        className="w-full bg-zinc-900/50 border border-white/5 rounded-2xl px-6 py-4 text-sm focus:border-[#E50914] outline-none transition-all"
+                        className="w-full bg-zinc-900/50 border border-white/5 rounded-2xl px-6 py-4 text-sm focus:border-[#FF7A1A] outline-none transition-all"
                       />
                     </div>
                     <div>
@@ -756,7 +756,7 @@ Looking forward to working with you! 🎬`;
                         placeholder="+91 00000 00000"
                         value={contactNumber}
                         onChange={(e) => setContactNumber(e.target.value)}
-                        className="w-full bg-zinc-900/50 border border-white/5 rounded-2xl px-6 py-4 text-sm focus:border-[#E50914] outline-none transition-all"
+                        className="w-full bg-zinc-900/50 border border-white/5 rounded-2xl px-6 py-4 text-sm focus:border-[#FF7A1A] outline-none transition-all"
                       />
                     </div>
                   </div>
@@ -801,7 +801,7 @@ Looking forward to working with you! 🎬`;
                     <motion.div
                       initial={{ opacity: 0, scale: 0.5 }}
                       animate={{ opacity: 1, scale: 1 }}
-                      className="bg-[#E50914] text-white text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full"
+                      className="bg-[#FF7A1A] text-black text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full"
                     >
                       {discount}% OFF
                     </motion.div>
@@ -829,7 +829,7 @@ Looking forward to working with you! 🎬`;
                       }
                     }}
                     exit={{ opacity: 0, scale: 0.5 }}
-                    className="flex items-center gap-2 bg-[#E50914] text-white text-xs md:text-sm font-black uppercase tracking-widest px-6 py-2 rounded-full shadow-[0_0_30px_rgba(229,9,20,0.4)]"
+                    className="flex items-center gap-2 bg-[#FF7A1A] text-black text-xs md:text-sm font-black uppercase tracking-widest px-6 py-2 rounded-full shadow-[0_0_30px_rgba(229,9,20,0.4)]"
                   >
                     {discount === 5 ? '🔥' : '🎉'} {discount}% OFF Applied
                   </motion.div>
@@ -844,7 +844,7 @@ Looking forward to working with you! 🎬`;
                 disabled={!isFormValid}
                 className={`w-full md:w-auto px-8 md:px-12 py-4 md:py-5 rounded-xl md:rounded-2xl font-bold text-base md:text-lg flex items-center justify-center gap-3 transition-all transform hover:scale-[1.02] active:scale-95 shadow-2xl get-quote-btn ${
                   isFormValid 
-                    ? 'bg-[#E50914] text-white hover:bg-red-700 shadow-red-900/20' 
+                    ? 'bg-[#FF7A1A] text-black hover:brightness-110 shadow-orange-900/20' 
                     : 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
                 }`}
               >

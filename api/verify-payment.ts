@@ -40,7 +40,8 @@ async function sendPurchaseEmail(
   const storeData = storeSnap.exists ? storeSnap.data() || {} : {};
   const found =
     (storeData.products || []).find((p: any) => p.id === itemId) ||
-    (storeData.courses || []).find((c: any) => c.id === itemId);
+    (storeData.courses || []).find((c: any) => c.id === itemId) ||
+    (storeData.bundles || []).find((b: any) => b.id === itemId);
   const itemName = found?.name || found?.title || "your item";
   const isCourse = !!found?.title;
 
@@ -128,10 +129,16 @@ export default async function handler(req: any, res: any) {
     const userData = userSnap.exists ? userSnap.data() || {} : {};
     const isFirstPayment = !userData.firstPurchaseAt && !(userData.payments || []).length;
 
+    // A bundle grants itself plus every product inside it, so each product
+    // appears in My Library on its own.
+    const storeSnapForGrant = await db.doc("store/data").get();
+    const bundle = ((storeSnapForGrant.data() || {}).bundles || []).find((b: any) => b.id === itemId);
+    const grantIds: string[] = [itemId, ...(Array.isArray(bundle?.productIds) ? bundle.productIds : [])];
+
     await db.doc(`users/${uid}`).set(
       {
         ...(isFirstPayment ? { firstPurchaseAt: new Date().toISOString() } : {}),
-        purchases: FieldValue.arrayUnion(itemId),
+        purchases: FieldValue.arrayUnion(...grantIds),
         payments: FieldValue.arrayUnion({
           itemId,
           orderId,

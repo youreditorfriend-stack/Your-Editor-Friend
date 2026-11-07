@@ -115,13 +115,13 @@ export function ImageField({
           }}
           className={`relative aspect-square w-24 h-24 sm:w-28 sm:h-28 rounded-xl shrink-0 overflow-hidden bg-zinc-950 flex flex-col items-center justify-center cursor-pointer transition-all border ${
             dragOver
-              ? "border-[#E50914] bg-[#E50914]/5 scale-95"
+              ? "border-[#FF7A1A] bg-[#FF7A1A]/5 scale-95"
               : "border-white/10 hover:border-white/20 hover:bg-zinc-900"
           } ${busy ? "cursor-wait opacity-50" : ""}`}
         >
           {busy ? (
             <div className="text-center p-2">
-              <div className="animate-spin text-[#E50914] text-lg mb-1">⏳</div>
+              <div className="animate-spin text-[#FF7A1A] text-lg mb-1">⏳</div>
               <div className="text-[9px] text-zinc-500 tracking-wider uppercase">UPLOADING...</div>
             </div>
           ) : value ? (

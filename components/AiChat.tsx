@@ -292,7 +292,7 @@ export const AiChat: React.FC<AiChatProps> = ({ open, onClose }) => {
             }}
           >
             {/* Ambient glow */}
-            <div className="pointer-events-none absolute -top-24 -right-16 w-64 h-64 rounded-full bg-[#E50914]/20 blur-3xl" />
+            <div className="pointer-events-none absolute -top-24 -right-16 w-64 h-64 rounded-full bg-[#FF7A1A]/20 blur-3xl" />
             <div className="pointer-events-none absolute -bottom-24 -left-16 w-64 h-64 rounded-full bg-purple-600/15 blur-3xl" />
 
             {/* Mobile drag handle (initiates drag-to-dismiss) */}
@@ -306,7 +306,7 @@ export const AiChat: React.FC<AiChatProps> = ({ open, onClose }) => {
             {/* Header */}
             <div className="relative flex items-center justify-between px-5 py-3.5 border-b border-white/10">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#E50914] to-purple-600 flex items-center justify-center shadow-lg shadow-[#E50914]/20">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#FF7A1A] to-purple-600 flex items-center justify-center shadow-lg shadow-[#FF7A1A]/20">
                   <Sparkles size={18} className="text-white" />
                 </div>
                 <div>
@@ -351,16 +351,16 @@ export const AiChat: React.FC<AiChatProps> = ({ open, onClose }) => {
                       <div
                         className={`max-w-[82%] px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap break-words rounded-2xl border ${
                           m.role === 'user'
-                            ? 'bg-[#E50914] text-white border-transparent rounded-br-md'
+                            ? 'bg-[#FF7A1A] text-black border-transparent rounded-br-md'
                             : m.error
-                            ? 'bg-[#2a0a0a] text-zinc-100 border-[#E50914]/40 rounded-bl-md'
+                            ? 'bg-[#2a0a0a] text-zinc-100 border-[#FF7A1A]/40 rounded-bl-md'
                             : 'bg-white/5 text-zinc-100 border-white/10 rounded-bl-md'
                         }`}
                       >
                         {m.text}
                         {isStreamingThis && (
                           <motion.span
-                            className="inline-block w-1.5 h-4 -mb-0.5 ml-0.5 rounded-sm bg-[#E50914] align-middle"
+                            className="inline-block w-1.5 h-4 -mb-0.5 ml-0.5 rounded-sm bg-[#FF7A1A] align-middle"
                             animate={{ opacity: [1, 0.2, 1] }}
                             transition={{ duration: 0.8, repeat: Infinity }}
                           />
@@ -369,7 +369,7 @@ export const AiChat: React.FC<AiChatProps> = ({ open, onClose }) => {
                       {m.error && (
                         <button
                           onClick={() => retry(m.id, questionBefore(m.id))}
-                          className="mt-1.5 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold border border-[#E50914]/40 bg-[#E50914]/10 text-white hover:bg-[#E50914]/20 transition-all active:scale-95"
+                          className="mt-1.5 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold border border-[#FF7A1A]/40 bg-[#FF7A1A]/10 text-white hover:bg-[#FF7A1A]/20 transition-all active:scale-95"
                         >
                           <RefreshCw size={12} /> Retry
                         </button>
@@ -418,7 +418,7 @@ export const AiChat: React.FC<AiChatProps> = ({ open, onClose }) => {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: i * 0.04 }}
                         onClick={() => answerStep(opt)}
-                        className="px-3.5 py-2 rounded-full text-xs font-semibold border border-[#E50914]/40 bg-[#E50914]/10 text-white hover:bg-[#E50914]/20 hover:border-[#E50914] transition-all active:scale-95"
+                        className="px-3.5 py-2 rounded-full text-xs font-semibold border border-[#FF7A1A]/40 bg-[#FF7A1A]/10 text-white hover:bg-[#FF7A1A]/20 hover:border-[#FF7A1A] transition-all active:scale-95"
                       >
                         {opt}
                       </motion.button>
@@ -461,7 +461,7 @@ export const AiChat: React.FC<AiChatProps> = ({ open, onClose }) => {
                   exit={{ opacity: 0, y: 8, scale: 0.8 }}
                   onClick={() => scrollToBottom('smooth')}
                   aria-label="Scroll to latest"
-                  className="absolute left-1/2 -translate-x-1/2 bottom-24 z-10 w-9 h-9 rounded-full bg-[#E50914] text-white shadow-lg shadow-black/40 flex items-center justify-center hover:bg-red-700 transition-colors"
+                  className="absolute left-1/2 -translate-x-1/2 bottom-24 z-10 w-9 h-9 rounded-full bg-[#FF7A1A] text-black shadow-lg shadow-black/40 flex items-center justify-center hover:brightness-110 transition-colors"
                 >
                   <ArrowDown size={16} />
                 </motion.button>
@@ -471,7 +471,7 @@ export const AiChat: React.FC<AiChatProps> = ({ open, onClose }) => {
             {/* Input bar */}
             <div className="relative border-t border-white/10 px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
               <div className={`flex items-end gap-2 rounded-2xl border px-3 py-1.5 transition-all ${
-                textInputActive ? 'border-white/10 bg-white/5 focus-within:border-[#E50914]/60' : 'border-white/5 bg-white/[0.02]'
+                textInputActive ? 'border-white/10 bg-white/5 focus-within:border-[#FF7A1A]/60' : 'border-white/5 bg-white/[0.02]'
               }`}>
                 <textarea
                   ref={inputRef}
@@ -501,7 +501,7 @@ export const AiChat: React.FC<AiChatProps> = ({ open, onClose }) => {
                     onClick={() => askAi(input)}
                     disabled={!textInputActive || !input.trim()}
                     aria-label="Send message"
-                    className="w-9 h-9 mb-0.5 shrink-0 rounded-xl bg-[#E50914] disabled:opacity-30 disabled:cursor-not-allowed hover:bg-red-700 text-white flex items-center justify-center transition-all active:scale-95"
+                    className="w-9 h-9 mb-0.5 shrink-0 rounded-xl bg-[#FF7A1A] disabled:opacity-30 disabled:cursor-not-allowed hover:brightness-110 text-black flex items-center justify-center transition-all active:scale-95"
                   >
                     {awaiting ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
                   </button>

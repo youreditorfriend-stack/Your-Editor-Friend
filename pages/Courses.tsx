@@ -23,7 +23,7 @@ export const Courses: React.FC = () => {
       <div className="max-w-6xl mx-auto">
         {/* Page header */}
         <div className="text-center py-8 md:py-20">
-          <div className="text-[10px] uppercase tracking-[0.25em] text-[#E50914] font-bold mb-3">Courses</div>
+          <div className="text-[10px] uppercase tracking-[0.25em] text-[#FF7A1A] font-bold mb-3">Courses</div>
           <h1 className="text-2xl md:text-5xl font-semibold tracking-tight mb-3 md:mb-4">Learn editing, the practical way</h1>
           <p className="text-zinc-400 max-w-2xl mx-auto font-light">
             Structured courses in Tamil — buy once, watch anytime from your library.
@@ -51,12 +51,12 @@ export const Courses: React.FC = () => {
                     <img src={c.thumbnail} alt={c.title} className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-16 h-16 rounded-full bg-[#E50914]/90 flex items-center justify-center shadow-2xl group-hover:scale-110 transition-transform">
+                      <div className="w-16 h-16 rounded-full bg-[#FF7A1A]/90 flex items-center justify-center shadow-2xl group-hover:scale-110 transition-transform">
                         <Play size={26} fill="white" className="text-white ml-1" />
                       </div>
                     </div>
                     {c.badge && (
-                      <span className="absolute top-3 left-3 bg-[#E50914] text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full">
+                      <span className="absolute top-3 left-3 bg-[#FF7A1A] text-black text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full">
                         {c.badge}
                       </span>
                     )}

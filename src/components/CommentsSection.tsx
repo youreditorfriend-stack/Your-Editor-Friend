@@ -283,7 +283,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ itemId, itemTi
                 onChange={(e) => setEditText(e.target.value)}
                 rows={opts.isReply ? 2 : 3}
                 autoFocus
-                className="w-full bg-zinc-950/60 border border-white/10 rounded-lg p-2.5 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-[#E50914] transition-all resize-none"
+                className="w-full bg-zinc-950/60 border border-white/10 rounded-lg p-2.5 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-[#FF7A1A] transition-all resize-none"
               />
               <div className="flex items-center gap-2">
                 <button
@@ -359,7 +359,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ itemId, itemTi
   return (
     <div className="mt-14 border-t border-white/5 pt-10">
       <div className="flex items-center gap-2 mb-6">
-        <MessageSquare className="text-[#E50914]" size={20} />
+        <MessageSquare className="text-[#FF7A1A]" size={20} />
         <h2 className="text-xl md:text-2xl font-semibold text-white">Questions &amp; Answers</h2>
         <span className="text-xs bg-zinc-800 text-zinc-400 font-mono px-2 py-0.5 rounded-full ml-1.5">
           {threads.length}
@@ -388,13 +388,13 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ itemId, itemTi
               placeholder="Have a question? Ask the editor..."
               rows={3}
               required
-              className="w-full bg-zinc-950/60 border border-white/10 rounded-xl p-3.5 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-[#E50914] transition-all resize-none"
+              className="w-full bg-zinc-950/60 border border-white/10 rounded-xl p-3.5 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-[#FF7A1A] transition-all resize-none"
             />
             <div className="flex justify-end mt-2">
               <button
                 type="submit"
                 disabled={submitting || !newComment.trim()}
-                className="inline-flex items-center gap-2 bg-[#E50914] hover:bg-red-700 text-white font-semibold text-xs px-4 py-2 rounded-lg transition-all disabled:opacity-50 cursor-pointer"
+                className="inline-flex items-center gap-2 bg-[#FF7A1A] hover:brightness-110 text-black font-semibold text-xs px-4 py-2 rounded-lg transition-all disabled:opacity-50 cursor-pointer"
               >
                 {submitting ? "Posting..." : <><Send size={12} /> Post Question</>}
               </button>
@@ -437,13 +437,13 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ itemId, itemTi
                       placeholder="Write a reply..."
                       rows={2}
                       autoFocus
-                      className="w-full bg-zinc-950/60 border border-white/10 rounded-lg p-2.5 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-[#E50914] transition-all resize-none"
+                      className="w-full bg-zinc-950/60 border border-white/10 rounded-lg p-2.5 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-[#FF7A1A] transition-all resize-none"
                     />
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => postReply(c.id)}
                         disabled={postingReply || !replyText.trim()}
-                        className="inline-flex items-center gap-1.5 bg-[#E50914] hover:bg-red-700 text-white font-semibold text-xs px-3 py-1.5 rounded-lg transition-all disabled:opacity-50 cursor-pointer"
+                        className="inline-flex items-center gap-1.5 bg-[#FF7A1A] hover:brightness-110 text-black font-semibold text-xs px-3 py-1.5 rounded-lg transition-all disabled:opacity-50 cursor-pointer"
                       >
                         <Send size={11} /> {postingReply ? "Posting..." : "Post reply"}
                       </button>
