@@ -19,6 +19,11 @@ import { StudioAnalytics } from "./StudioAnalytics";
 import { StudioComments } from "./StudioComments";
 import { AdminPagesPanel, AdminProductsPanel, AdminCoursesPanel, AdminUsersPanel, AdminCouponsPanel, AdminBundlesPanel } from "./AdminStore";
 import { PromptKitEditor } from "./PromptKitEditor";
+import { AdminPayments, useProblemCount } from "./AdminPayments";
+import { AdminSupport } from "./AdminSupport";
+import { AdminReviews } from "./AdminReviews";
+import { InstallAppButton } from "./InstallApp";
+import { CreditCard as CreditCardIcon, LifeBuoy, Star as StarIcon } from "lucide-react";
 import { Layers, Copy as CopyIcon, Search as SearchIcon, ImagePlus, Pencil } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, CartesianGrid } from "recharts";
 import {
@@ -66,7 +71,7 @@ import {
 } from "lucide-react";
 
 // Types
-type TabType = "overview" | "products" | "bundles" | "courses" | "projects" | "pages" | "comments" | "users" | "coupons" | "quote" | "settings";
+type TabType = "overview" | "products" | "bundles" | "payments" | "support" | "reviews" | "courses" | "projects" | "pages" | "comments" | "users" | "coupons" | "quote" | "settings";
 
 interface ActiveWorkspace {
   id: string;
@@ -104,12 +109,15 @@ const NAV_GROUPS = [
       { id: "bundles", label: "Bundles", icon: <Layers size={17} /> },
       { id: "courses", label: "Courses", icon: <BookOpen size={17} /> },
       { id: "coupons", label: "Coupons", icon: <Tag size={17} /> },
+      { id: "payments", label: "Payments & alerts", icon: <CreditCardIcon size={17} /> },
     ],
   },
   {
     title: "People",
     items: [
       { id: "users", label: "Customers", icon: <Users size={17} /> },
+      { id: "support", label: "Support helper", icon: <LifeBuoy size={17} /> },
+      { id: "reviews", label: "Reviews", icon: <StarIcon size={17} /> },
       { id: "comments", label: "Comments", icon: <MessageSquare size={17} /> },
     ],
   },
@@ -125,7 +133,7 @@ const NAV_GROUPS = [
 ] as const;
 
 // Phone bottom bar: the four screens used most.
-const NAV_MOBILE = ["overview", "products", "bundles", "users"] as const;
+const NAV_MOBILE = ["overview", "products", "payments", "support"] as const;
 
 // Sortable columns for the dashboard Product Leaderboard (all sort descending).
 const LEADER_COLS = [
@@ -184,6 +192,9 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
   const [productFilterCat, setProductFilterCat] = useState("all");
   const [productSearch, setProductSearch] = useState("");
   const [showCatEditor, setShowCatEditor] = useState(false);
+  const [supportEmail, setSupportEmail] = useState("");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const problemCount = useProblemCount();
   const dndSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   const handleProductDragEnd = (e: DragEndEvent) => {
@@ -473,6 +484,7 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
                   <span className={on ? "text-[#FF7A1A]" : ""}>{menu.icon}</span>
                   {menu.label}
                   {menu.id === "products" && <span className="ml-auto text-[11px] text-zinc-500 font-medium">{storeProducts.length}</span>}
+                  {menu.id === "payments" && problemCount > 0 && <span className="ml-auto min-w-[18px] h-[18px] px-1.5 rounded-full bg-red-500 text-white text-[10px] font-extrabold grid place-items-center">{problemCount}</span>}
                 </button>
               );
             })}
@@ -509,7 +521,13 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
           <span className="text-[10px] font-bold tracking-widest text-zinc-500 border border-white/10 rounded-md px-1.5 py-0.5">ADMIN</span>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-4">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <InstallAppButton />
+          <button onClick={() => { setActiveWorkspace(null); setActiveTab("payments"); }} title="Payment alerts"
+            className="relative w-9 h-9 rounded-xl border border-white/10 grid place-items-center text-zinc-300 hover:text-white cursor-pointer">
+            🔔
+            {problemCount > 0 && <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-extrabold grid place-items-center">{problemCount}</span>}
+          </button>
           <Button
             variant="primary"
             size="sm"
@@ -539,9 +557,10 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
             const on = activeTab === id;
             return (
               <button key={id} onClick={() => setActiveTab(id as TabType)}
-                className={`flex flex-col items-center justify-center gap-1 h-16 text-[10px] font-semibold ${on ? "text-[#FF7A1A]" : "text-zinc-500"}`}>
+                className={`relative flex flex-col items-center justify-center gap-1 h-16 text-[10px] font-semibold ${on ? "text-[#FF7A1A]" : "text-zinc-500"}`}>
                 {item.icon}
-                {item.label}
+                {({ overview: "Home", products: "Products", payments: "Payments", support: "Help" } as Record<string, string>)[id] || item.label}
+                {id === "payments" && problemCount > 0 && <span className="absolute top-2 right-[calc(50%-18px)] w-2 h-2 rounded-full bg-red-500" />}
               </button>
             );
           })}
@@ -1436,8 +1455,13 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
                         </span>
                       </button>
 
-                      {/* Drag + pin */}
+                      {/* Select + drag + pin */}
                       <div className="absolute top-2 left-2 flex items-center gap-1">
+                        <button
+                          onClick={() => setSelectedIds(s => { const n = new Set(s); n.has(p.id) ? n.delete(p.id) : n.add(p.id); return n; })}
+                          className={`w-7 h-7 rounded-lg border-2 grid place-items-center text-xs font-extrabold cursor-pointer ${selectedIds.has(p.id) ? "bg-[#FF7A1A] border-[#FF7A1A] text-black" : "bg-black/70 border-white/40 text-transparent"}`}
+                          title="Select"
+                        >✓</button>
                         {dragHandle}
                         {p.pinned && <span className="w-7 h-7 flex items-center justify-center bg-black/70 text-amber-400 rounded-lg" title="Pinned to top"><Pin size={13} /></span>}
                       </div>
@@ -1461,12 +1485,19 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
                           <span className={`text-sm font-extrabold ${p.price === 0 ? "text-[#25D366]" : "text-white"}`}>{p.price === 0 ? "FREE" : `₹${p.price.toLocaleString("en-IN")}`}</span>
                           {hasDiscount && <span className="text-[11px] text-zinc-600 line-through">₹{p.originalPrice}</span>}
                         </div>
-                        <div className="flex items-center gap-2 mt-1 text-[11px] text-zinc-500">
-                          {catLabel && <span className="truncate">{catLabel}</span>}
-                          {typeof p.rating === "number" && p.rating > 0 && (
-                            <span className="flex items-center gap-0.5 shrink-0"><Star size={10} fill="#facc15" className="text-yellow-400" />{p.rating.toFixed(1)}</span>
-                          )}
-                        </div>
+                        {typeof p.rating === "number" && p.rating > 0 && (
+                          <div className="flex items-center gap-0.5 mt-1 text-[11px] text-zinc-500"><Star size={10} fill="#facc15" className="text-yellow-400" />{p.rating.toFixed(1)}</div>
+                        )}
+                        {/* Change category right here — saves instantly */}
+                        <select
+                          value={getProductCategories(p)[0] || ""}
+                          onChange={e => { const c = e.target.value; updateProduct(p.id, { category: c, categories: c ? [c] : [] }); toast.success(`Moved to ${productCategories.find(x => x.id === c)?.label || "no category"}`); }}
+                          className="mt-2 w-full h-8 rounded-lg border border-[#FF7A1A]/35 bg-[#FF7A1A]/[0.06] text-[#ffb27a] text-[12px] font-bold px-2 cursor-pointer outline-none"
+                          title={catLabel ? `Category: ${catLabel}` : "No category"}
+                        >
+                          <option value="">— No category —</option>
+                          {productCategories.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+                        </select>
                       </div>
 
                       {/* Actions */}
@@ -1575,8 +1606,28 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
                       </div>
                     )}
 
+                    {/* Bulk actions for selected cards */}
+                    {selectedIds.size > 0 && (
+                      <div className="sticky top-16 z-20 flex flex-wrap items-center gap-2 rounded-2xl border border-[#FF7A1A]/50 bg-[#2a1606] px-3 py-2.5">
+                        <b className="text-sm">{selectedIds.size} selected</b>
+                        <select id="bulkCat" defaultValue="" className="h-9 rounded-lg bg-black border border-white/20 px-2 text-sm"
+                          onChange={e => {
+                            const c = e.target.value; if (!c) return;
+                            commit(storeProducts.map(p => (selectedIds.has(p.id) ? { ...p, category: c, categories: [c] } : p)));
+                            toast.success(`${selectedIds.size} moved to ${productCategories.find(x => x.id === c)?.label}`);
+                            setSelectedIds(new Set());
+                          }}>
+                          <option value="">Move to category…</option>
+                          {productCategories.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+                        </select>
+                        <Button size="sm" variant="secondary" onClick={() => { commit(storeProducts.map(p => (selectedIds.has(p.id) ? { ...p, enabled: true } : p))); setSelectedIds(new Set()); }}>Show</Button>
+                        <Button size="sm" variant="secondary" onClick={() => { commit(storeProducts.map(p => (selectedIds.has(p.id) ? { ...p, enabled: false } : p))); setSelectedIds(new Set()); }}>Hide</Button>
+                        <button onClick={() => setSelectedIds(new Set())} className="ml-auto text-xs text-zinc-400 hover:text-white cursor-pointer">✕ Clear</button>
+                      </div>
+                    )}
+
                     <p className="text-[11px] text-zinc-500">
-                      {canDrag ? "Drag the grip handle (top-left of a card) to reorder — the shop shows products in this order. Tap Live / Draft to show or hide." : "Pick All and clear search to reorder."}
+                      {canDrag ?"Drag the grip handle (top-left of a card) to reorder — the shop shows products in this order. Tap Live / Draft to show or hide." : "Pick All and clear search to reorder."}
                     </p>
 
                     {/* Grid */}
@@ -1723,6 +1774,12 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
                   <AdminUsersPanel />
                 </Card>
               )}
+
+              {activeTab === "payments" && (
+                <AdminPayments onOpenSupport={(em) => { setSupportEmail(em); setActiveTab("support"); }} />
+              )}
+              {activeTab === "support" && <AdminSupport initialEmail={supportEmail} />}
+              {activeTab === "reviews" && <AdminReviews />}
 
               {activeTab === "bundles" && (
                 <Card>

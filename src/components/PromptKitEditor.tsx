@@ -226,6 +226,16 @@ export function PromptKitEditor({ productId, isFree, onSaved }: {
                         <textarea value={prompts[l.id]?.prompt || ""} onChange={e => setPrompt(l.id, { prompt: e.target.value })} rows={3}
                           placeholder="Prompt for this layer…"
                           className={`w-full bg-zinc-950 border rounded-lg px-2.5 py-2 text-[13px] font-mono leading-relaxed outline-none focus:border-[#FF7A1A] ${prompts[l.id]?.prompt?.trim() ? "border-white/10" : "border-amber-500/40"}`} />
+                        <div className="flex flex-wrap items-center gap-1.5 -mt-1">
+                          <span className="text-[10px] text-zinc-500">Let buyers type their own text:</span>
+                          {["Name", "Brand", "Title"].map(k => (
+                            <button key={k} type="button" onClick={() => setPrompt(l.id, { prompt: `${prompts[l.id]?.prompt || ""}{{${k}}}` })}
+                              className="h-6 px-2 rounded-md border border-[#FF7A1A]/40 text-[#FF7A1A] text-[10px] font-bold hover:bg-[#FF7A1A]/10 cursor-pointer">
+                              + {`{{${k}}}`}
+                            </button>
+                          ))}
+                          <span className="text-[10px] text-zinc-600">e.g. title text "{"{{Name}}"}" in gold letters</span>
+                        </div>
                         <input value={prompts[l.id]?.params || ""} onChange={e => setPrompt(l.id, { params: e.target.value })}
                           placeholder="Settings (optional), e.g. --ar 4:5 --style raw"
                           className="w-full h-9 bg-zinc-950 border border-white/10 rounded-lg px-2.5 text-xs font-mono outline-none focus:border-[#FF7A1A]" />

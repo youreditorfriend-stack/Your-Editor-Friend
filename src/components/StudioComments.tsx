@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { db } from "../firebase";
-import { collection, addDoc, onSnapshot } from "firebase/firestore";
-import { MessageSquare, CornerDownRight, Send, Award, Calendar, ExternalLink } from "lucide-react";
+import { collection, addDoc, onSnapshot, deleteDoc, doc } from "firebase/firestore";
+import { MessageSquare, CornerDownRight, Send, Award, Calendar, ExternalLink, Trash2 } from "lucide-react";
+import { useConfirm, useToast } from "./admin/ui";
 import { useAuth } from "../lib/auth";
 
 export interface CommentReply {
@@ -34,6 +35,20 @@ export const StudioComments: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [replyTexts, setReplyTexts] = useState<{ [commentId: string]: string }>({});
   const [submitting, setSubmitting] = useState<{ [commentId: string]: boolean }>({});
+  const confirmDialog = useConfirm();
+  const toast = useToast();
+
+  // Delete a comment (and its reply docs) or a single reply — admin only (rules).
+  const removeComment = async (id: string, replyIds: string[] = []) => {
+    if (!(await confirmDialog({ title: replyIds.length ? "Delete this comment and its replies?" : "Delete this comment?", description: "It disappears from the product page. This can't be undone.", danger: true, confirmLabel: "Delete" }))) return;
+    try {
+      await Promise.all([id, ...replyIds].map(x => deleteDoc(doc(db, "comments", x))));
+      toast.success("Deleted");
+    } catch (e) {
+      console.error(e);
+      toast.error("Could not delete — try again");
+    }
+  };
 
   useEffect(() => {
     // Read all comments across all products and subscribe in real-time
@@ -171,8 +186,17 @@ export const StudioComments: React.FC = () => {
                   <span className="text-[10px] bg-zinc-800 text-zinc-400 font-bold uppercase tracking-wider px-2.5 py-1 rounded flex items-center gap-1.5">
                     <ExternalLink size={10} /> ON: {c.itemTitle}
                   </span>
-                  <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${hasAdminReply ? "bg-[#25D366]/10 text-[#25D366] border border-[#25D366]/20" : "bg-rose-500/10 text-rose-400 border border-rose-500/20 animate-pulse"}`}>
-                    {hasAdminReply ? "Replied" : "Needs Reply"}
+                  <span className="flex items-center gap-2">
+                    <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${hasAdminReply ? "bg-[#25D366]/10 text-[#25D366] border border-[#25D366]/20" : "bg-rose-500/10 text-rose-400 border border-rose-500/20 animate-pulse"}`}>
+                      {hasAdminReply ? "Replied" : "Needs Reply"}
+                    </span>
+                    <button
+                      onClick={() => removeComment(c.id, replies.filter(r => !c.replies.some(lr => lr.id === r.id)).map(r => r.id))}
+                      className="h-7 px-2.5 rounded-lg text-[11px] font-bold text-zinc-400 hover:text-red-400 hover:bg-red-500/10 border border-white/10 flex items-center gap-1 cursor-pointer"
+                      title="Delete comment"
+                    >
+                      <Trash2 size={12} /> Delete
+                    </button>
                   </span>
                 </div>
 
@@ -217,6 +241,11 @@ export const StudioComments: React.FC = () => {
                           </div>
                           <p className="text-zinc-400 text-xs md:text-sm font-light leading-relaxed whitespace-pre-wrap">{reply.content}</p>
                         </div>
+                        {!c.replies.some(lr => lr.id === reply.id) && (
+                          <button onClick={() => removeComment(reply.id)} title="Delete reply" className="p-1.5 rounded-md text-zinc-600 hover:text-red-400 hover:bg-red-500/10 cursor-pointer shrink-0">
+                            <Trash2 size={12} />
+                          </button>
+                        )}
                       </div>
                     ))}
                   </div>

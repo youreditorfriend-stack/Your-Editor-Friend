@@ -6,6 +6,7 @@ import { useStore, usePageEnabled, sortByPinned, getProductCategories, isCourseL
 import { YOUTUBE, useYouTubeStats, getWhatsAppLink } from '../src/lib/site';
 import { ProductCard, ProductMasonry } from '../components/ProductCard';
 import { BundleShowcase } from '../components/BundleShowcase';
+import { TestimonialsStrip } from '../components/TestimonialsStrip';
 
 const EASE = [0.2, 0.8, 0.2, 1] as const;
 
@@ -227,6 +228,9 @@ export const Home: React.FC = () => {
             </div>
           </section>
         )}
+
+        {/* ── REVIEWS (text, voice notes, screenshots added from admin) ── */}
+        <TestimonialsStrip />
 
         {/* ── CREATOR STRIP (portfolio / YouTube / services live here, secondary) ── */}
         <motion.section

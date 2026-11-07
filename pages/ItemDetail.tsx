@@ -13,6 +13,8 @@ import { useDetailContext } from "../components/Layout";
 import { CommentsSection } from "../src/components/CommentsSection";
 import { ReviewsSection } from "../components/ReviewsSection";
 import { PromptKitViewer } from "../components/PromptKitViewer";
+import { LoginNudge } from "../components/LoginNudge";
+import { useResumeIntent } from "../src/lib/purchase";
 
 type Kind = "product" | "course";
 
@@ -42,6 +44,9 @@ export const ItemDetail: React.FC<{ kind: Kind }> = ({ kind }) => {
 
   const list: (Product | Course)[] = (kind === "product" ? store?.products : store?.courses) || [];
   const item = list.find(x => x.id === id && x.enabled);
+
+  // Came back from a Google login that started from a Buy click → finish it.
+  useResumeIntent(item);
 
   // Keyboard navigation for lightbox
   useEffect(() => {
@@ -96,6 +101,9 @@ export const ItemDetail: React.FC<{ kind: Kind }> = ({ kind }) => {
         >
           <ArrowLeft size={15} /> {backLabel}
         </button>
+
+        {/* Shared-link visitors who aren't logged in: one-tap login → buy */}
+        <LoginNudge item={item} />
 
         {/* Prompt kit products: PSD files → layers → prompts viewer on top */}
         {kind === "product" && (item as Product).promptKit && <PromptKitViewer product={item as Product} />}

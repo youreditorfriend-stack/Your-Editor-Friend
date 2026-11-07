@@ -70,9 +70,26 @@ export const PromptKitViewer: React.FC<{ product: Product }> = ({ product }) => 
   };
 
   const promptText = layer ? priv?.prompts?.[layer.id] : undefined;
+
+  // Editable parts: the admin writes {{Name}} / {{Brand}} in a prompt; the
+  // customer types their own text and it's swapped in before copying.
+  const tokens = useMemo(() => {
+    const t = new Set<string>();
+    (promptText?.prompt || '').replace(/\{\{\s*([^{}]{1,40}?)\s*\}\}/g, (_m, k) => { t.add(k); return ''; });
+    return [...t];
+  }, [promptText?.prompt]);
+  const fieldsKey = `yef-kit-fields-${product.id}`;
+  const [fields, setFields] = useState<Record<string, string>>(() => { try { return JSON.parse(localStorage.getItem(fieldsKey) || '{}'); } catch { return {}; } });
+  const setField = (k: string, v: string) => {
+    const next = { ...fields, [k]: v.slice(0, 60) };
+    setFields(next);
+    try { localStorage.setItem(fieldsKey, JSON.stringify(next)); } catch { /* ignore */ }
+  };
+  const fill = (s: string) => s.replace(/\{\{\s*([^{}]{1,40}?)\s*\}\}/g, (_m, k) => fields[k]?.trim() || k);
+
   const copy = async () => {
     if (!layer || !promptText?.prompt) return;
-    const text = [promptText.prompt, promptText.params].filter(Boolean).join(' ');
+    const text = [fill(promptText.prompt), promptText.params].filter(Boolean).join(' ');
     try { await navigator.clipboard.writeText(text); }
     catch { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }
     setCopied(true); flash('Prompt copied — Mark done when finished');
@@ -292,8 +309,29 @@ export const PromptKitViewer: React.FC<{ product: Product }> = ({ product }) => 
                 </div>
               ) : (
                 <>
+                  {tokens.length > 0 && (
+                    <div className="mb-3 rounded-xl border border-[#FF7A1A]/30 bg-[#FF7A1A]/[0.05] p-3">
+                      <div className="text-[11px] font-bold tracking-wider text-[#FF7A1A] mb-2">✎ MAKE IT YOURS</div>
+                      <div className="grid sm:grid-cols-2 gap-2">
+                        {tokens.map(k => (
+                          <label key={k} className="block">
+                            <span className="text-[11px] text-zinc-400">{k}</span>
+                            <input value={fields[k] || ''} onChange={e => setField(k, e.target.value)} placeholder={`Type your ${k.toLowerCase()}`}
+                              className="mt-0.5 w-full h-10 rounded-lg bg-[#0d0d0d] border border-white/10 px-3 text-sm outline-none focus:border-[#FF7A1A]" />
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <div className="font-mono text-[13px] leading-relaxed text-[#e8e8e8] bg-[#0d0d0d] border border-white/[0.08] rounded-xl px-4 py-3.5 max-h-[220px] overflow-auto whitespace-pre-wrap">
-                    {promptText?.prompt || <span className="text-zinc-500">No prompt for this layer yet.</span>}
+                    {promptText?.prompt
+                      ? promptText.prompt.split(/(\{\{\s*[^{}]{1,40}?\s*\}\})/g).map((part, i) => {
+                          const m = part.match(/^\{\{\s*([^{}]{1,40}?)\s*\}\}$/);
+                          return m
+                            ? <mark key={i} className="bg-[#FF7A1A]/20 text-[#ffb27a] rounded px-1">{fields[m[1]]?.trim() || m[1]}</mark>
+                            : <React.Fragment key={i}>{part}</React.Fragment>;
+                        })
+                      : <span className="text-zinc-500">No prompt for this layer yet.</span>}
                   </div>
                   {promptText?.params && (
                     <div className="flex flex-wrap gap-1.5 mt-2.5">

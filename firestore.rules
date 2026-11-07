@@ -130,6 +130,23 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Checkout step log (started / closed / failed / paid…). Written by the
+    // signed-in buyer for themself; only the admin can read it.
+    match /checkoutEvents/{eventId} {
+      allow create: if isSignedIn()
+        && incoming().uid == request.auth.uid
+        && incoming().keys().hasOnly(['uid','email','userName','itemId','itemName','amount','stage','reason','orderId','paymentId','coupon','device','at'])
+        && incoming().stage is string && incoming().stage.size() <= 30
+        && incoming().reason is string && incoming().reason.size() <= 300;
+      allow read, delete: if isAdmin();
+    }
+
+    // Testimonials (text / voice / screenshot) added by the admin; public.
+    match /testimonials/{tId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     // Each buyer's "done" ticks per prompt kit — private to that buyer.
     match /users/{userId}/promptProgress/{productId} {
       allow read, write: if isOwner(userId) && isValidId(productId);
