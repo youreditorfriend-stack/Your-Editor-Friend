@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { motion, type Variants } from 'framer-motion';
 import { ArrowRight, Youtube, Briefcase, Film, Bell } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useStore, usePageEnabled, sortByPinned, getProductCategories, isCourseLive, formatPrice } from '../src/lib/store';
+import { useStore, usePageEnabled, sortByPinned, getProductCategories, isCourseLive, formatPrice, sectionOn } from '../src/lib/store';
 import { YOUTUBE, useYouTubeStats, getWhatsAppLink } from '../src/lib/site';
 import { ProductCard, ProductMasonry } from '../components/ProductCard';
 import { BundleShowcase } from '../components/BundleShowcase';
@@ -78,18 +78,23 @@ export const Home: React.FC = () => {
   const shown = filtered.slice(0, 12);
 
   // Fan: featured/best-sellers first, 5 cards, centre card = strongest product.
+  // Admin can hand-pick the 5 fan products (Show / hide → Home → fan);
+  // otherwise featured/best-sellers first. Centre card = first pick.
+  const layout = store?.layout;
+  const on = (k: string) => sectionOn(layout, "home", k);
   const fanPicks = useMemo(() => {
-    const ranked = [...products].sort((a, b) => Number(!!b.featured || !!b.bestSeller) - Number(!!a.featured || !!a.bestSeller));
+    const picked = (layout?.fanIds || []).map(id => products.find(p => p.id === id)).filter((p): p is (typeof products)[number] => !!p);
+    const ranked = picked.length >= 3 ? picked : [...products].sort((a, b) => Number(!!b.featured || !!b.bestSeller) - Number(!!a.featured || !!a.bestSeller));
     const top = ranked.slice(0, 5);
     return top.length === 5 ? [top[3], top[1], top[0], top[2], top[4]] : top;
-  }, [products]);
+  }, [products, layout]);
 
-  const bundles = (store?.bundles || [])
+  const bundles = on("bundles") ? (store?.bundles || [])
     .filter(b => b.enabled && b.productIds?.length)
     .sort((a, b) => Number(!!b.featured) - Number(!!a.featured))
-    .slice(0, 2);
+    .slice(0, 2) : [];
 
-  const courses = showCourses ? (store?.courses || []).filter(c => c.enabled).slice(0, 2) : [];
+  const courses = showCourses && on("courses") ? (store?.courses || []).filter(c => c.enabled).slice(0, 2) : [];
 
   return (
     <div className="px-4 md:px-6 pb-20 overflow-x-clip">
@@ -133,7 +138,7 @@ export const Home: React.FC = () => {
           )}
 
           {/* Fan */}
-          {fanPicks.length >= 3 && (
+          {on("fan") && fanPicks.length >= 3 && (
             <motion.div initial="hidden" animate="rest" whileHover="spread"
               className="flex justify-center items-end h-[180px] sm:h-[220px] md:h-[250px] mt-8 md:mt-12 mx-auto max-w-[900px]">
               {fanPicks.map((p, i) => (
@@ -149,14 +154,14 @@ export const Home: React.FC = () => {
             </motion.div>
           )}
 
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.2, duration: 0.7 }}
+          {on("pills") && <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.2, duration: 0.7 }}
             className="flex flex-wrap gap-1.5 sm:gap-2.5 justify-center mt-8 md:mt-10">
             <Pill>Instant download</Pill><Pill>UPI / Card</Pill><Pill>Lifetime access</Pill><Pill>Secure checkout</Pill>
-          </motion.div>
+          </motion.div>}
         </section>
 
         {/* ── SHOP ── */}
-        {showProducts && (
+        {showProducts && on("shop") && (
           <section id="shop" className="scroll-mt-28 pt-8 md:pt-12">
             <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 md:mx-0 md:px-0 md:flex-wrap mb-4 md:mb-6">
               {[{ id: 'all', label: 'All' }, ...categories, ...(hasFree ? [{ id: 'free', label: 'Free' }] : [])].map(c => (
@@ -230,10 +235,10 @@ export const Home: React.FC = () => {
         )}
 
         {/* ── REVIEWS (text, voice notes, screenshots added from admin) ── */}
-        <TestimonialsStrip />
+        {on("reviews") && <TestimonialsStrip />}
 
         {/* ── CREATOR STRIP (portfolio / YouTube / services live here, secondary) ── */}
-        <motion.section
+        {on("creator") && <motion.section
           initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.7, ease: EASE }}
           className="mt-16 md:mt-24 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-5 border-y border-white/[0.08] py-6 md:py-7">
           <div className="flex items-center gap-4 flex-1 min-w-0">
@@ -258,7 +263,7 @@ export const Home: React.FC = () => {
               </Link>
             )}
           </div>
-        </motion.section>
+        </motion.section>}
       </div>
     </div>
   );

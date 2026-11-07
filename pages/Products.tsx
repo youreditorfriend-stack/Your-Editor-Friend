@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { MessageCircle } from 'lucide-react';
-import { useStore, getProductCategories, sortByPinned } from '../src/lib/store';
+import { useStore, getProductCategories, sortByPinned, sectionOn } from '../src/lib/store';
 import { getWhatsAppLink } from '../src/lib/site';
 import { ProductCard, ProductMasonry } from '../components/ProductCard';
 import { BundleShowcase } from '../components/BundleShowcase';
@@ -18,7 +18,8 @@ export const Products: React.FC = () => {
       : activeCat === 'free' ? products.filter(p => p.free)
       : products.filter(p => getProductCategories(p).includes(activeCat))
   );
-  const bundles = (store?.bundles || []).filter(b => b.enabled && b.productIds?.length);
+  const bundles = sectionOn(store?.layout, "products", "bundles") ? (store?.bundles || []).filter(b => b.enabled && b.productIds?.length) : [];
+  const showHelp = sectionOn(store?.layout, "products", "help");
 
   return (
     <div className="px-4 md:px-6 pb-24">
@@ -57,14 +58,14 @@ export const Products: React.FC = () => {
           </div>
         )}
 
-        <div className="mt-14 md:mt-20 text-center rounded-2xl border border-white/[0.07] bg-[#131313] py-9 md:py-12 px-6">
+        {showHelp && <div className="mt-14 md:mt-20 text-center rounded-2xl border border-white/[0.07] bg-[#131313] py-9 md:py-12 px-6">
           <h2 className="text-lg md:text-2xl font-bold mb-2">Not sure which one fits you?</h2>
           <p className="text-zinc-500 text-sm mb-5">Message me — I'll suggest the right pack.</p>
           <a href={getWhatsAppLink("Hi Janish! I need help choosing a product from your store.")} target="_blank" rel="noopener noreferrer"
             className="inline-flex items-center gap-2 bg-[#25D366] hover:brightness-110 text-black px-6 h-11 rounded-xl text-sm font-bold transition">
             <MessageCircle size={16} fill="currentColor" /> Ask on WhatsApp
           </a>
-        </div>
+        </div>}
       </div>
     </div>
   );

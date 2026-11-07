@@ -161,7 +161,18 @@ export interface StoreData {
   coupons: Coupon[];
   bundles?: Bundle[];
   checkoutHelp?: CheckoutHelp;
+  layout?: SiteLayout;
 }
+
+// Section-level show/hide + which products sit in the home hero fan.
+// Missing keys mean "shown", so older data keeps working.
+export interface SiteLayout {
+  home?: Partial<Record<"fan" | "pills" | "shop" | "bundles" | "courses" | "reviews" | "creator", boolean>>;
+  products?: Partial<Record<"bundles" | "help", boolean>>;
+  fanIds?: string[];
+}
+export const sectionOn = (layout: SiteLayout | undefined, page: "home" | "products", key: string) =>
+  (layout?.[page] as Record<string, boolean> | undefined)?.[key] !== false;
 
 // Products inside a bundle (skips ids that were deleted from the catalog).
 export function bundleProducts(store: Pick<StoreData, "products"> | null | undefined, b: Bundle): Product[] {
@@ -320,6 +331,7 @@ export function useStore() {
             pages: mergePages(d.pages),
             coupons: Array.isArray(d.coupons) ? d.coupons : [],
             bundles: Array.isArray(d.bundles) ? d.bundles : [],
+            layout: d.layout || {},
             checkoutHelp: d.checkoutHelp?.message
               ? { ...DEFAULT_CHECKOUT_HELP, ...d.checkoutHelp }
               : DEFAULT_CHECKOUT_HELP,

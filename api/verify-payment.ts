@@ -92,6 +92,25 @@ async function sendPurchaseEmail(
   if (!resp.ok) console.error("Resend error:", resp.status, await resp.text());
 }
 
+// Email the owner when a payment can't be unlocked, so nobody who paid is
+// left waiting. Best-effort; silently skipped without RESEND_API_KEY.
+async function alertOwner(subject: string, lines: string[]) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return;
+  try {
+    await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from: process.env.EMAIL_FROM || "Your Editor Friend <onboarding@resend.dev>",
+        to: [process.env.ALERT_EMAIL || "youreditorfriend@gmail.com"],
+        subject: `⚠ ${subject}`,
+        html: `<div style="font-family:Arial;font-size:14px;line-height:1.6">${lines.map(l => `<p>${String(l).replace(/</g, "&lt;")}</p>`).join("")}<p><a href="${SITE_URL}/admin">Open admin → Payments & alerts / Support helper</a></p></div>`,
+      }),
+    });
+  } catch (e) { console.error("owner alert failed", e); }
+}
+
 export default async function handler(req: any, res: any) {
   if (req.method !== "POST") return json(res, 405, { error: "Method not allowed" });
 
@@ -110,7 +129,10 @@ export default async function handler(req: any, res: any) {
       .createHmac("sha256", keySecret)
       .update(`${orderId}|${paymentId}`)
       .digest("hex");
-    if (expected !== signature) return json(res, 400, { error: "Invalid payment signature" });
+    if (expected !== signature) {
+      await alertOwner("Payment could not be verified", [`Order ${orderId}, payment ${paymentId}: signature did not match.`, "If the customer messages you, check Razorpay and use “Give product” in Support helper."]);
+      return json(res, 400, { error: "Invalid payment signature" });
+    }
 
     // Trust only the notes we wrote at order creation (client can't tamper)
     const rzp = new Razorpay({ key_id: keyId, key_secret: keySecret });
@@ -180,6 +202,11 @@ export default async function handler(req: any, res: any) {
     return json(res, 200, { ok: true, itemId });
   } catch (e: any) {
     console.error("verify-payment failed:", e);
+    await alertOwner("Paid but product not unlocked", [
+      `Order ${req.body?.orderId || "?"}, payment ${req.body?.paymentId || "?"}.`,
+      `Error: ${e?.message || e}`,
+      "The customer was charged. Find them in Payments & alerts and press “Give product”.",
+    ]);
     return json(res, 500, { error: "Verification failed" });
   }
 }

@@ -50,19 +50,28 @@ function bodyToHtml(body: string) {
     .join("");
 }
 
-function renderEmail(opts: { heading?: string; body: string; ctaLabel?: string; ctaUrl?: string }) {
-  const { heading, body, ctaLabel, ctaUrl } = opts;
+type Card = { image?: string; name?: string; price?: string; url?: string };
+
+function renderEmail(opts: { heading?: string; body: string; ctaLabel?: string; ctaUrl?: string; card?: Card }) {
+  const { heading, body, ctaLabel, ctaUrl, card } = opts;
   const cta = ctaLabel && ctaUrl
-    ? `<a href="${esc(ctaUrl)}" style="display:block;background:#25D366;color:#000000;text-decoration:none;text-align:center;padding:14px;border-radius:12px;font-weight:bold;font-size:15px;margin-top:8px">${esc(ctaLabel)}</a>`
+    ? `<a href="${esc(ctaUrl)}" style="display:block;background:#FF7A1A;color:#000000;text-decoration:none;text-align:center;padding:14px;border-radius:12px;font-weight:bold;font-size:15px;margin-top:8px">${esc(ctaLabel)}</a>`
+    : "";
+  const cardHtml = card?.name
+    ? `<a href="${esc(card.url || SITE_URL)}" style="display:block;text-decoration:none;color:#ffffff;border:1px solid #2a2a2a;border-radius:14px;overflow:hidden;margin:6px 0 16px">
+        ${card.image ? `<img src="${esc(card.image)}" alt="" style="display:block;width:100%;max-height:320px;object-fit:cover">` : ""}
+        <div style="padding:12px 14px"><div style="font-weight:bold;font-size:15px">${esc(card.name)}</div>${card.price ? `<div style="color:#FF7A1A;font-weight:bold;margin-top:4px">${esc(card.price)}</div>` : ""}</div>
+      </a>`
     : "";
   return `
   <div style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:0 auto;background:#0a0a0a;color:#ffffff;border-radius:16px;overflow:hidden">
     <div style="padding:28px 28px 20px;border-bottom:1px solid #222">
-      <div style="font-size:12px;letter-spacing:3px;color:#E50914;font-weight:bold">YOUR EDITOR FRIEND</div>
+      <div style="font-size:12px;letter-spacing:3px;color:#ffffff;font-weight:bold">YOUR EDITOR <span style="color:#FF7A1A">FRIEND</span></div>
     </div>
     <div style="padding:28px">
       ${heading ? `<h1 style="margin:0 0 16px;font-size:22px">${esc(heading)}</h1>` : ""}
       ${bodyToHtml(body)}
+      ${cardHtml}
       ${cta}
     </div>
     <div style="padding:16px 28px;border-top:1px solid #222;color:#52525b;font-size:11px">
@@ -78,7 +87,15 @@ export default async function handler(req: any, res: any) {
   if (!apiKey) return json(res, 503, { error: "Email not configured (RESEND_API_KEY missing)" });
 
   try {
-    const { idToken, to, subject, heading, body, ctaLabel, ctaUrl } = req.body || {};
+    const { idToken, to, subject, heading, body, ctaLabel, ctaUrl, card, people } = req.body || {};
+    // Optional per-person details for {name} / {last_product} tags.
+    const byEmail = new Map<string, { name?: string; last?: string }>();
+    if (Array.isArray(people)) people.forEach((p: any) => p?.email && byEmail.set(String(p.email).toLowerCase(), { name: p.name, last: p.last }));
+    const fill = (s: string, email: string) => {
+      const p = byEmail.get(email) || {};
+      const first = (p.name || "").trim().split(/\s+/)[0] || "there";
+      return String(s || "").replace(/\{name\}/gi, first).replace(/\{last_product\}/gi, p.last || "our templates");
+    };
 
     try {
       await assertAdmin(idToken);
@@ -93,7 +110,6 @@ export default async function handler(req: any, res: any) {
     if (!subject || !body) return json(res, 400, { error: "subject and body are required" });
     if (recipients.length > 500) return json(res, 400, { error: "Too many recipients (max 500 per send)" });
 
-    const html = renderEmail({ heading, body, ctaLabel, ctaUrl });
     const from = process.env.EMAIL_FROM || "Your Editor Friend <onboarding@resend.dev>";
 
     // Send individually so recipients never see each other's addresses (BCC on
@@ -107,7 +123,10 @@ export default async function handler(req: any, res: any) {
         const resp = await fetch("https://api.resend.com/emails", {
           method: "POST",
           headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ from, to: [email], subject, html }),
+          body: JSON.stringify({
+            from, to: [email], subject: fill(subject, email),
+            html: renderEmail({ heading: heading ? fill(heading, email) : undefined, body: fill(body, email), ctaLabel, ctaUrl, card }),
+          }),
         });
         if (resp.ok) sent++;
         else { failed.push(email); console.error("Resend error:", email, resp.status, await resp.text()); }

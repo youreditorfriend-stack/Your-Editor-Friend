@@ -24,7 +24,12 @@ import { AdminSupport } from "./AdminSupport";
 import { AdminReviews } from "./AdminReviews";
 import { InstallAppButton } from "./InstallApp";
 import { ItemEditor } from "./ItemEditor";
-import { CreditCard as CreditCardIcon, LifeBuoy, Star as StarIcon } from "lucide-react";
+import { AdminDashboard } from "./AdminDashboard";
+import { AdminCustomers } from "./AdminCustomers";
+import { AdminEmail } from "./AdminEmail";
+import { AdminSiteMap } from "./AdminSiteMap";
+import { AdminStorage } from "./AdminStorage";
+import { CreditCard as CreditCardIcon, LifeBuoy, Star as StarIcon, Mail, HardDrive } from "lucide-react";
 import { Layers, Copy as CopyIcon, Search as SearchIcon, ImagePlus, Pencil } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, CartesianGrid } from "recharts";
 import {
@@ -72,7 +77,7 @@ import {
 } from "lucide-react";
 
 // Types
-type TabType = "overview" | "products" | "bundles" | "payments" | "support" | "reviews" | "courses" | "projects" | "pages" | "comments" | "users" | "coupons" | "quote" | "settings";
+type TabType = "overview" | "products" | "bundles" | "payments" | "support" | "reviews" | "email" | "storage" | "courses" | "projects" | "pages" | "comments" | "users" | "coupons" | "quote" | "settings";
 
 interface ActiveWorkspace {
   id: string;
@@ -118,6 +123,7 @@ const NAV_GROUPS = [
     items: [
       { id: "users", label: "Customers", icon: <Users size={17} /> },
       { id: "support", label: "Support helper", icon: <LifeBuoy size={17} /> },
+      { id: "email", label: "Send email", icon: <Mail size={17} /> },
       { id: "reviews", label: "Reviews", icon: <StarIcon size={17} /> },
       { id: "comments", label: "Comments", icon: <MessageSquare size={17} /> },
     ],
@@ -126,7 +132,8 @@ const NAV_GROUPS = [
     title: "Site",
     items: [
       { id: "projects", label: "Portfolio", icon: <ExternalLink size={17} /> },
-      { id: "pages", label: "Show / hide pages", icon: <Eye size={17} /> },
+      { id: "pages", label: "Show / hide", icon: <Eye size={17} /> },
+      { id: "storage", label: "Storage & alerts", icon: <HardDrive size={17} /> },
       { id: "quote", label: "Custom quote", icon: <Sliders size={17} /> },
       { id: "settings", label: "Settings", icon: <Settings size={17} /> },
     ],
@@ -195,6 +202,7 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
   const [showCatEditor, setShowCatEditor] = useState(false);
   const [supportEmail, setSupportEmail] = useState("");
   const [wsDirty, setWsDirty] = useState(false);
+  const [emailPreset, setEmailPreset] = useState<string[]>([]);
   useEffect(() => { setWsDirty(false); }, [activeWorkspace?.id]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const problemCount = useProblemCount();
@@ -334,7 +342,8 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
         products: activeProducts.map(p => ({ ...p, free: p.price === 0 })),
         courses: activeCourses.map(c => ({ ...c, free: c.price === 0 })),
         productCategories,
-        pages: pageConfigs,
+        // pages are owned by the Show / hide screen — not written here, so a
+        // product save can never undo a visibility change (merge keeps them).
         coupons: activeCoupons,
         ...(checkoutHelp ? { checkoutHelp } : {})
       };
@@ -708,202 +717,16 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
             // B. BASE TAB NAVIGATION CONTROL PANEL
             <div>
 
-              {/* 1. OVERVIEW DASHBOARD */}
+              {/* 1. DASHBOARD */}
               {activeTab === "overview" && (
-                <div className="space-y-6">
-                  <div>
-                    <Badge toneKey="danger" dot><Sparkles size={9} /> Live Creative Business Dashboard</Badge>
-                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mt-3">Channel Performance Workspace</h1>
-                    <p className="text-xs text-zinc-500 mt-1.5 font-light max-w-2xl">Monitor, adjust, and edit your digital shop assets and course academy pipelines in a high-density, centralized interface.</p>
-                  </div>
-
-                  {/* Channel stats row */}
-                  <div className="grid grid-cols-2 lg:grid-cols-6 gap-3.5 sm:gap-4">
-                    {[
-                      { label: "Total Revenue", count: `₹${totalRevenue.toLocaleString("en-IN")}`, icon: <DollarSign size={18} />, color: "text-[#25D366]" },
-                      { label: "Net Profit (after ~2% fee)", count: `₹${totalNetProfit.toLocaleString("en-IN")}`, icon: <TrendingUp size={18} />, color: "text-emerald-400" },
-                      { label: "Academy Courses", count: totalCourses, icon: <BookOpen size={18} />, color: "text-amber-400" },
-                      { label: "Digital Products", count: totalProducts, icon: <FolderEdit size={18} />, color: "text-emerald-400" },
-                      { label: "Portfolio Videos", count: totalVideos, icon: <ExternalLink size={18} />, color: "text-blue-400" },
-                      { label: "Active Visibilities", count: activeVisibilityCount, icon: <Eye size={18} />, color: "text-purple-400" },
-                    ].map((st, idx) => (
-                      <Card key={idx} hoverable className="!p-4 sm:!p-5 flex items-center justify-between">
-                        <div className="min-w-0">
-                          <div className="text-xl sm:text-2xl font-extrabold font-mono tracking-tight text-white mb-1 truncate">
-                            {st.count}
-                          </div>
-                          <span className="text-[11px] text-zinc-500 font-light">{st.label}</span>
-                        </div>
-                        <span className={`${st.color} bg-white/[0.03] p-2.5 rounded-xl shrink-0`}>{st.icon}</span>
-                      </Card>
-                    ))}
-                  </div>
-
-                  {/* Product Leaderboard — best sellers ranked, joined with real views */}
-                  <Card>
-                    <CardHeader
-                      title="Product Leaderboard"
-                      subtitle="Every listing ranked by real sales & views. Click a column to re-sort. Purchase ratio = purchases ÷ unique viewers."
-                      action={<Badge toneKey="danger"><Trophy size={11} /> Ranked by {LEADER_COLS.find(c => c.key === leaderSort)?.label}</Badge>}
-                    />
-                    {sortedLeaderboard.length === 0 ? (
-                      <EmptyState icon={<Trophy size={26} />} title="No activity yet" description="Once products get views or purchases, they'll be ranked here." />
-                    ) : (
-                      <div className="overflow-x-auto -mx-1">
-                        <table className="w-full text-left text-xs border-collapse min-w-[720px]">
-                          <thead>
-                            <tr className="border-b border-white/10 text-zinc-500">
-                              <th className="py-2.5 pr-2 font-bold uppercase tracking-wider text-[10px] w-8">#</th>
-                              <th className="py-2.5 px-2 font-bold uppercase tracking-wider text-[10px]">Item</th>
-                              {LEADER_COLS.map(col => (
-                                <th key={col.key} className="py-2.5 px-2 text-right">
-                                  <button
-                                    onClick={() => setLeaderSort(col.key)}
-                                    className={`inline-flex items-center gap-1 font-bold uppercase tracking-wider text-[10px] cursor-pointer transition-colors ${
-                                      leaderSort === col.key ? "text-[#FF7A1A]" : "text-zinc-500 hover:text-zinc-300"
-                                    }`}
-                                  >
-                                    {col.label}
-                                    {leaderSort === col.key && <ChevronRight size={11} className="rotate-90" />}
-                                  </button>
-                                </th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-white/[0.04]">
-                            {sortedLeaderboard.map((row, i) => (
-                              <tr key={row.id} className="hover:bg-white/[0.02] transition-colors">
-                                <td className="py-3 pr-2 font-mono text-zinc-500">
-                                  {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}
-                                </td>
-                                <td className="py-3 px-2">
-                                  <div className="font-semibold text-white truncate max-w-[220px]">{row.name}</div>
-                                  <div className="text-[10px] text-zinc-600 uppercase tracking-wider">{row.type}</div>
-                                </td>
-                                <td className="py-3 px-2 text-right font-mono text-zinc-400">{row.impressions.toLocaleString("en-IN")}</td>
-                                <td className="py-3 px-2 text-right font-mono text-zinc-400">{row.uniqueViewers.toLocaleString("en-IN")}</td>
-                                <td className="py-3 px-2 text-right font-mono font-bold text-white">{row.purchases.toLocaleString("en-IN")}</td>
-                                <td className="py-3 px-2 text-right font-mono text-zinc-300">₹{row.revenue.toLocaleString("en-IN")}</td>
-                                <td className="py-3 px-2 text-right font-mono font-bold text-[#25D366]">₹{row.netProfit.toLocaleString("en-IN")}</td>
-                                <td className="py-3 px-2 text-right font-mono">
-                                  {row.conversion == null
-                                    ? <span className="text-zinc-600">—</span>
-                                    : <span className="text-amber-400">{row.conversion.toFixed(1)}%</span>}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </Card>
-
-                  {/* Dynamic Revenue Trends & Product Analytics Charts */}
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
-                    {/* Left: Revenue Trends */}
-                    <Card>
-                      <div className="mb-4">
-                        <h2 className="text-sm font-semibold text-zinc-300">Revenue Growth Trends</h2>
-                        <p className="text-[11px] text-zinc-500 mt-0.5">Real-time dynamic store revenue timeline based on purchases and manual grants</p>
-                      </div>
-                      <div className="h-64 w-full">
-                        {revenueTrendData.length === 0 ? (
-                          <div className="h-full flex items-center justify-center text-center text-zinc-600 text-xs border border-dashed border-white/5 rounded-xl">
-                            No revenue recorded yet — sales will plot here.
-                          </div>
-                        ) : (
-                        <ResponsiveContainer width="100%" height="100%">
-                          <AreaChart data={revenueTrendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                            <defs>
-                              <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#25D366" stopOpacity={0.3}/>
-                                <stop offset="95%" stopColor="#25D366" stopOpacity={0}/>
-                              </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#1a1a1a" />
-                            <XAxis dataKey="date" stroke="#444" fontSize={10} tickLine={false} />
-                            <YAxis stroke="#444" fontSize={10} tickLine={false} />
-                            <Tooltip
-                              contentStyle={{ background: "#0d0d0d", borderColor: "#333", borderRadius: 10 }}
-                              labelStyle={{ color: "#888", fontSize: 11 }}
-                              itemStyle={{ color: "#fff", fontSize: 12 }}
-                            />
-                            <Area type="monotone" dataKey="revenue" name="Revenue (₹)" stroke="#25D366" strokeWidth={2} fillOpacity={1} fill="url(#colorRev)" />
-                          </AreaChart>
-                        </ResponsiveContainer>
-                        )}
-                      </div>
-                    </Card>
-
-                    {/* Right: Product Popularity and Sales */}
-                    <Card>
-                      <div className="mb-4">
-                        <h2 className="text-sm font-semibold text-zinc-300">Product Analytics</h2>
-                        <p className="text-[11px] text-zinc-500 mt-0.5">Individual asset performance, claims, sales quantities and active revenue contributions</p>
-                      </div>
-                      <div className="h-64 w-full">
-                        {productChartData.length === 0 ? (
-                          <div className="h-full flex items-center justify-center text-center text-zinc-600 text-xs border border-dashed border-white/5 rounded-xl">
-                            No sales or claims yet — product performance will appear here.
-                          </div>
-                        ) : (
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={productChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#1a1a1a" />
-                            <XAxis dataKey="name" stroke="#444" fontSize={9} tickLine={false} tickFormatter={(v) => v.length > 12 ? `${v.substring(0, 10)}...` : v} />
-                            <YAxis stroke="#444" fontSize={10} tickLine={false} />
-                            <Tooltip
-                              contentStyle={{ background: "#0d0d0d", borderColor: "#333", borderRadius: 10 }}
-                              labelStyle={{ color: "#888", fontSize: 11 }}
-                              itemStyle={{ color: "#fff", fontSize: 12 }}
-                            />
-                            <Bar dataKey="sales" name="Sales (Qty)" fill="#e63027" radius={[4, 4, 0, 0]}>
-                              {productChartData.map((_, index) => (
-                                <Cell key={`cell-${index}`} fill={index % 2 === 0 ? "#FF7A1A" : "#f87171"} />
-                              ))}
-                            </Bar>
-                          </BarChart>
-                        </ResponsiveContainer>
-                        )}
-                      </div>
-                    </Card>
-                  </div>
-
-                  {/* Navigation shortcuts strip */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <Card>
-                      <h2 className="text-sm font-semibold tracking-wide text-zinc-300 mb-4">Quick Content Shortcuts</h2>
-                      <div className="grid grid-cols-2 gap-3">
-                        <button onClick={() => setActiveTab("products")} className="bg-white/[0.02] border border-white/5 p-4 rounded-xl text-left hover:border-[#FF7A1A]/50 hover:bg-white/[0.04] transition-all cursor-pointer group">
-                          <FolderEdit size={20} className="text-[#FF7A1A] mb-2 group-hover:scale-110 transition-transform" />
-                          <div className="text-xs font-semibold">Store Catalog</div>
-                          <div className="text-[10px] text-zinc-500 font-light mt-0.5">Manage products and categories</div>
-                        </button>
-                        <button onClick={() => setActiveTab("courses")} className="bg-white/[0.02] border border-white/5 p-4 rounded-xl text-left hover:border-amber-400/50 hover:bg-white/[0.04] transition-all cursor-pointer group">
-                          <BookOpen size={20} className="text-amber-400 mb-2 group-hover:scale-110 transition-transform" />
-                          <div className="text-xs font-semibold">Academy Library</div>
-                          <div className="text-[10px] text-zinc-500 font-light mt-0.5">Edit courses and student guides</div>
-                        </button>
-                      </div>
-                    </Card>
-
-                    <Card>
-                      <h2 className="text-sm font-semibold tracking-wide text-zinc-300 mb-4">System Visibility Options</h2>
-                      <div className="grid grid-cols-2 gap-3">
-                        <button onClick={() => setActiveTab("pages")} className="bg-white/[0.02] border border-white/5 p-4 rounded-xl text-left hover:border-purple-400/50 hover:bg-white/[0.04] transition-all cursor-pointer group">
-                          <Eye size={20} className="text-purple-400 mb-2 group-hover:scale-110 transition-transform" />
-                          <div className="text-xs font-semibold">Page Visibility</div>
-                          <div className="text-[10px] text-zinc-500 font-light mt-0.5">Toggle live/draft site pages</div>
-                        </button>
-                        <button onClick={() => setActiveTab("comments")} className="bg-white/[0.02] border border-white/5 p-4 rounded-xl text-left hover:border-rose-400/50 hover:bg-white/[0.04] transition-all cursor-pointer group">
-                          <MessageSquare size={20} className="text-rose-400 mb-2 group-hover:scale-110 transition-transform" />
-                          <div className="text-xs font-semibold">Discussion Board</div>
-                          <div className="text-[10px] text-zinc-500 font-light mt-0.5">Moderate customer public Q&amp;As</div>
-                        </button>
-                      </div>
-                    </Card>
-                  </div>
-                </div>
+                <AdminDashboard
+                  products={storeProducts}
+                  courses={storeCourses}
+                  users={users}
+                  analytics={analyticsMap}
+                  onGo={(tab) => setActiveTab(tab as TabType)}
+                  onOpenProduct={(p) => setActiveWorkspace({ id: p.id, type: "product", item: p, workspaceTab: "details" })}
+                />
               )}
 
               {/* 2. PRODUCTS — search, filter, quick Live/Draft, duplicate, delete, drag to reorder */}
@@ -1286,10 +1109,10 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
 
               {/* 5. USERS & ACCESS MANAGEMENT */}
               {activeTab === "users" && (
-                <Card>
-                  <AdminUsersPanel />
-                </Card>
+                <AdminCustomers onEmail={(emails) => { setEmailPreset(emails); setActiveTab("email"); }} />
               )}
+              {activeTab === "email" && <AdminEmail preset={emailPreset} />}
+              {activeTab === "storage" && <AdminStorage />}
 
               {activeTab === "payments" && (
                 <AdminPayments onOpenSupport={(em) => { setSupportEmail(em); setActiveTab("support"); }} />
@@ -1312,9 +1135,13 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
 
               {/* 7. PAGE VISIBILITY CONFIG */}
               {activeTab === "pages" && (
-                <Card>
-                  <AdminPagesPanel />
-                </Card>
+                <div className="space-y-4">
+                  <AdminSiteMap />
+                  <details className="rounded-2xl border border-white/[0.08] bg-[#131313] p-4">
+                    <summary className="cursor-pointer text-sm font-bold text-zinc-300">Advanced: checkout help note (GPay fallback message)</summary>
+                    <div className="mt-4"><AdminPagesPanel /></div>
+                  </details>
+                </div>
               )}
 
               {/* 8. RECENT PORTFOLIO PROJECTS */}
