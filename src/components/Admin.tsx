@@ -23,6 +23,7 @@ import { AdminPayments, useProblemCount } from "./AdminPayments";
 import { AdminSupport } from "./AdminSupport";
 import { AdminReviews } from "./AdminReviews";
 import { InstallAppButton } from "./InstallApp";
+import { ItemEditor } from "./ItemEditor";
 import { CreditCard as CreditCardIcon, LifeBuoy, Star as StarIcon } from "lucide-react";
 import { Layers, Copy as CopyIcon, Search as SearchIcon, ImagePlus, Pencil } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, CartesianGrid } from "recharts";
@@ -193,6 +194,8 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
   const [productSearch, setProductSearch] = useState("");
   const [showCatEditor, setShowCatEditor] = useState(false);
   const [supportEmail, setSupportEmail] = useState("");
+  const [wsDirty, setWsDirty] = useState(false);
+  useEffect(() => { setWsDirty(false); }, [activeWorkspace?.id]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const problemCount = useProblemCount();
   const dndSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
@@ -518,7 +521,7 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
           <span className="font-extrabold text-[13px] sm:text-sm tracking-wide whitespace-nowrap">
             YOUR EDITOR <span className="text-[#FF7A1A]">FRIEND</span>
           </span>
-          <span className="text-[10px] font-bold tracking-widest text-zinc-500 border border-white/10 rounded-md px-1.5 py-0.5">ADMIN</span>
+          <span className="hidden sm:inline-block text-[10px] font-bold tracking-widest text-zinc-500 border border-white/10 rounded-md px-1.5 py-0.5">ADMIN</span>
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
@@ -612,18 +615,21 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/5 pb-5">
                 <div className="flex items-center gap-3">
                   <button
-                    onClick={() => setActiveWorkspace(null)}
-                    className="p-2 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-xl transition-all cursor-pointer flex items-center gap-1 text-xs font-bold"
+                    onClick={async () => {
+                      if (wsDirty && !(await confirmDialog({ title: "Leave without saving?", description: "Your changes on this product aren't saved yet.", confirmLabel: "Leave", danger: true }))) return;
+                      setWsDirty(false);
+                      setActiveWorkspace(null);
+                    }}
+                    className="h-10 px-3 hover:bg-zinc-800 text-zinc-300 hover:text-white rounded-xl transition-all cursor-pointer flex items-center gap-1 text-sm font-bold border border-white/10"
                   >
-                    <ArrowLeft size={16} /> Back
+                    <ArrowLeft size={16} /> {activeWorkspace.type === "product" ? "Products" : "Courses"}
                   </button>
-                  <div className="h-6 w-[1px] bg-white/10 hidden sm:block"></div>
                   <div className="min-w-0">
-                    <div className="text-[10px] font-mono uppercase tracking-widest text-zinc-500 font-bold">
-                      {activeWorkspace.type === "product" ? "Product Workspace" : "Course Workspace"}
+                    <div className="text-[11px] uppercase tracking-wider text-zinc-500 font-bold">
+                      {activeWorkspace.type === "product" ? "Editing product" : "Editing course"}
                     </div>
-                    <h2 className="text-lg font-semibold tracking-tight text-white flex items-center gap-1.5 mt-0.5 truncate">
-                      {activeWorkspace.item.name || activeWorkspace.item.title}
+                    <h2 className="text-lg sm:text-xl font-extrabold tracking-tight text-white truncate max-w-[60vw] sm:max-w-[40vw]">
+                      {activeWorkspace.item.name || activeWorkspace.item.title || "Untitled"}
                     </h2>
                   </div>
                 </div>
@@ -631,9 +637,9 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
                 {/* Sub Tab selection */}
                 <div className="flex bg-zinc-950 p-1 rounded-xl border border-white/5 self-start sm:self-auto overflow-x-auto no-scrollbar">
                   {[
-                    { id: "details", label: "Details" },
-                    { id: "analytics", label: "Analytics & Sales" },
-                    { id: "comments", label: "Q&A Discussion" },
+                    { id: "details", label: "✏️ Edit" },
+                    { id: "analytics", label: "📈 Sales" },
+                    { id: "comments", label: "💬 Q&A" },
                   ].map((subTab) => (
                     <button
                       key={subTab.id}
@@ -650,520 +656,30 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
                 </div>
               </div>
 
-              {/* Workspace Tab Render: Details Editor */}
+              {/* Workspace Tab Render: Details Editor (step-by-step) */}
               {activeWorkspace.workspaceTab === "details" && (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-
-                  {/* Left edit column */}
-                  <div className="lg:col-span-2 space-y-5">
-
-                    {/* Core description block */}
-                    <Card>
-                      <CardHeader title="Primary Information" />
-                      <div className="space-y-4">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <Field label="Display Title">
-                            <Input
-                              value={activeWorkspace.type === "product" ? activeWorkspace.item.name : activeWorkspace.item.title}
-                              onChange={(e) => {
-                                const title = e.target.value;
-                                setActiveWorkspace(prev => {
-                                  if (!prev) return null;
-                                  const updated = { ...prev.item };
-                                  if (prev.type === "product") updated.name = title; else updated.title = title;
-                                  return { ...prev, item: updated };
-                                });
-                                if (activeWorkspace.type === "product") {
-                                  setStoreProducts(storeProducts.map(p => p.id === activeWorkspace.id ? { ...p, name: title } : p));
-                                } else {
-                                  setStoreCourses(storeCourses.map(c => c.id === activeWorkspace.id ? { ...c, title } : c));
-                                }
-                              }}
-                            />
-                          </Field>
-
-                          <Field label="Pricing (₹, 0 = Free)">
-                            <Input
-                              type="number"
-                              value={activeWorkspace.item.price}
-                              onChange={(e) => {
-                                const price = Number(e.target.value);
-                                setActiveWorkspace(prev => {
-                                  if (!prev) return null;
-                                  const updated = { ...prev.item, price, free: price === 0 };
-                                  return { ...prev, item: updated };
-                                });
-                                if (activeWorkspace.type === "product") {
-                                  setStoreProducts(storeProducts.map(p => p.id === activeWorkspace.id ? { ...p, price, free: price === 0 } : p));
-                                } else {
-                                  setStoreCourses(storeCourses.map(c => c.id === activeWorkspace.id ? { ...c, price, free: price === 0 } : c));
-                                }
-                              }}
-                              className="font-mono"
-                            />
-                          </Field>
-                        </div>
-
-                        {activeWorkspace.type === "product" && (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <Field label="Original Price ₹ (strike-through, optional)">
-                              <Input
-                                type="number"
-                                value={activeWorkspace.item.originalPrice ?? ""}
-                                onChange={(e) => updateActiveProduct({ originalPrice: e.target.value ? Number(e.target.value) : undefined })}
-                                className="font-mono"
-                              />
-                            </Field>
-                            <Field label="Discount %" hint={getDiscountPercent(activeWorkspace.item.price, activeWorkspace.item.originalPrice) != null ? undefined : "Set an original price to auto-compute this"}>
-                              <div className="w-full bg-zinc-950 border border-white/10 rounded-lg px-3.5 py-2.5 text-xs font-mono font-bold flex items-center justify-center h-[38px]">
-                                {getDiscountPercent(activeWorkspace.item.price, activeWorkspace.item.originalPrice) != null ? (
-                                  <span className="text-[#25D366]">-{getDiscountPercent(activeWorkspace.item.price, activeWorkspace.item.originalPrice)}%</span>
-                                ) : (
-                                  <span className="text-zinc-600">—</span>
-                                )}
-                              </div>
-                            </Field>
-                          </div>
-                        )}
-
-                        {activeWorkspace.type === "product" && (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <Field label="Rating (0-5, optional)">
-                              <Input
-                                type="number"
-                                min={0}
-                                max={5}
-                                step={0.5}
-                                value={activeWorkspace.item.rating ?? ""}
-                                onChange={(e) => updateActiveProduct({ rating: e.target.value ? Math.max(0, Math.min(5, Number(e.target.value))) : undefined })}
-                                className="font-mono"
-                              />
-                            </Field>
-                            <Field label="Review count (optional)">
-                              <Input
-                                type="number"
-                                min={0}
-                                value={activeWorkspace.item.reviewCount ?? ""}
-                                onChange={(e) => updateActiveProduct({ reviewCount: e.target.value ? Number(e.target.value) : undefined })}
-                                className="font-mono"
-                              />
-                            </Field>
-                          </div>
-                        )}
-
-                        {activeWorkspace.type === "product" && (
-                          <Field label="Categories (select one or more)">
-                            <div className="flex flex-wrap gap-1.5">
-                              {productCategories.map((cat) => {
-                                const selected = getProductCategories(activeWorkspace.item as Product);
-                                const on = selected.includes(cat.id);
-                                return (
-                                  <button
-                                    key={cat.id}
-                                    type="button"
-                                    onClick={() => {
-                                      const next = on ? selected.filter(id => id !== cat.id) : [...selected, cat.id];
-                                      updateActiveProduct({ categories: next, category: next[0] || "" });
-                                    }}
-                                    className={`rounded-full px-3 py-1 text-[11px] font-bold cursor-pointer transition-colors border ${
-                                      on ? "bg-[#FF7A1A]/20 border-[#FF7A1A] text-[#FF7A1A]" : "bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10"
-                                    }`}
-                                  >
-                                    {on ? "✓ " : ""}{cat.label}
-                                  </button>
-                                );
-                              })}
-                              {productCategories.length === 0 && <span className="text-zinc-600 text-xs">Add a category in the Store Catalog Categories panel first.</span>}
-                            </div>
-                          </Field>
-                        )}
-
-                        <Field label="Tagline">
-                          <Input
-                            value={activeWorkspace.item.tagline || ""}
-                            onChange={(e) => {
-                              const tagline = e.target.value;
-                              setActiveWorkspace(prev => {
-                                if (!prev) return null;
-                                return { ...prev, item: { ...prev.item, tagline } };
-                              });
-                              if (activeWorkspace.type === "product") {
-                                setStoreProducts(storeProducts.map(p => p.id === activeWorkspace.id ? { ...p, tagline } : p));
-                              } else {
-                                setStoreCourses(storeCourses.map(c => c.id === activeWorkspace.id ? { ...c, tagline } : c));
-                              }
-                            }}
-                          />
-                        </Field>
-
-                        {/* File field delivered in My Library */}
-                        <div className="pt-2">
-                          <FileField
-                            label={activeWorkspace.type === "product" ? "Product File Link / Document" : "Academy Link / Playlist Link"}
-                            hint="Drop a file, upload, or paste Google Drive / course hosting link"
-                            value={activeWorkspace.type === "product" ? activeWorkspace.item.downloadUrl : activeWorkspace.item.accessUrl}
-                            onChange={(url) => {
-                              setActiveWorkspace(prev => {
-                                if (!prev) return null;
-                                const updated = { ...prev.item };
-                                if (prev.type === "product") updated.downloadUrl = url; else updated.accessUrl = url;
-                                return { ...prev, item: updated };
-                              });
-                              if (activeWorkspace.type === "product") {
-                                setStoreProducts(storeProducts.map(p => p.id === activeWorkspace.id ? { ...p, downloadUrl: url } : p));
-                              } else {
-                                setStoreCourses(storeCourses.map(c => c.id === activeWorkspace.id ? { ...c, accessUrl: url } : c));
-                              }
-                            }}
-                          />
-                        </div>
-
-                        {activeWorkspace.type === "product" && activeWorkspace.item.freeAssetsEnabled && (
-                          <div className="pt-2">
-                            <FileField
-                              label="Free Assets File (extra button on product page)"
-                              hint="Upload a file or paste a link — logged-in users get this even before purchase"
-                              value={activeWorkspace.item.freeAssetsUrl ?? ""}
-                              onChange={(url) => updateActiveProduct({ freeAssetsUrl: url })}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    </Card>
-
-                    {/* Markdown description and video preview URL */}
-                    <Card>
-                      <CardHeader title="Description & Video Preview" />
-                      <div className="space-y-4">
-                        <Field label="Video Preview Link (Optional)">
-                          <Input
-                            value={activeWorkspace.item.previewVideo || ""}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setActiveWorkspace(prev => prev ? { ...prev, item: { ...prev.item, previewVideo: val } } : null);
-                              if (activeWorkspace.type === "product") {
-                                setStoreProducts(storeProducts.map(p => p.id === activeWorkspace.id ? { ...p, previewVideo: val } : p));
-                              } else {
-                                setStoreCourses(storeCourses.map(c => c.id === activeWorkspace.id ? { ...c, previewVideo: val } : c));
-                              }
-                            }}
-                            placeholder="YouTube watch link or Instagram reels url"
-                            className="font-mono"
-                          />
-                        </Field>
-
-                        <Field label="Markdown description (Detail page)">
-                          <Textarea
-                            value={activeWorkspace.item.description || ""}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setActiveWorkspace(prev => prev ? { ...prev, item: { ...prev.item, description: val } } : null);
-                              if (activeWorkspace.type === "product") {
-                                setStoreProducts(storeProducts.map(p => p.id === activeWorkspace.id ? { ...p, description: val } : p));
-                              } else {
-                                setStoreCourses(storeCourses.map(c => c.id === activeWorkspace.id ? { ...c, description: val } : c));
-                              }
-                            }}
-                            rows={6}
-                            placeholder="## What you learn..."
-                            className="font-mono"
-                          />
-                        </Field>
-                      </div>
-                    </Card>
-
-                    {/* FAQ Pair configuration */}
-                    <Card>
-                      <CardHeader
-                        title="Frequently Asked Questions"
-                        action={
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            icon={<Plus size={12} />}
-                            onClick={() => {
-                              const currentFaq = activeWorkspace.item.faq || [];
-                              const nextFaq = [...currentFaq, { q: "", a: "" }];
-                              setActiveWorkspace(prev => prev ? { ...prev, item: { ...prev.item, faq: nextFaq } } : null);
-                              if (activeWorkspace.type === "product") {
-                                setStoreProducts(storeProducts.map(p => p.id === activeWorkspace.id ? { ...p, faq: nextFaq } : p));
-                              } else {
-                                setStoreCourses(storeCourses.map(c => c.id === activeWorkspace.id ? { ...c, faq: nextFaq } : c));
-                              }
-                            }}
-                          >
-                            Add FAQ
-                          </Button>
-                        }
-                      />
-
-                      {(!activeWorkspace.item.faq || activeWorkspace.item.faq.length === 0) ? (
-                        <EmptyState title="No FAQs configured" description="Add a question and answer pair students see on the detail page." />
-                      ) : (
-                        <div className="space-y-3.5">
-                          {(activeWorkspace.item.faq || []).map((faqRow: any, i: number) => (
-                            <div key={i} className="bg-zinc-900/30 border border-white/5 p-4 rounded-xl space-y-2.5 relative">
-                              <button
-                                onClick={() => {
-                                  const currentFaq = activeWorkspace.item.faq || [];
-                                  const nextFaq = currentFaq.filter((_: any, idx: number) => idx !== i);
-                                  setActiveWorkspace(prev => prev ? { ...prev, item: { ...prev.item, faq: nextFaq } } : null);
-                                  if (activeWorkspace.type === "product") {
-                                    setStoreProducts(storeProducts.map(p => p.id === activeWorkspace.id ? { ...p, faq: nextFaq } : p));
-                                  } else {
-                                    setStoreCourses(storeCourses.map(c => c.id === activeWorkspace.id ? { ...c, faq: nextFaq } : c));
-                                  }
-                                }}
-                                className="absolute top-2.5 right-2.5 p-1 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-all cursor-pointer"
-                              >
-                                <Trash2 size={13} />
-                              </button>
-
-                              <div className="pr-6 space-y-2">
-                                <Input
-                                  value={faqRow.q}
-                                  placeholder="Question"
-                                  onChange={(e) => {
-                                    const currentFaq = [...(activeWorkspace.item.faq || [])];
-                                    currentFaq[i] = { ...currentFaq[i], q: e.target.value };
-                                    setActiveWorkspace(prev => prev ? { ...prev, item: { ...prev.item, faq: currentFaq } } : null);
-                                    if (activeWorkspace.type === "product") {
-                                      setStoreProducts(storeProducts.map(p => p.id === activeWorkspace.id ? { ...p, faq: currentFaq } : p));
-                                    } else {
-                                      setStoreCourses(storeCourses.map(c => c.id === activeWorkspace.id ? { ...c, faq: currentFaq } : c));
-                                    }
-                                  }}
-                                  className="font-semibold"
-                                />
-                                <Textarea
-                                  value={faqRow.a}
-                                  placeholder="Answer"
-                                  rows={2}
-                                  onChange={(e) => {
-                                    const currentFaq = [...(activeWorkspace.item.faq || [])];
-                                    currentFaq[i] = { ...currentFaq[i], a: e.target.value };
-                                    setActiveWorkspace(prev => prev ? { ...prev, item: { ...prev.item, faq: currentFaq } } : null);
-                                    if (activeWorkspace.type === "product") {
-                                      setStoreProducts(storeProducts.map(p => p.id === activeWorkspace.id ? { ...p, faq: currentFaq } : p));
-                                    } else {
-                                      setStoreCourses(storeCourses.map(c => c.id === activeWorkspace.id ? { ...c, faq: currentFaq } : c));
-                                    }
-                                  }}
-                                  className="text-zinc-300 font-light"
-                                />
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </Card>
-
-                    {/* Prompt kit: PSD files → layers → prompts + references */}
-                    {activeWorkspace.type === "product" && (
-                      <Card>
-                        <PromptKitEditor
-                          productId={activeWorkspace.id}
-                          isFree={(activeWorkspace.item.price ?? 0) === 0}
-                          onSaved={(summary) => {
-                            const next = storeProducts.map(p => (p.id === activeWorkspace.id ? { ...p, promptKit: summary } : p));
-                            setStoreProducts(next);
-                            setActiveWorkspace(prev => (prev ? { ...prev, item: { ...prev.item, promptKit: summary } } : null));
-                            handleSave(next);
-                          }}
-                        />
-                      </Card>
-                    )}
-                  </div>
-
-                  {/* Right asset sidebar column */}
-                  <div className="space-y-5">
-
-                    {/* Primary Listing Thumbnail */}
-                    <Card>
-                      <CardHeader title="Main Media Asset" />
-                      <ImageField
-                        label="PRIMARY COVER/THUMBNAIL"
-                        aspect={activeWorkspace.type === "product" ? "square" : "video"}
-                        value={activeWorkspace.type === "product" ? activeWorkspace.item.image : activeWorkspace.item.thumbnail}
-                        onChange={(url) => {
-                          setActiveWorkspace(prev => {
-                            if (!prev) return null;
-                            const updated = { ...prev.item };
-                            if (prev.type === "product") updated.image = url; else updated.thumbnail = url;
-                            return { ...prev, item: updated };
-                          });
-                          if (activeWorkspace.type === "product") {
-                            setStoreProducts(storeProducts.map(p => p.id === activeWorkspace.id ? { ...p, image: url } : p));
-                          } else {
-                            setStoreCourses(storeCourses.map(c => c.id === activeWorkspace.id ? { ...c, thumbnail: url } : c));
-                          }
-                        }}
-                      />
-                    </Card>
-
-                    {/* Screenshot Gallery */}
-                    <Card>
-                      <CardHeader
-                        title="Screenshot Gallery"
-                        action={
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            icon={<Plus size={12} />}
-                            onClick={() => {
-                              const currentGal = activeWorkspace.item.gallery || [];
-                              const nextGal = [...currentGal, ""];
-                              setActiveWorkspace(prev => prev ? { ...prev, item: { ...prev.item, gallery: nextGal } } : null);
-                              if (activeWorkspace.type === "product") {
-                                setStoreProducts(storeProducts.map(p => p.id === activeWorkspace.id ? { ...p, gallery: nextGal } : p));
-                              } else {
-                                setStoreCourses(storeCourses.map(c => c.id === activeWorkspace.id ? { ...c, gallery: nextGal } : c));
-                              }
-                            }}
-                          >
-                            Add Shot
-                          </Button>
-                        }
-                      />
-
-                      {(!activeWorkspace.item.gallery || activeWorkspace.item.gallery.length === 0) ? (
-                        <EmptyState title="No gallery items" description="Add screenshots to show off details on the item page." />
-                      ) : (
-                        <div className="space-y-4 max-h-[400px] overflow-y-auto pr-1">
-                          {(activeWorkspace.item.gallery || []).map((galUrl: string, idx: number) => (
-                            <div key={idx} className="bg-zinc-900/40 border border-white/5 p-3 rounded-xl relative">
-                              <button
-                                onClick={() => {
-                                  const currentGal = activeWorkspace.item.gallery || [];
-                                  const nextGal = currentGal.filter((_: any, j: number) => j !== idx);
-                                  setActiveWorkspace(prev => prev ? { ...prev, item: { ...prev.item, gallery: nextGal } } : null);
-                                  if (activeWorkspace.type === "product") {
-                                    setStoreProducts(storeProducts.map(p => p.id === activeWorkspace.id ? { ...p, gallery: nextGal } : p));
-                                  } else {
-                                    setStoreCourses(storeCourses.map(c => c.id === activeWorkspace.id ? { ...c, gallery: nextGal } : c));
-                                  }
-                                }}
-                                className="absolute top-2 right-2 p-1 text-zinc-500 hover:text-red-400 bg-black/40 hover:bg-red-500/10 rounded-md transition-all z-20 cursor-pointer"
-                              >
-                                <Trash2 size={12} />
-                              </button>
-
-                              <ImageField
-                                label={`GALLERY SCREENSHOT ${idx + 1}`}
-                                aspect="any"
-                                value={galUrl}
-                                onChange={(url) => {
-                                  const currentGal = [...(activeWorkspace.item.gallery || [])];
-                                  currentGal[idx] = url;
-                                  setActiveWorkspace(prev => prev ? { ...prev, item: { ...prev.item, gallery: currentGal } } : null);
-                                  if (activeWorkspace.type === "product") {
-                                    setStoreProducts(storeProducts.map(p => p.id === activeWorkspace.id ? { ...p, gallery: currentGal } : p));
-                                  } else {
-                                    setStoreCourses(storeCourses.map(c => c.id === activeWorkspace.id ? { ...c, gallery: currentGal } : c));
-                                  }
-                                }}
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </Card>
-
-                    {/* Listing Status and visibility controls */}
-                    <Card>
-                      <CardHeader title="Visibility Settings" />
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between gap-4">
-                          <div>
-                            <div className="text-xs font-semibold">Active Listing</div>
-                            <div className="text-[10px] text-zinc-500 font-light mt-0.5">Toggle visibility on the main catalog</div>
-                          </div>
-                          <Toggle
-                            value={activeWorkspace.item.enabled}
-                            onChange={(v) => {
-                              setActiveWorkspace(prev => prev ? { ...prev, item: { ...prev.item, enabled: v } } : null);
-                              if (activeWorkspace.type === "product") {
-                                setStoreProducts(storeProducts.map(p => p.id === activeWorkspace.id ? { ...p, enabled: v } : p));
-                              } else {
-                                setStoreCourses(storeCourses.map(c => c.id === activeWorkspace.id ? { ...c, enabled: v } : c));
-                              }
-                            }}
-                          />
-                        </div>
-
-                        {activeWorkspace.type === "product" && (
-                          <div className="flex items-center justify-between gap-4">
-                            <div>
-                              <div className="text-xs font-semibold">Featured Carousel</div>
-                              <div className="text-[10px] text-zinc-500 font-light mt-0.5">Pins product to top homepage carousel</div>
-                            </div>
-                            <Toggle
-                              value={!!activeWorkspace.item.featured}
-                              onChange={(v) => {
-                                setActiveWorkspace(prev => prev ? { ...prev, item: { ...prev.item, featured: v } } : null);
-                                setStoreProducts(storeProducts.map(p => p.id === activeWorkspace.id ? { ...p, featured: v } : p));
-                              }}
-                            />
-                          </div>
-                        )}
-
-                        {activeWorkspace.type === "product" && (
-                          <div className="flex items-center justify-between gap-4">
-                            <div className="flex items-center gap-1.5">
-                              <Pin size={13} className="text-amber-400" />
-                              <div className="text-xs font-semibold">Pinned</div>
-                            </div>
-                            <Toggle value={!!activeWorkspace.item.pinned} onChange={(v) => updateActiveProduct({ pinned: v })} />
-                          </div>
-                        )}
-
-                        {activeWorkspace.type === "product" && (
-                          <div className="flex items-center justify-between gap-4">
-                            <div className="flex items-center gap-1.5">
-                              <Star size={13} className="text-amber-400" />
-                              <div className="text-xs font-semibold">Best Seller Badge</div>
-                            </div>
-                            <Toggle value={!!activeWorkspace.item.bestSeller} onChange={(v) => updateActiveProduct({ bestSeller: v })} />
-                          </div>
-                        )}
-
-                        {activeWorkspace.type === "product" && (
-                          <div className="flex items-center justify-between gap-4">
-                            <div className="flex items-center gap-1.5">
-                              <Sparkles size={13} className="text-blue-400" />
-                              <div className="text-xs font-semibold">New Badge</div>
-                            </div>
-                            <Toggle value={!!activeWorkspace.item.isNew} onChange={(v) => updateActiveProduct({ isNew: v })} />
-                          </div>
-                        )}
-
-                        {activeWorkspace.type === "product" && (
-                          <div className="flex items-center justify-between gap-4">
-                            <div className="flex items-center gap-1.5">
-                              <Flame size={13} className="text-orange-400" />
-                              <div className="text-xs font-semibold">Trending Badge</div>
-                            </div>
-                            <Toggle value={!!activeWorkspace.item.trending} onChange={(v) => updateActiveProduct({ trending: v })} />
-                          </div>
-                        )}
-
-                        {activeWorkspace.type === "product" && (
-                          <div className="flex items-center justify-between gap-4">
-                            <div>
-                              <div className="flex items-center gap-1.5">
-                                <Gift size={13} className="text-[#25D366]" />
-                                <div className="text-xs font-semibold">Free Assets Button</div>
-                              </div>
-                              <div className="text-[10px] text-zinc-500 font-light mt-0.5">Extra free-download button on the product page (paid products; upload the file in the Details card)</div>
-                            </div>
-                            <Toggle value={!!activeWorkspace.item.freeAssetsEnabled} onChange={(v) => updateActiveProduct({ freeAssetsEnabled: v })} />
-                          </div>
-                        )}
-                      </div>
-                    </Card>
-
-                  </div>
-                </div>
+                <ItemEditor
+                  key={activeWorkspace.id}
+                  kind={activeWorkspace.type}
+                  item={activeWorkspace.item}
+                  categories={productCategories}
+                  dirty={wsDirty}
+                  saving={saving}
+                  onChange={(patch) => {
+                    const ch = "price" in patch ? { ...patch, free: patch.price === 0 } : patch;
+                    setActiveWorkspace(prev => (prev ? { ...prev, item: { ...prev.item, ...ch } } : null));
+                    if (activeWorkspace.type === "product") setStoreProducts(storeProducts.map(p => (p.id === activeWorkspace.id ? { ...p, ...ch } : p)));
+                    else setStoreCourses(storeCourses.map(c => (c.id === activeWorkspace.id ? { ...c, ...ch } : c)));
+                    setWsDirty(true);
+                  }}
+                  onSave={async () => { await handleSave(); setWsDirty(false); }}
+                  onPromptKitSaved={(summary) => {
+                    const next = storeProducts.map(p => (p.id === activeWorkspace.id ? { ...p, promptKit: summary } : p));
+                    setStoreProducts(next);
+                    setActiveWorkspace(prev => (prev ? { ...prev, item: { ...prev.item, promptKit: summary } } : null));
+                    handleSave(next);
+                  }}
+                />
               )}
 
               {/* Workspace Tab Render: Analytics Insights */}

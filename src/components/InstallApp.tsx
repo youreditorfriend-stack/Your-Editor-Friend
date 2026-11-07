@@ -47,8 +47,8 @@ export function InstallAppButton() {
 
   return (
     <>
-      <button onClick={click} className="h-9 px-3 rounded-xl border border-[#FF7A1A]/50 text-[#FF7A1A] text-xs font-bold flex items-center gap-1.5 hover:bg-[#FF7A1A]/10 cursor-pointer">
-        <Download size={14} /> <span className="hidden sm:inline">Install app</span><span className="sm:hidden">App</span>
+      <button onClick={click} title="Install app" className="h-9 w-9 sm:w-auto sm:px-3 rounded-xl border border-[#FF7A1A]/50 text-[#FF7A1A] text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-[#FF7A1A]/10 cursor-pointer shrink-0">
+        <Download size={14} /> <span className="hidden sm:inline">Install app</span>
       </button>
       {help && (
         <div className="fixed inset-0 z-[200] bg-black/80 grid place-items-center p-5" onClick={() => setHelp(false)}>
