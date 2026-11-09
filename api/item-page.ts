@@ -49,6 +49,41 @@ async function loadItem(kind: string, id: string) {
 export default async function handler(req: any, res: any) {
   const kind = String(req.query?.kind || "product");
   const id = String(req.query?.id || "");
+
+  // Title card launch offer: fixed share card (1200×630).
+  if (kind === "titlecard") {
+    try {
+      const host = (req.headers["x-forwarded-host"] || req.headers.host) as string;
+      const proto = ((req.headers["x-forwarded-proto"] as string) || "https").split(",")[0];
+      const origin = `${proto}://${host}`;
+      let html = await (await fetch(`${origin}/index.html`)).text();
+      const title = "Your name in a cinematic title card 🔥";
+      const desc = "AE project ₹499 · or I edit it for you from ₹1499 (launch price) · only 100 edit slots";
+      const image = `${origin}/titlecard/og.jpg`;
+      const tags = [
+        `<meta property="og:type" content="product">`,
+        `<meta property="og:url" content="${esc(origin + "/titlecard")}">`,
+        `<meta property="og:title" content="${esc(title)}">`,
+        `<meta property="og:description" content="${esc(desc)}">`,
+        `<meta property="og:image" content="${esc(image)}">`,
+        `<meta property="og:image:width" content="1200">`,
+        `<meta property="og:image:height" content="630">`,
+        `<meta name="twitter:card" content="summary_large_image">`,
+        `<meta name="twitter:title" content="${esc(title)}">`,
+        `<meta name="twitter:description" content="${esc(desc)}">`,
+        `<meta name="twitter:image" content="${esc(image)}">`,
+        `<title>${esc("Your Name, Cinematic Title Card | Your Editor Friend")}</title>`,
+      ].join("\n    ");
+      html = html.replace(/<title>[^<]*<\/title>/i, "").replace(/<\/head>/i, `    ${tags}\n  </head>`);
+      res.status(200).setHeader("Content-Type", "text/html; charset=utf-8")
+        .setHeader("Cache-Control", "public, s-maxage=300, stale-while-revalidate=3600").send(html);
+    } catch (e) {
+      console.error("item-page titlecard failed:", e);
+      res.status(302).setHeader("Location", "/").send("");
+    }
+    return;
+  }
+
   if (!id || (kind !== "product" && kind !== "course")) {
     res.status(400).send("Bad request");
     return;

@@ -65,7 +65,7 @@ declare global {
 
 // Loads Razorpay's checkout script once, on demand
 let rzpScript: Promise<boolean> | null = null;
-function loadRazorpay(): Promise<boolean> {
+export function loadRazorpay(): Promise<boolean> {
   if (window.Razorpay) return Promise.resolve(true);
   if (!rzpScript) {
     rzpScript = new Promise((resolve) => {

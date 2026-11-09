@@ -7,6 +7,7 @@ import { AiChat } from './AiChat';
 import { WHATSAPP_LINK, WHATSAPP_DISPLAY, EMAIL, INSTAGRAM_URL, YOUTUBE } from '../src/lib/site';
 import { useAuth } from '../src/lib/auth';
 import { usePageEnabled } from '../src/lib/store';
+import { useTitleCardOffer, isFull, nextSlot, priceForSlot } from '../src/lib/titlecard';
 
 const allNavLinks = [
   { id: 'home', name: 'Home', to: '/' },
@@ -78,6 +79,13 @@ export const Layout: React.FC = () => {
     return () => document.removeEventListener('mousedown', h);
   }, []);
 
+  // Title card launch offer: thin sale bar on top of every store page (admin → Edit orders → Settings)
+  const { offer: tc, loaded: tcLoaded } = useTitleCardOffer();
+  const saleBar = tcLoaded && tc.bar?.on && tc.open !== false;
+  const saleText = isFull(tc)
+    ? `All ${tc.total} edit slots booked · join the waiting list`
+    : (tc.bar?.text || '').replace('{left}', String(Math.max(0, tc.total - tc.booked))).replace('{price}', `₹${priceForSlot(tc, nextSlot(tc))}`);
+
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-[#EDEDED] font-sans selection:bg-[#FF7A1A] selection:text-white antialiased">
 
@@ -137,6 +145,13 @@ export const Layout: React.FC = () => {
 
       {/* Navigation — all section names always visible (no hamburger) */}
       <nav className={`fixed top-0 w-full z-50 transition-all duration-300 border-b ${scrolled ? 'bg-[#0A0A0A]/85 backdrop-blur-xl border-white/10' : 'bg-[#0A0A0A]/60 backdrop-blur-md border-white/5'}`}>
+        {saleBar && (
+          <Link to="/titlecard" className="flex items-center justify-center gap-2 bg-[#FF7A1A] text-black px-4 h-[34px] text-[12.5px] font-bold">
+            <span className="w-[7px] h-[7px] rounded-full bg-black shrink-0 animate-pulse" />
+            <span className="truncate">{saleText}</span>
+            <span className="shrink-0 bg-black text-[#FF7A1A] rounded-full px-2.5 py-0.5 text-[11.5px]">{isFull(tc) ? 'Join' : 'Book now'}</span>
+          </Link>
+        )}
         <div className="max-w-7xl mx-auto px-4 md:px-6">
           {/* Top row: brand + auth */}
           <div className="flex justify-between items-center py-2.5 md:py-3">
@@ -217,7 +232,7 @@ export const Layout: React.FC = () => {
       </nav>
 
       {/* Page content */}
-      <main className="pt-[92px] md:pt-28">
+      <main className={saleBar ? "pt-[126px] md:pt-[146px]" : "pt-[92px] md:pt-28"}>
         <Outlet context={{
           openProjectModal: () => setShowProjectModal(true),
           setDetailMode,

@@ -7,6 +7,8 @@ import { YOUTUBE, useYouTubeStats, getWhatsAppLink } from '../src/lib/site';
 import { ProductCard, ProductMasonry } from '../components/ProductCard';
 import { BundleShowcase } from '../components/BundleShowcase';
 import { TestimonialsStrip } from '../components/TestimonialsStrip';
+import { HomeOfferCard } from '../components/HomeOfferCard';
+import { useTitleCardOffer, ORIGINAL_HERO } from '../src/lib/titlecard';
 
 const EASE = [0.2, 0.8, 0.2, 1] as const;
 
@@ -94,6 +96,9 @@ export const Home: React.FC = () => {
     .sort((a, b) => Number(!!b.featured) - Number(!!a.featured))
     .slice(0, 2) : [];
 
+  const { offer: tc, loaded: tcLoaded } = useTitleCardOffer();
+  const hero = tc.hero || ORIGINAL_HERO;
+
   const courses = showCourses && on("courses") ? (store?.courses || []).filter(c => c.enabled).slice(0, 2) : [];
 
   return (
@@ -104,15 +109,15 @@ export const Home: React.FC = () => {
         <section className="text-center pt-8 md:pt-16 pb-6 md:pb-10">
           <motion.span custom={0} variants={rise} initial="hidden" animate="show"
             className="inline-block text-[11px] md:text-xs font-semibold tracking-[0.15em] text-[#FF7A1A] bg-[#FF7A1A]/[0.12] px-3.5 py-1.5 rounded-full">
-            MADE FOR TAMIL EDITORS
+            {hero.tag}
           </motion.span>
           <motion.h1 custom={1} variants={rise} initial="hidden" animate="show"
             className="text-[clamp(32px,8.5vw,60px)] leading-[1.05] font-extrabold tracking-[-0.03em] mt-4 md:mt-5 mb-3">
-            Mass title cards.<br /><span className="text-[#FF7A1A]">Ready in minutes.</span>
+            {hero.l1}<br /><span className="text-[#FF7A1A]">{hero.l2}</span>
           </motion.h1>
           <motion.p custom={2} variants={rise} initial="hidden" animate="show"
             className="text-zinc-400 text-[15px] md:text-[17px] max-w-md mx-auto">
-            Tamil cinema-style templates for After Effects &amp; Premiere Pro.
+            {hero.sub}
           </motion.p>
 
           <motion.div custom={3} variants={rise} initial="hidden" animate="show"
@@ -135,6 +140,10 @@ export const Home: React.FC = () => {
               <img src={yt.avatar} alt="" referrerPolicy="no-referrer" className="w-6 h-6 rounded-full" />
               <span>Trusted by <b className="text-white">{yt.subscribers}</b> editors on YouTube</span>
             </motion.div>
+          )}
+
+          {tcLoaded && tc.homeCard?.on && tc.open !== false && (
+            <motion.div custom={5} variants={rise} initial="hidden" animate="show"><HomeOfferCard offer={tc} /></motion.div>
           )}
 
           {/* Fan */}

@@ -111,6 +111,111 @@ async function alertOwner(subject: string, lines: string[]) {
   } catch (e) { console.error("owner alert failed", e); }
 }
 
+// ── Title card edit booking ──────────────────────────────────────────────────
+// Gives out the next slot number inside a transaction, so slot 101 can never
+// be sold; if two people pay for the last slot, the second one is refunded.
+const esc = (s: any) => String(s ?? "").replace(/[<>&"]/g, c => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[c] as string));
+
+async function sendMail(to: string, subject: string, html: string) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey || !to) return;
+  const r = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ from: process.env.EMAIL_FROM || "Your Editor Friend <onboarding@resend.dev>", to: [to], subject, html }),
+  });
+  if (!r.ok) console.error("Resend error:", r.status, await r.text().catch(() => ""));
+}
+
+async function confirmTitleCard(rzp: any, order: any, orderId: string, paymentId: string, res: any) {
+  const db = adminDb();
+  const offerRef = db.doc("store/titlecard");
+  const draftRef = db.doc(`editDrafts/${orderId}`);
+
+  const result = await db.runTransaction(async tx => {
+    const [offerSnap, draftSnap] = await Promise.all([tx.get(offerRef), tx.get(draftRef)]);
+    if (!draftSnap.exists) throw new Error("Booking details not found for " + orderId);
+    const draft = draftSnap.data() as any;
+    if (draft.doneId) return { id: draft.doneId as string, draft, already: true, full: false, slot: draft.slot };
+    const offer = { total: 100, booked: 0, batches: [], ...(offerSnap.data() || {}) } as any;
+    if (offer.booked >= offer.total) {
+      tx.set(draftRef, { full: true, paymentId }, { merge: true });
+      return { id: "", draft, already: false, full: true, slot: 0 };
+    }
+    const slot = offer.booked + 1;
+    let id = `TC-${String(slot).padStart(3, "0")}`;
+    // never overwrite an order (e.g. after the booked count was reset following a test)
+    if ((await tx.get(db.doc(`editOrders/${id}`))).exists) id = `${id}-${Date.now().toString(36).slice(-4)}`;
+    const batch = (offer.batches || []).find((b: any) => slot >= b.from && slot <= b.to) || null;
+    tx.set(offerRef, { booked: slot }, { merge: true });
+    tx.set(db.doc(`editOrders/${id}`), {
+      slot, uid: draft.uid, userEmail: draft.userEmail || "",
+      name: draft.name, phone: draft.phone, email: draft.email || "",
+      top: draft.top, big: draft.big, pose: draft.pose, photos: draft.photos || [], note: draft.note || "",
+      showOk: !!draft.showOk, shown: false, upgrade: !!draft.upgrade,
+      paid: Math.round(Number(order.amount) / 100), orderId, paymentId,
+      batch: batch ? batch.name : "", deliverBy: batch ? batch.date : "",
+      status: "new", revisionsUsed: 0, createdAt: new Date().toISOString(),
+    });
+    tx.set(draftRef, { doneId: id, slot, paymentId }, { merge: true });
+    return { id, draft, already: false, full: false, slot, batch, fileProductId: offer.fileProductId || "" };
+  });
+
+  if (result.full) {
+    let refunded = false;
+    try { await rzp.payments.refund(paymentId, { notes: { reason: "All title card slots booked" } }); refunded = true; } catch (e) { console.error("refund failed", e); }
+    await alertOwner("Title card: paid after slots were full", [`Order ${orderId}, payment ${paymentId}.`, refunded ? "Refund started automatically." : "AUTO-REFUND FAILED — refund it from the Razorpay dashboard."]);
+    return json(res, 409, { error: "All slots got booked just before your payment. Your money is being refunded automatically.", full: true, refunded });
+  }
+  if (result.already) return json(res, 200, { ok: true, titlecard: { id: result.id, slot: result.slot } });
+
+  const d = result.draft;
+  // Edit includes the project file → it appears in My Library.
+  const grant: any = {
+    payments: FieldValue.arrayUnion({ itemId: "titlecard-edit", orderId, paymentId, amount: order.amount, couponCode: null, at: new Date().toISOString() }),
+  };
+  if ((result as any).fileProductId) grant.purchases = FieldValue.arrayUnion((result as any).fileProductId);
+  try { await db.doc(`users/${d.uid}`).set(grant, { merge: true }); } catch (e) { console.error("titlecard grant failed", e); }
+
+  const paid = Math.round(Number(order.amount) / 100);
+  const batchTxt = (result as any).batch ? `${(result as any).batch.name} · delivery by ${(result as any).batch.date}` : "";
+  const photos = (d.photos || []).map((u: string, i: number) => `<a href="${esc(u)}" style="color:#FF7A1A">Photo ${i + 1}</a>`).join(" · ");
+  const ownerTo = process.env.ALERT_EMAIL || "youreditorfriend@gmail.com";
+  try {
+    await sendMail(ownerTo, `🎬 New title card booking ${result.id} · ${d.big} · ₹${paid}`, `
+      <div style="font-family:Arial;font-size:14px;line-height:1.7;max-width:520px">
+        <h2 style="margin:0 0 8px">New booking ${result.id}</h2>
+        <table style="border-collapse:collapse">
+          <tr><td style="color:#777;padding-right:14px">Top text</td><td><b>${esc(d.top || "—")}</b></td></tr>
+          <tr><td style="color:#777;padding-right:14px">Big name</td><td><b>${esc(d.big)}</b></td></tr>
+          <tr><td style="color:#777;padding-right:14px">Pose</td><td>${esc(d.pose)}</td></tr>
+          <tr><td style="color:#777;padding-right:14px">Name</td><td>${esc(d.name)}</td></tr>
+          <tr><td style="color:#777;padding-right:14px">WhatsApp</td><td><a href="https://wa.me/91${esc(d.phone)}">+91 ${esc(d.phone)}</a></td></tr>
+          <tr><td style="color:#777;padding-right:14px">Email</td><td>${esc(d.email || d.userEmail || "—")}</td></tr>
+          <tr><td style="color:#777;padding-right:14px">Note</td><td>${esc(d.note || "—")}</td></tr>
+          <tr><td style="color:#777;padding-right:14px">Paid</td><td>₹${paid}${d.upgrade ? " (upgrade from file)" : ""}</td></tr>
+          <tr><td style="color:#777;padding-right:14px">Batch</td><td>${esc(batchTxt || "—")}</td></tr>
+        </table>
+        <p>${photos}</p>
+        <p><a href="${SITE_URL}/admin" style="color:#FF7A1A">Open admin → Edit orders</a></p>
+      </div>`);
+  } catch (e) { console.error("owner booking email failed", e); }
+  try {
+    const to = d.email || d.userEmail;
+    await sendMail(to, `Your title card slot ${result.id} is booked 🎬`, `
+      <div style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:0 auto;background:#0a0a0a;color:#fff;border-radius:16px;overflow:hidden">
+        <div style="padding:26px">
+          <div style="font-size:12px;letter-spacing:3px;color:#FF7A1A;font-weight:bold">YOUR EDITOR FRIEND</div>
+          <h1 style="margin:14px 0 6px;font-size:22px">Slot ${result.id} is yours 🎉</h1>
+          <p style="color:#a1a1aa;font-size:14px;line-height:1.6">Hi ${esc(String(d.name).split(" ")[0])}, I've got your details: <b style="color:#fff">${esc(d.top)} ${esc(d.big)}</b> · ${esc(d.pose)}.${batchTxt ? `<br>${esc(batchTxt)}.` : ""}<br>Your 1080p MP4 comes on WhatsApp. The project file is already in My Library.</p>
+          <a href="${SITE_URL}/my-library" style="display:block;background:#FF7A1A;color:#000;text-decoration:none;text-align:center;padding:14px;border-radius:12px;font-weight:bold">Open My Library</a>
+        </div>
+      </div>`);
+  } catch (e) { console.error("customer booking email failed", e); }
+
+  return json(res, 200, { ok: true, titlecard: { id: result.id, slot: result.slot, batch: (result as any).batch || null } });
+}
+
 export default async function handler(req: any, res: any) {
   if (req.method !== "POST") return json(res, 405, { error: "Method not allowed" });
 
@@ -137,6 +242,9 @@ export default async function handler(req: any, res: any) {
     // Trust only the notes we wrote at order creation (client can't tamper)
     const rzp = new Razorpay({ key_id: keyId, key_secret: keySecret });
     const order = await rzp.orders.fetch(orderId);
+    if ((order.notes as any)?.kind === "titlecard") {
+      return await confirmTitleCard(rzp, order, orderId, paymentId, res);
+    }
     const itemId = (order.notes as any)?.itemId;
     const uid = (order.notes as any)?.uid;
     const couponCode = ((order.notes as any)?.couponCode || "").toUpperCase();

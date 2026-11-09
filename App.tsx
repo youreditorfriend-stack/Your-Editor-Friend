@@ -29,6 +29,7 @@ import { ToastProvider, ConfirmProvider, PromptProvider, Spinner } from './src/c
 // weight before becoming interactive.
 const Admin = lazy(() => import('./src/components/Admin'));
 const CustomQuotePage = lazy(() => import('./components/CustomQuotePage').then(m => ({ default: m.CustomQuotePage })));
+const TitleCard = lazy(() => import('./pages/TitleCard'));
 
 const RouteFallback: React.FC = () => (
   <div className="min-h-screen bg-[#080808] flex items-center justify-center">
@@ -86,6 +87,7 @@ const App: React.FC = () => {
             <Route path="/my-library" element={<Library />} />
           </Route>
           <Route path="/custom-quote" element={<Suspense fallback={<RouteFallback />}><CustomQuotePage /></Suspense>} />
+          <Route path="/titlecard" element={<Suspense fallback={<RouteFallback />}><TitleCard /></Suspense>} />
           <Route path="/admin" element={<AdminRoute />} />
         </Routes>
       </Router>

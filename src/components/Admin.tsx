@@ -29,6 +29,7 @@ import { AdminCustomers } from "./AdminCustomers";
 import { AdminEmail } from "./AdminEmail";
 import { AdminSiteMap } from "./AdminSiteMap";
 import { AdminStorage } from "./AdminStorage";
+import { AdminTitleCard, useTitleCardOrders } from "./AdminTitleCard";
 import { CreditCard as CreditCardIcon, LifeBuoy, Star as StarIcon, Mail, HardDrive } from "lucide-react";
 import { Layers, Copy as CopyIcon, Search as SearchIcon, ImagePlus, Pencil } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, CartesianGrid } from "recharts";
@@ -77,7 +78,7 @@ import {
 } from "lucide-react";
 
 // Types
-type TabType = "overview" | "products" | "bundles" | "payments" | "support" | "reviews" | "email" | "storage" | "courses" | "projects" | "pages" | "comments" | "users" | "coupons" | "quote" | "settings";
+type TabType = "titlecard" | "overview" | "products" | "bundles" | "payments" | "support" | "reviews" | "email" | "storage" | "courses" | "projects" | "pages" | "comments" | "users" | "coupons" | "quote" | "settings";
 
 interface ActiveWorkspace {
   id: string;
@@ -110,6 +111,7 @@ const NAV_GROUPS = [
   {
     title: "Sell",
     items: [
+      { id: "titlecard", label: "Edit orders 🎬", icon: <Flame size={17} /> },
       { id: "overview", label: "Dashboard", icon: <LayoutDashboard size={17} /> },
       { id: "products", label: "Products", icon: <FolderEdit size={17} /> },
       { id: "bundles", label: "Bundles", icon: <Layers size={17} /> },
@@ -141,7 +143,7 @@ const NAV_GROUPS = [
 ] as const;
 
 // Phone bottom bar: the four screens used most.
-const NAV_MOBILE = ["overview", "products", "payments", "support"] as const;
+const NAV_MOBILE = ["titlecard", "overview", "products", "payments"] as const;
 
 // Sortable columns for the dashboard Product Leaderboard (all sort descending).
 const LEADER_COLS = [
@@ -158,7 +160,7 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
   const confirmDialog = useConfirm();
 
   // Navigation & Shell States
-  const [activeTab, setActiveTab] = useState<TabType>("overview");
+  const [activeTab, setActiveTab] = useState<TabType>("titlecard");
   const [activeWorkspace, setActiveWorkspace] = useState<ActiveWorkspace | null>(null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
@@ -206,6 +208,7 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
   useEffect(() => { setWsDirty(false); }, [activeWorkspace?.id]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const problemCount = useProblemCount();
+  const tcOrders = useTitleCardOrders();
   const dndSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   const handleProductDragEnd = (e: DragEndEvent) => {
@@ -496,6 +499,7 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
                   <span className={on ? "text-[#FF7A1A]" : ""}>{menu.icon}</span>
                   {menu.label}
                   {menu.id === "products" && <span className="ml-auto text-[11px] text-zinc-500 font-medium">{storeProducts.length}</span>}
+                  {menu.id === "titlecard" && tcOrders.unseen > 0 && <span className="ml-auto min-w-[18px] h-[18px] px-1.5 rounded-full bg-[#FF7A1A] text-black text-[10px] font-extrabold grid place-items-center">{tcOrders.unseen}</span>}
                   {menu.id === "payments" && problemCount > 0 && <span className="ml-auto min-w-[18px] h-[18px] px-1.5 rounded-full bg-red-500 text-white text-[10px] font-extrabold grid place-items-center">{problemCount}</span>}
                 </button>
               );
@@ -571,7 +575,8 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
               <button key={id} onClick={() => setActiveTab(id as TabType)}
                 className={`relative flex flex-col items-center justify-center gap-1 h-16 text-[10px] font-semibold ${on ? "text-[#FF7A1A]" : "text-zinc-500"}`}>
                 {item.icon}
-                {({ overview: "Home", products: "Products", payments: "Payments", support: "Help" } as Record<string, string>)[id] || item.label}
+                {({ titlecard: "Orders", overview: "Home", products: "Products", payments: "Payments", support: "Help" } as Record<string, string>)[id] || item.label}
+                {id === "titlecard" && tcOrders.unseen > 0 && <span className="absolute top-1.5 right-[calc(50%-20px)] min-w-[16px] h-4 px-1 rounded-full bg-[#FF7A1A] text-black text-[9px] font-extrabold grid place-items-center">{tcOrders.unseen}</span>}
                 {id === "payments" && problemCount > 0 && <span className="absolute top-2 right-[calc(50%-18px)] w-2 h-2 rounded-full bg-red-500" />}
               </button>
             );
@@ -1113,6 +1118,7 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
               )}
               {activeTab === "email" && <AdminEmail preset={emailPreset} />}
               {activeTab === "storage" && <AdminStorage />}
+              {activeTab === "titlecard" && <AdminTitleCard data={tcOrders} />}
 
               {activeTab === "payments" && (
                 <AdminPayments onOpenSupport={(em) => { setSupportEmail(em); setActiveTab("support"); }} />

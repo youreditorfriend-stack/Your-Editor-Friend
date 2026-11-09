@@ -3,6 +3,7 @@
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/products/:id", "destination": "/api/item-page?kind=product&id=:id" },
     { "source": "/courses/:id",  "destination": "/api/item-page?kind=course&id=:id" },
+    { "source": "/titlecard",    "destination": "/api/item-page?kind=titlecard" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
