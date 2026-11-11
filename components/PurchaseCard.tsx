@@ -52,9 +52,12 @@ export const PurchaseCard: React.FC<{
   // Sequenced success flow: confetti fires immediately, then the cross-sell
   // popup slides in after a short beat so the celebration lands first.
   const wasOwnedRef = useRef(owned);
+  const attemptedRef = useRef(false);
   const recsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    const justPurchased = !wasOwnedRef.current && owned;
+    // only celebrate a purchase started from this page visit — not the
+    // owned flag flipping true when an existing owner's profile loads
+    const justPurchased = !wasOwnedRef.current && owned && attemptedRef.current;
     wasOwnedRef.current = owned;
     if (justPurchased && !compact) {
       fireSuccessConfetti();
@@ -202,8 +205,8 @@ export const PurchaseCard: React.FC<{
               couponCode={applied?.code}
               paying={paying}
               isLoggedIn={isLoggedIn}
-              onClaim={() => claimFree(item)}
-              onBuy={() => buy(item, applied?.code)}
+              onClaim={() => { attemptedRef.current = true; claimFree(item); }}
+              onBuy={() => { attemptedRef.current = true; buy(item, applied?.code); }}
             />
             <FreeAssetsButton item={item} isLoggedIn={isLoggedIn} onLogin={signIn} claimed={freeAssetsClaimed} onClaim={claimFreeAssets} compact />
             <FreeKitButton item={item} compact />
@@ -311,8 +314,8 @@ export const PurchaseCard: React.FC<{
         couponCode={applied?.code}
         paying={paying}
         isLoggedIn={isLoggedIn}
-        onClaim={() => claimFree(item)}
-        onBuy={() => buy(item, applied?.code)}
+        onClaim={() => { attemptedRef.current = true; claimFree(item); }}
+        onBuy={() => { attemptedRef.current = true; buy(item, applied?.code); }}
       />
       <FreeAssetsButton item={item} isLoggedIn={isLoggedIn} onLogin={signIn} claimed={freeAssetsClaimed} onClaim={claimFreeAssets} />
       <FreeKitButton item={item} />
@@ -354,7 +357,7 @@ export const PurchaseCard: React.FC<{
               <a href={(item as Product).downloadUrl} target="_blank" rel="noopener noreferrer"
                 className="mt-5 w-full h-12 rounded-xl bg-[#25D366] text-black font-bold flex items-center justify-center gap-2"><Download size={17} /> Download now</a>
             )}
-            <Link to="/my-library" className="mt-2 w-full h-11 rounded-xl border border-white/15 font-bold text-sm flex items-center justify-center gap-2 hover:bg-white/5">Open My Library</Link>
+            <Link to="/my-library" className="mt-2 w-full h-11 rounded-xl border border-white/15 text-white font-bold text-sm flex items-center justify-center gap-2 hover:bg-white/5">Open My Library</Link>
             {(((item as Product).assetGen) || (item as Product).tutorialUrl) && (
               <a href="#ai-assets" onClick={closeDone} className="mt-2 block text-sm font-semibold text-[#FF7A1A]">Free prompts & how-to video ↓</a>
             )}
