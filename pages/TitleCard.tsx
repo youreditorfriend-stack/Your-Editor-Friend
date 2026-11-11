@@ -6,6 +6,7 @@ import { useStore } from "../src/lib/store";
 import { loadRazorpay, usePurchase } from "../src/lib/purchase";
 import { getWhatsAppLink } from "../src/lib/site";
 import { useTestimonials } from "../src/lib/testimonials";
+import { TutorialVideo } from "../components/AssetGenerator";
 import {
   REGULAR_PRICE, batchForSlot, createEditOrder, imageShortSide, isFull, joinWaitlist,
   nextSlot, priceForSlot, sortedTiers, uploadPhoto, useTitleCardOffer, type TitleCardOffer,
@@ -323,6 +324,14 @@ const TitleCard: React.FC = () => {
             <div className="cmp-foot"><span>🔒 Razorpay secure</span><span>⚡ Instant file download</span></div>
           </div>
         </div>
+
+        {/* Free "how to edit" video from the ₹499 file product — no purchase needed */}
+        {fileProduct?.tutorialUrl && (
+          <div className="agx" style={{ marginTop: 24 }}>
+            <div className="eyebrow">Free tutorial</div>
+            <TutorialVideo url={fileProduct.tutorialUrl} title="How to edit this title card" />
+          </div>
+        )}
 
         {offer.showcase.length > 0 && (
           <section>

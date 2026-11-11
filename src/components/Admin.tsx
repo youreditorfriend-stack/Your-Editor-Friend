@@ -693,6 +693,12 @@ export default function Admin({ onLogout }: { onLogout?: () => void }) {
                     setActiveWorkspace(prev => (prev ? { ...prev, item: { ...prev.item, promptKit: summary } } : null));
                     handleSave(next);
                   }}
+                  onAssetGenSaved={(summary) => {
+                    const next = storeProducts.map(p => (p.id === activeWorkspace.id ? { ...p, assetGen: summary } : p));
+                    setStoreProducts(next);
+                    setActiveWorkspace(prev => (prev ? { ...prev, item: { ...prev.item, assetGen: summary } } : null));
+                    handleSave(next);
+                  }}
                 />
               )}
 

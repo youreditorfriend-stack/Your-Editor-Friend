@@ -17,9 +17,10 @@ export async function loadKitPrivate(productId: string): Promise<PromptKitPrivat
 }
 
 export async function saveKit(productId: string, pub: PromptKitPublic, priv: PromptKitPrivate) {
+  // merge: the same docs also hold the AI-asset generator (field assetGen / assetPrompts)
   await Promise.all([
-    setDoc(doc(db, "promptKitsPublic", productId), pub),
-    setDoc(doc(db, "promptKitsPrivate", productId), priv),
+    setDoc(doc(db, "promptKitsPublic", productId), pub, { merge: true }),
+    setDoc(doc(db, "promptKitsPrivate", productId), priv, { merge: true }),
   ]);
 }
 

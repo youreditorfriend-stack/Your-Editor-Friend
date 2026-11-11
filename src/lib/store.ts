@@ -47,6 +47,11 @@ export interface Product extends DetailContent {
   // Set by the admin prompt-kit editor: this product page shows the
   // PSD-files → layers → prompt viewer (data in promptKits* collections).
   promptKit?: { files: number; layers: number } | null;
+  // "How to edit this template" YouTube link — free to watch for everyone.
+  tutorialUrl?: string;
+  // Set by the admin AI-asset editor: the product page shows the
+  // name → ready-to-copy prompts generator (data in promptKits* docs, field assetGen).
+  assetGen?: { cards: number } | null;
 }
 
 // ─── Prompt kits (one product = one video, made from several PSD files) ──────

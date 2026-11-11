@@ -13,6 +13,7 @@ import { useDetailContext } from "../components/Layout";
 import { CommentsSection } from "../src/components/CommentsSection";
 import { ReviewsSection } from "../components/ReviewsSection";
 import { PromptKitViewer } from "../components/PromptKitViewer";
+import { AssetGenerator } from "../components/AssetGenerator";
 import { LoginNudge } from "../components/LoginNudge";
 import { useResumeIntent } from "../src/lib/purchase";
 
@@ -208,6 +209,9 @@ export const ItemDetail: React.FC<{ kind: Kind }> = ({ kind }) => {
             )}
 
             {/* FAQ */}
+            {/* Free "how to edit" video + AI asset generator (prompts for buyers) */}
+            {kind === "product" && <AssetGenerator product={item as Product} />}
+
             {item.faq && item.faq.length > 0 && (
               <div className="mt-10">
                 <h2 className="text-xl md:text-2xl font-semibold text-white mb-4">Questions &amp; answers</h2>

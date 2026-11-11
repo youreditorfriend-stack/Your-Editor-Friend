@@ -5,6 +5,7 @@ import { getDiscountPercent, getProductCategories } from "../lib/store";
 import { ImageField } from "./ImageField";
 import { FileField } from "./FileField";
 import { PromptKitEditor } from "./PromptKitEditor";
+import { AssetGenEditor } from "./AssetGenEditor";
 import { Button } from "./admin/ui";
 
 type Kind = "product" | "course";
@@ -47,7 +48,7 @@ const SwitchCard: React.FC<{ on: boolean; onClick: () => void; icon: ReactNode; 
 );
 
 export function ItemEditor({
-  kind, item, categories, dirty, saving, onChange, onSave, onPromptKitSaved,
+  kind, item, categories, dirty, saving, onChange, onSave, onPromptKitSaved, onAssetGenSaved,
 }: {
   kind: Kind;
   item: Item;
@@ -57,6 +58,7 @@ export function ItemEditor({
   onChange: (patch: Record<string, any>) => void;
   onSave: () => void;
   onPromptKitSaved: (summary: { files: number; layers: number } | null) => void;
+  onAssetGenSaved: (summary: { cards: number } | null) => void;
 }) {
   const isProduct = kind === "product";
   const p = item as any;
@@ -70,7 +72,7 @@ export function ItemEditor({
     { id: "basics", title: "Basics", sub: "image, name, price" },
     { id: "files", title: "Files", sub: isProduct ? "what buyers get" : "course link" },
     { id: "page", title: "Page", sub: "video, text, FAQ" },
-    ...(isProduct ? [{ id: "prompts", title: "Prompts", sub: "optional" }] : []),
+    ...(isProduct ? [{ id: "prompts", title: "Prompts", sub: "optional" }, { id: "aiassets", title: "AI assets", sub: "tutorial & generator" }] : []),
     { id: "show", title: "Show", sub: "live & badges" },
   ];
   const [step, setStep] = useState(0);
@@ -252,6 +254,13 @@ export function ItemEditor({
           {cur === "prompts" && isProduct && (
             <Section title="Prompts (optional)" sub="Upload PSD files — layers and prompt boxes appear automatically. Saved separately with its own button.">
               <PromptKitEditor productId={p.id} isFree={(p.price ?? 0) === 0} onSaved={onPromptKitSaved} />
+            </Section>
+          )}
+
+          {/* ── AI ASSETS: free tutorial + name → prompts generator ── */}
+          {cur === "aiassets" && isProduct && (
+            <Section title="AI assets (optional)" sub="Free “how to edit” video for everyone + a name-to-prompts generator for buyers. Generator has its own Save button.">
+              <AssetGenEditor productId={p.id} tutorialUrl={p.tutorialUrl || ""} onTutorial={url => onChange({ tutorialUrl: url })} onSaved={onAssetGenSaved} />
             </Section>
           )}
 
