@@ -26,7 +26,7 @@ export const TutorialVideo: React.FC<{ url?: string; title?: string }> = ({ url,
 export const FreeTutorialTop: React.FC<{ product: Product }> = ({ product }) => {
   if (!youtubeId(product.tutorialUrl)) return null;
   return (
-    <div className="agx" style={{ marginTop: 0, marginBottom: 24 }}>
+    <div className="agx" id="free-tutorial" style={{ marginTop: 0, marginBottom: 24 }}>
       <TutorialVideo url={product.tutorialUrl} />
       {product.assetGen && <a href="#ai-assets" className="dl" style={{ marginTop: 10 }}>🎁 Free AI prompts for this template ↓</a>}
     </div>

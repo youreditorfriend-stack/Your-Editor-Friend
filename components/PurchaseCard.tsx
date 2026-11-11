@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, Copy, CreditCard, Download, Link as LinkIcon, Lock, Tag, Timer, X, ChevronDown, ChevronUp } from "lucide-react";
+import { Check, Copy, CreditCard, Download, Link as LinkIcon, Lock, Tag, Timer, X, ChevronDown, ChevronUp, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import { applyCoupon, DEFAULT_CHECKOUT_HELP, formatPrice, getFreeAssetsClaimId, getPostPurchaseRecommendations, hasFreeAssets, isCourseLive, useStore } from "../src/lib/store";
 import type { Course, Product } from "../src/lib/store";
@@ -206,6 +206,7 @@ export const PurchaseCard: React.FC<{
               onBuy={() => buy(item, applied?.code)}
             />
             <FreeAssetsButton item={item} isLoggedIn={isLoggedIn} onLogin={signIn} claimed={freeAssetsClaimed} onClaim={claimFreeAssets} compact />
+            <FreeKitButton item={item} compact />
           </div>
         </div>
         {firstBuyerWins && (
@@ -314,6 +315,7 @@ export const PurchaseCard: React.FC<{
         onBuy={() => buy(item, applied?.code)}
       />
       <FreeAssetsButton item={item} isLoggedIn={isLoggedIn} onLogin={signIn} claimed={freeAssetsClaimed} onClaim={claimFreeAssets} />
+      <FreeKitButton item={item} />
 
       {showCheckoutHelp && (
         <div className="mt-4 p-4 rounded-2xl bg-zinc-950 border border-white/5 text-[11px] text-zinc-500 leading-normal">
@@ -502,6 +504,29 @@ const FreeAssetsButton: React.FC<{
     >
       <Download size={15} /> {claimed ? "Free Assets — saved to Library" : "Free Assets"}
     </button>
+  );
+};
+
+// Free AI kit (prompts, reference images, tutorial, AE steps) — open to everyone,
+// no login or purchase. Jumps to the #ai-assets section on the product page.
+const FreeKitButton: React.FC<{ item: (Product | Course) & { kind: "product" | "course" }; compact?: boolean }> = ({ item, compact = false }) => {
+  const p = item as Product;
+  if (item.kind !== "product" || (!p.assetGen && !p.tutorialUrl)) return null;
+  const go = (e: React.MouseEvent) => {
+    const el = document.getElementById("ai-assets") || document.getElementById("free-tutorial");
+    if (el) { e.preventDefault(); el.scrollIntoView({ behavior: "smooth", block: "start" }); }
+  };
+  if (compact) return (
+    <a href="#ai-assets" onClick={go} className="mt-1.5 block text-center text-[11px] font-bold text-[#FF7A1A]">
+      🎁 Free prompts, assets & tutorial — no purchase needed ↓
+    </a>
+  );
+  return (
+    <a href="#ai-assets" onClick={go}
+      className="w-full mt-3 py-3 rounded-xl font-bold flex flex-col items-center justify-center transition-all bg-[#FF7A1A]/10 text-[#FF7A1A] border border-[#FF7A1A]/30 hover:bg-[#FF7A1A]/20">
+      <span className="flex items-center gap-2"><Sparkles size={15} /> Free prompts, assets & tutorial</span>
+      <span className="text-[11px] font-medium text-zinc-400 mt-0.5">No purchase needed · only the project file is paid</span>
+    </a>
   );
 };
 
