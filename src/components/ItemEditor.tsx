@@ -98,10 +98,11 @@ export function ItemEditor({
   return (
     <div className="pb-24">
       {/* Steps */}
-      <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0 mb-5">
+      {/* phone: all steps visible in a grid (no hidden side-scroll) */}
+      <div className="grid grid-cols-3 sm:flex gap-2 mb-5">
         {STEPS.map((s, i) => (
           <button key={s.id} onClick={() => setStep(i)}
-            className={`shrink-0 sm:flex-1 min-w-[132px] flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-left transition-colors cursor-pointer ${
+            className={`sm:flex-1 min-w-0 sm:min-w-[120px] flex items-center gap-2 px-2.5 py-2.5 rounded-xl border text-left transition-colors cursor-pointer ${
               i === step ? "border-[#FF7A1A] bg-[#FF7A1A]/[0.08]" : "border-white/10 bg-[#131313] hover:border-white/20"}`}>
             <span className={`w-7 h-7 rounded-lg grid place-items-center text-xs font-extrabold shrink-0 ${i === step ? "bg-[#FF7A1A] text-black" : i < step ? "bg-[#25D366] text-black" : "bg-zinc-800 text-zinc-400"}`}>
               {i < step ? <Check size={14} strokeWidth={3} /> : i + 1}
@@ -114,7 +115,7 @@ export function ItemEditor({
         ))}
       </div>
 
-      <div className="grid lg:grid-cols-[minmax(0,1fr)_300px] gap-5 items-start">
+      <div className={`grid gap-5 items-start ${cur === "aiassets" ? "" : "lg:grid-cols-[minmax(0,1fr)_300px]"}`}>
         <div className="space-y-4 min-w-0">
           {/* ── 1 BASICS ── */}
           {cur === "basics" && (
@@ -301,7 +302,7 @@ export function ItemEditor({
         </div>
 
         {/* Right: live preview + checklist */}
-        <div className="lg:sticky lg:top-20 space-y-4 order-first lg:order-none">
+        <div className={`lg:sticky lg:top-20 space-y-4 order-first lg:order-none ${cur === "aiassets" ? "lg:hidden" : ""}`}>
           <div className="hidden lg:block text-[11px] font-bold tracking-wider text-zinc-500">LIVE CARD PREVIEW</div>
           <div className="hidden lg:block rounded-2xl border border-white/[0.08] bg-[#131313] overflow-hidden">
             <div className="relative bg-zinc-900" style={{ aspectRatio: isProduct ? "1" : "16/9" }}>

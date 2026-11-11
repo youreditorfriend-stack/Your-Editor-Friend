@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { ChevronDown, ChevronUp, Plus, Trash2, Upload } from "lucide-react";
 import {
-  PLACEHOLDERS, RESPECTA_PRESET, loadAssetGen, loadAssetPrompts, promptKey, saveAssetGen,
+  PLACEHOLDERS, RESPECTA_PRESET, fillPrompt, nameVars, loadAssetGen, loadAssetPrompts, promptKey, saveAssetGen,
   type AgCard, type AgOption, type AgPrompts, type AssetGenPublic,
 } from "../lib/assetGen";
 import { imageFileToWebp, newId, uploadImageBlob } from "../lib/promptKit";
@@ -34,6 +34,8 @@ export function AssetGenEditor({ productId, tutorialUrl, onTutorial, onSaved }: 
   const [saving, setSaving] = useState(false);
   const [open, setOpen] = useState<string | null>(null);
   const [busy, setBusy] = useState("");
+  const [sample, setSample] = useState("KARTHIK");
+  const sampleVars = nameVars(sample);
 
   useEffect(() => {
     (async () => {
@@ -70,13 +72,19 @@ export function AssetGenEditor({ productId, tutorialUrl, onTutorial, onSaved }: 
   const promptBox = (pk: string) => (
     <div>
       <label className={lbl}>Prompt</label>
-      <textarea rows={6} className={area} value={prompts[pk] || ""} onChange={e => setPrompts(p => ({ ...p, [pk]: e.target.value }))} />
+      <textarea rows={7} className={area + " lg:min-h-[240px] lg:text-[13.5px] font-sans"} value={prompts[pk] || ""} onChange={e => setPrompts(p => ({ ...p, [pk]: e.target.value }))} />
       <div className="flex flex-wrap gap-1.5 mt-1.5">
         {PLACEHOLDERS.map(ph => (
           <button key={ph} type="button" className="text-[11px] font-bold px-2 py-1 rounded-md bg-[#FF7A1A]/10 text-[#ff9a4d] border border-[#FF7A1A]/30"
             onClick={() => setPrompts(p => ({ ...p, [pk]: (p[pk] || "") + ph }))}>+ {ph}</button>
         ))}
       </div>
+      {!!prompts[pk] && (
+        <div className="mt-2 rounded-lg border border-white/10 bg-black/40 p-2.5">
+          <div className="text-[10.5px] font-bold tracking-wider text-zinc-500 uppercase mb-1">Buyer sees (sample name: {sampleVars.NAME || "—"})</div>
+          <div className="text-[12.5px] lg:text-[13px] text-zinc-300 leading-relaxed max-h-40 overflow-auto whitespace-pre-wrap">{fillPrompt(prompts[pk], sampleVars, "man")}</div>
+        </div>
+      )}
     </div>
   );
 
@@ -115,7 +123,11 @@ export function AssetGenEditor({ productId, tutorialUrl, onTutorial, onSaved }: 
           <div><label className={lbl}>Rules box (one per line)</label><textarea rows={4} className={area + " font-sans"} value={k.rules.join("\n")} onChange={e => setK({ rules: e.target.value.split("\n") })} /></div>
 
           <div>
-            <label className={lbl}>Asset cards</label>
+            <div className="flex items-end justify-between gap-3 mb-1">
+              <label className={lbl}>Asset cards</label>
+              <label className="flex items-center gap-2 text-[11px] text-zinc-500">Sample name
+                <input className="h-8 w-32 rounded-md bg-zinc-950 border border-white/10 px-2 text-xs font-bold uppercase text-white" value={sample} onChange={e => setSample(e.target.value.toUpperCase().replace(/[^A-Z ]/g, ""))} /></label>
+            </div>
             <div className="space-y-2">
               {k.cards.map((c, idx) => (
                 <div key={c.id} className="rounded-xl border border-white/10 overflow-hidden">
@@ -126,7 +138,9 @@ export function AssetGenEditor({ productId, tutorialUrl, onTutorial, onSaved }: 
                     {open === c.id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                   </button>
                   {open === c.id && (
-                    <div className="p-3 space-y-3">
+                    <div className="p-3 sm:p-4 space-y-3">
+                     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] items-start">
+                     <div className="space-y-3">
                       <div className="grid grid-cols-[80px_1fr] gap-2">
                         <div><label className={lbl}>Step</label><input className={inp} value={c.no} onChange={e => setCard(c.id, { no: e.target.value })} /></div>
                         <div><label className={lbl}>Card title</label><input className={inp} value={c.title} onChange={e => setCard(c.id, { title: e.target.value })} /></div>
@@ -176,6 +190,12 @@ export function AssetGenEditor({ productId, tutorialUrl, onTutorial, onSaved }: 
                               {busy === c.id + "dl" ? "…" : c.download?.file ? "Replace file" : "Upload file"}
                             </label>
                           </div>
+                          </>
+                      )}
+                     </div>
+                     <div className="space-y-3">
+                      {c.kind === "name" ? null : (
+                        <>
                           {c.options ? c.options.map(o => (
                             <div key={o.id} className="rounded-lg border border-white/10 p-2.5 space-y-2">
                               <div className="grid sm:grid-cols-2 gap-2">
@@ -196,6 +216,8 @@ export function AssetGenEditor({ productId, tutorialUrl, onTutorial, onSaved }: 
                           )) : promptBox(c.id)}
                         </>
                       )}
+                     </div>
+                     </div>
                       <div className="flex justify-between pt-1">
                         <button className="text-xs font-semibold text-zinc-400" disabled={idx === 0} onClick={() => { const n = [...k.cards]; [n[idx - 1], n[idx]] = [n[idx], n[idx - 1]]; setK({ cards: n }); }}>↑ Move up</button>
                         <button className="text-xs font-semibold text-red-400 flex items-center gap-1" onClick={() => { setK({ cards: k.cards.filter(x => x.id !== c.id) }); setOpen(null); }}><Trash2 size={12} />Delete card</button>
