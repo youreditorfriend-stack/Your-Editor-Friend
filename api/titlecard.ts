@@ -133,25 +133,48 @@ export default async function handler(req: any, res: any) {
       if (offer.booked >= offer.total) return json(res, 409, { error: "All slots are booked", full: true });
 
       const slotPrice = priceForSlot(offer, offer.booked + 1);
+      // The project file's price comes from the product itself (admin sets it there).
+      const storeSnap = await db.doc("store/data").get();
+      const storeData = (storeSnap.data() || {}) as any;
+      const fileProduct = (storeData.products || []).find((p: any) => p.id === offer.fileProductId);
+      const filePrice = Number(fileProduct?.price ?? offer.filePrice) || 0;
       let upgrade = false;
       if (offer.fileProductId) {
         const us = await db.doc(`users/${user.uid}`).get();
         upgrade = ((us.data()?.purchases || []) as string[]).includes(offer.fileProductId);
       }
-      const amount = Math.max(1, upgrade ? slotPrice - (Number(offer.filePrice) || 0) : slotPrice);
+      let amount = Math.max(1, upgrade ? slotPrice - filePrice : slotPrice);
+
+      // Promo code (same rules as products; "applies to" must be empty or include the title card edit)
+      let couponCode = "";
+      let couponOff = 0;
+      const wanted = clean(body.coupon, 40).toUpperCase();
+      if (wanted) {
+        const c = (storeData.coupons || []).find((x: any) => String(x.code || "").toUpperCase() === wanted);
+        const now = Date.now();
+        if (!c) return json(res, 400, { error: "That coupon doesn't exist" });
+        if (!c.enabled) return json(res, 400, { error: "This coupon is not active" });
+        if (c.expiresAt && new Date(c.expiresAt).getTime() < now) return json(res, 400, { error: "This coupon has expired" });
+        if (c.maxUses != null && (c.uses ?? 0) >= c.maxUses) return json(res, 400, { error: "This coupon has already been fully used" });
+        if (Array.isArray(c.appliesTo) && c.appliesTo.length && !c.appliesTo.includes("titlecard-edit")) return json(res, 400, { error: "This coupon doesn't apply to the title card edit" });
+        if (!(c.percentOff > 0 && c.percentOff < 100)) return json(res, 400, { error: "This coupon can't be used here" });
+        couponOff = Math.round(amount * (c.percentOff / 100));
+        amount = Math.max(1, amount - couponOff);
+        couponCode = wanted;
+      }
 
       const rzp = new Razorpay({ key_id: keyId, key_secret: keySecret });
       const order = await rzp.orders.create({
         amount: Math.round(amount * 100),
         currency: "INR",
         receipt: `titlecard-${Date.now()}`.slice(0, 40),
-        notes: { kind: "titlecard", uid: user.uid, itemId: "titlecard-edit", itemName: "Title card edit" },
+        notes: { kind: "titlecard", uid: user.uid, itemId: "titlecard-edit", itemName: "Title card edit", couponCode },
       });
       await db.doc(`editDrafts/${order.id}`).set({
         uid: user.uid, userEmail: user.email, top, big, pose, photos, name, phone, email, note, showOk,
-        amount, slotPrice, upgrade, createdAt: new Date().toISOString(),
+        amount, slotPrice, upgrade, couponCode, couponOff, createdAt: new Date().toISOString(),
       });
-      return json(res, 200, { orderId: order.id, amount: order.amount, currency: order.currency, keyId, itemName: "Title card edit", upgrade, price: amount });
+      return json(res, 200, { orderId: order.id, amount: order.amount, currency: order.currency, keyId, itemName: "Title card edit", upgrade, price: amount, couponOff });
     }
 
     // ── Anyone: join the waiting list (no payment) ──

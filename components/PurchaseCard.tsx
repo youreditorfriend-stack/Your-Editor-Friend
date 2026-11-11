@@ -41,6 +41,8 @@ export const PurchaseCard: React.FC<{
   const [showCoupon, setShowCoupon] = useState(!compact);
   const [termsCollapsed, setTermsCollapsed] = useState(true);
   const [showRecs, setShowRecs] = useState(false);
+  const [showDone, setShowDone] = useState(false);
+  const closeDone = () => { setShowDone(false); recsTimerRef.current = setTimeout(() => setShowRecs(true), 1200); };
 
   // Detect a purchase completing (free claim writes instantly; a paid buy
   // flips `owned` once the live purchases listener catches the server-side
@@ -56,7 +58,7 @@ export const PurchaseCard: React.FC<{
     wasOwnedRef.current = owned;
     if (justPurchased && !compact) {
       fireSuccessConfetti();
-      recsTimerRef.current = setTimeout(() => setShowRecs(true), 2500);
+      setShowDone(true); // "Download now / it's in My Library" first; cross-sell after it's closed
     }
   }, [owned, compact]);
   useEffect(() => () => { if (recsTimerRef.current) clearTimeout(recsTimerRef.current); }, []);
@@ -340,6 +342,25 @@ export const PurchaseCard: React.FC<{
         />,
         document.body
       )}
+      {typeof document !== "undefined" && showDone && createPortal(
+        <div className="fixed inset-0 z-[120] bg-black/75 backdrop-blur-sm grid place-items-center p-4" onClick={closeDone}>
+          <div className="w-full max-w-sm rounded-3xl border border-[#25D366]/40 bg-[#0f0f0f] p-6 text-center" onClick={e => e.stopPropagation()}>
+            <div className="w-16 h-16 rounded-full bg-[#25D366] text-black grid place-items-center mx-auto"><Check size={32} strokeWidth={3} /></div>
+            <h3 className="text-xl font-extrabold mt-4">It's yours! 🎉</h3>
+            <p className="text-zinc-400 text-sm mt-1">{title} is saved in <b className="text-white">My Library</b> — download it anytime.</p>
+            {"downloadUrl" in item && (item as Product).downloadUrl && (
+              <a href={(item as Product).downloadUrl} target="_blank" rel="noopener noreferrer"
+                className="mt-5 w-full h-12 rounded-xl bg-[#25D366] text-black font-bold flex items-center justify-center gap-2"><Download size={17} /> Download now</a>
+            )}
+            <Link to="/my-library" className="mt-2 w-full h-11 rounded-xl border border-white/15 font-bold text-sm flex items-center justify-center gap-2 hover:bg-white/5">Open My Library</Link>
+            {(((item as Product).assetGen) || (item as Product).tutorialUrl) && (
+              <a href="#ai-assets" onClick={closeDone} className="mt-2 block text-sm font-semibold text-[#FF7A1A]">Free prompts & how-to video ↓</a>
+            )}
+            <button onClick={closeDone} className="mt-3 text-xs text-zinc-500">Close</button>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };
@@ -403,10 +424,18 @@ const BuyButton: React.FC<{
     "w-full py-3.5 rounded-xl text-base font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed";
 
   if (owned) {
+    const dl = item.kind !== "course" ? (item as Product).downloadUrl : "";
     return (
-      <Link to="/my-library" className={`${cls} bg-[#25D366]/15 text-[#25D366] border border-[#25D366]/30 hover:bg-[#25D366]/25`}>
-        <Check size={17} /> Owned — Open Library
-      </Link>
+      <div className="flex gap-2 w-full">
+        {dl && (
+          <a href={dl} target="_blank" rel="noopener noreferrer" className={`${cls} bg-[#25D366] text-black hover:bg-green-400`}>
+            <Download size={17} /> Download
+          </a>
+        )}
+        <Link to="/my-library" className={`${cls} bg-[#25D366]/15 text-[#25D366] border border-[#25D366]/30 hover:bg-[#25D366]/25`}>
+          <Check size={17} /> {dl ? "My Library" : "Owned — Open Library"}
+        </Link>
+      </div>
     );
   }
   // A "Coming Soon" course is browsable but not purchasable — its detail page

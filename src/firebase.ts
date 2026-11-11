@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+import { getFirestore, initializeFirestore } from "firebase/firestore";
 import {
   initializeAuth,
   browserLocalPersistence,
@@ -20,7 +20,12 @@ const firebaseConfig = {
 };
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-export const db = getFirestore(app);
+// ignoreUndefinedProperties: an empty optional field (e.g. a coupon without an
+// expiry or max uses) must not make the whole save fail.
+let dbInstance;
+try { dbInstance = initializeFirestore(app, { ignoreUndefinedProperties: true }); }
+catch { dbInstance = getFirestore(app); }
+export const db = dbInstance;
 
 let authInstance;
 try {

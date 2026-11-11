@@ -1190,6 +1190,7 @@ export function AdminCouponsPanel() {
 
   // All items (products + courses) shown in the "applies to" picker
   const allItems = [
+    { id: "titlecard-edit", label: "🎬 Title card edit (booking)" },
     ...(data.products || []).map(p => ({ id: p.id, label: `📦 ${p.name}` })),
     ...(data.courses || []).map(c => ({ id: c.id, label: `🎓 ${c.title}` })),
   ];
@@ -1231,11 +1232,11 @@ export function AdminCouponsPanel() {
                     onChange={e => upCoupon(i, { percentOff: Math.max(0, Math.min(100, Number(e.target.value))) })}
                   />
                 </Field>
-                <Field label="Expires (optional)">
+                <Field label="Last day (optional)">
                   <Input
                     type="date"
-                    value={c.expiresAt ? c.expiresAt.slice(0, 10) : ""}
-                    onChange={e => upCoupon(i, { expiresAt: e.target.value ? new Date(e.target.value).toISOString() : undefined })}
+                    value={c.expiresAt ? new Date(new Date(c.expiresAt).getTime() + 5.5 * 3600e3).toISOString().slice(0, 10) : ""}
+                    onChange={e => upCoupon(i, { expiresAt: e.target.value ? new Date(`${e.target.value}T23:59:59+05:30`).toISOString() : undefined })}
                   />
                 </Field>
                 <Field label="Max Uses (optional)">

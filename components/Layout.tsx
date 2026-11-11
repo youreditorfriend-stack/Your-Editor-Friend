@@ -167,6 +167,11 @@ export const Layout: React.FC = () => {
                 Ask AI <Sparkles size={15} />
               </button>
 
+              {user && (
+                <Link to="/my-library" className="flex items-center gap-1.5 h-9 px-3 rounded-full bg-[#FF7A1A]/15 border border-[#FF7A1A]/40 text-[#FF7A1A] text-[13px] font-bold hover:bg-[#FF7A1A]/25 transition-colors">
+                  <Library size={15} /> <span>My Library</span>
+                </Link>
+              )}
               {user ? (
                 <div className="relative" ref={userMenuRef}>
                   <button onClick={() => setShowUserMenu(v => !v)} className="flex items-center gap-2">

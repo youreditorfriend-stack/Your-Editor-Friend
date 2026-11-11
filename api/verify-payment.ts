@@ -67,9 +67,13 @@ async function sendPurchaseEmail(
         <tr><td style="padding:6px 0;color:#a1a1aa">Amount paid</td><td style="padding:6px 0;text-align:right;font-weight:bold">${inr(paid)}</td></tr>
         ${saved > 0 ? `<tr><td style="padding:6px 0;color:#a1a1aa">You saved</td><td style="padding:6px 0;text-align:right;color:#25D366;font-weight:bold">${inr(saved)} 🎉</td></tr>` : ""}
       </table>
-      <a href="${libraryUrl}" style="display:block;background:#25D366;color:#000000;text-decoration:none;text-align:center;padding:14px;border-radius:12px;font-weight:bold;font-size:15px">
-        Open My Library &amp; ${isCourse ? "start watching" : "download"}
+      ${!isCourse && found?.downloadUrl ? `<a href="${found.downloadUrl}" style="display:block;background:#25D366;color:#000000;text-decoration:none;text-align:center;padding:14px;border-radius:12px;font-weight:bold;font-size:15px;margin-bottom:10px">
+        ⬇ Download now
+      </a>` : ""}
+      <a href="${libraryUrl}" style="display:block;background:${!isCourse && found?.downloadUrl ? "#1f1f1f" : "#25D366"};color:${!isCourse && found?.downloadUrl ? "#ffffff" : "#000000"};text-decoration:none;text-align:center;padding:14px;border-radius:12px;font-weight:bold;font-size:15px">
+        Open My Library${isCourse ? " &amp; start watching" : ""}
       </a>
+      ${!isCourse && (found?.assetGen || found?.tutorialUrl) ? `<p style="margin:14px 0 0;text-align:center"><a href="${SITE_URL}/products/${itemId}#ai-assets" style="color:#FF7A1A;font-weight:bold;font-size:14px">Free prompts &amp; how-to-edit video →</a></p>` : ""}
       <p style="margin:16px 0 0;color:#71717a;font-size:12px;line-height:1.6">
         ${isCourse ? "Your course access link lives" : "Your download lives"} in <a href="${libraryUrl}" style="color:#25D366">My Library</a> — sign in with this same Google account (${email}) to grab it anytime.
       </p>
@@ -170,6 +174,17 @@ async function confirmTitleCard(rzp: any, order: any, orderId: string, paymentId
   if (result.already) return json(res, 200, { ok: true, titlecard: { id: result.id, slot: result.slot } });
 
   const d = result.draft;
+  // Count the promo code use (transaction, so a "max 25 uses" cap holds)
+  if (d.couponCode) {
+    try {
+      const ref = db.doc("store/data");
+      await db.runTransaction(async tx => {
+        const snap = await tx.get(ref);
+        const list = (snap.data()?.coupons || []) as any[];
+        tx.update(ref, { coupons: list.map(c => (String(c.code || "").toUpperCase() === d.couponCode ? { ...c, uses: (c.uses || 0) + 1 } : c)) });
+      });
+    } catch (e) { console.error("titlecard coupon bump failed", e); }
+  }
   // Edit includes the project file → it appears in My Library.
   const grant: any = {
     payments: FieldValue.arrayUnion({ itemId: "titlecard-edit", orderId, paymentId, amount: order.amount, couponCode: null, at: new Date().toISOString() }),

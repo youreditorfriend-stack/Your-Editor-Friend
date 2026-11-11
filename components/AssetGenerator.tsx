@@ -22,7 +22,18 @@ export const TutorialVideo: React.FC<{ url?: string; title?: string }> = ({ url,
   );
 };
 
-export const AssetGenerator: React.FC<{ product: Product }> = ({ product }) => {
+/** Top-of-page free tutorial card (product page), with a jump link to the free prompts. */
+export const FreeTutorialTop: React.FC<{ product: Product }> = ({ product }) => {
+  if (!youtubeId(product.tutorialUrl)) return null;
+  return (
+    <div className="agx" style={{ marginTop: 0, marginBottom: 24 }}>
+      <TutorialVideo url={product.tutorialUrl} />
+      {product.assetGen && <a href="#ai-assets" className="dl" style={{ marginTop: 10 }}>🎁 Free AI prompts for this template ↓</a>}
+    </div>
+  );
+};
+
+export const AssetGenerator: React.FC<{ product: Product; showTutorial?: boolean }> = ({ product, showTutorial = true }) => {
   const { owns } = usePurchase();
   const owned = owns(product.id) || !product.price;
   const [kit, setKit] = useState<AssetGenPublic | null>(null);
@@ -61,15 +72,15 @@ export const AssetGenerator: React.FC<{ product: Product }> = ({ product }) => {
   const allText = () => kit ? `${product.name} — AI asset prompts for ${v.NAME} (${v.n} letters, TITLE_${v.TITLE_NO})\n\n` +
     kit.cards.filter(c => c.kind !== "name" && textOf(c)).map(c => { const o = cur(c); return `=== Step ${c.no} · ${c.title}${o ? ` (${o.label})` : ""} (upload: ${o ? o.upload : c.upload}) ===\n${fillPrompt(textOf(c), v, gender)}\n`; }).join("\n") : "";
 
-  if (!product.tutorialUrl && !product.assetGen && !demo) return null;
+  if ((!showTutorial || !product.tutorialUrl) && !product.assetGen && !demo) return null;
 
   return (
     <section className="agx" id="ai-assets">
-      <div className="eyebrow">Make it yours</div>
-      <h2>{product.assetGen ? "AI Asset Generator" : "How to edit this template"}</h2>
-      {product.assetGen && <p className="sub">Type your name once — every prompt below fills itself. Copy, paste in Gemini or ChatGPT, done.</p>}
+      <div className="eyebrow">Free assets · no purchase needed</div>
+      <h2>{product.assetGen || demo ? "Free AI prompts" : "How to edit this template"}</h2>
+      {(product.assetGen || demo) && <p className="sub">Type your name once — every prompt below fills itself. Copy, paste in Gemini or ChatGPT, done.</p>}
 
-      <TutorialVideo url={product.tutorialUrl} />
+      {showTutorial && <TutorialVideo url={product.tutorialUrl} />}
 
       {kit && (
         <>

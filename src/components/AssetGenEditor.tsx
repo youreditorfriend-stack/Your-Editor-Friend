@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { ChevronDown, ChevronUp, Plus, Trash2, Upload } from "lucide-react";
 import {
-  PLACEHOLDERS, RESPECTA_PRESET, fillPrompt, nameVars, loadAssetGen, loadAssetPrompts, promptKey, saveAssetGen,
+  PLACEHOLDERS, RESPECTA_PRESET, RESPECTA_TUTORIAL, fillPrompt, nameVars, loadAssetGen, loadAssetPrompts, promptKey, saveAssetGen,
   type AgCard, type AgOption, type AgPrompts, type AssetGenPublic,
 } from "../lib/assetGen";
 import { imageFileToWebp, newId, uploadImageBlob } from "../lib/promptKit";
@@ -13,7 +13,7 @@ const area = "w-full rounded-lg bg-zinc-950 border border-white/10 px-3 py-2 tex
 const lbl = "block text-[11px] font-bold tracking-wider text-zinc-400 uppercase mb-1";
 const UPLOADS = ["Your photo", "Nothing", "Your photo + the pose image", "The VIJAY brush video", "–"];
 
-const EMPTY: AssetGenPublic = { min: 3, max: 15, allowTxt: true, promptsFor: "buyers", rules: [], ae: [], cards: [] };
+const EMPTY: AssetGenPublic = { min: 3, max: 15, allowTxt: true, promptsFor: "everyone", rules: [], ae: [], cards: [] };
 
 async function uploadMedia(file: File): Promise<string> {
   if (file.type.startsWith("image/")) return uploadImageBlob(await imageFileToWebp(file), file.name.replace(/\.[^.]+$/, ".webp"));
@@ -103,7 +103,7 @@ export function AssetGenEditor({ productId, tutorialUrl, onTutorial, onSaved }: 
         <div className="rounded-xl border border-dashed border-white/15 p-4 text-center space-y-2">
           <p className="text-sm text-zinc-400">No AI asset generator on this product yet.</p>
           <div className="flex gap-2 justify-center flex-wrap">
-            <button className="h-9 px-3 rounded-lg bg-[#FF7A1A] text-black text-xs font-bold" onClick={() => { setKit(RESPECTA_PRESET.pub); setPrompts(RESPECTA_PRESET.prompts); setOpen("portrait"); }}>Load “Respecta” preset</button>
+            <button className="h-9 px-3 rounded-lg bg-[#FF7A1A] text-black text-xs font-bold" onClick={() => { setKit(RESPECTA_PRESET.pub); setPrompts(RESPECTA_PRESET.prompts); setOpen("portrait"); if (!tutorialUrl) onTutorial(RESPECTA_TUTORIAL); }}>Load “Respecta” preset</button>
             <button className="h-9 px-3 rounded-lg border border-white/15 text-xs font-bold" onClick={() => setKit({ ...EMPTY, cards: [{ id: "name", no: "1", title: "Your name (typed in AE)", replaces: "", upload: "–", kind: "name" }] })}>Start empty</button>
           </div>
         </div>
@@ -116,7 +116,7 @@ export function AssetGenEditor({ productId, tutorialUrl, onTutorial, onSaved }: 
           <div className="grid sm:grid-cols-2 gap-2">
             <div><label className={lbl}>Who can see the prompts?</label>
               <select className={inp} value={k.promptsFor} onChange={e => setK({ promptsFor: e.target.value as any })}>
-                <option value="buyers">Only buyers</option><option value="everyone">Everyone (free)</option>
+                <option value="everyone">Everyone (free)</option><option value="buyers">Only buyers</option>
               </select></div>
             <label className="flex items-center gap-2 text-sm font-semibold mt-5"><input type="checkbox" className="accent-[#FF7A1A] w-4 h-4" checked={k.allowTxt} onChange={e => setK({ allowTxt: e.target.checked })} />Allow “Download prompts as .txt”</label>
           </div>

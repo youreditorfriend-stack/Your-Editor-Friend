@@ -13,7 +13,7 @@ import { useDetailContext } from "../components/Layout";
 import { CommentsSection } from "../src/components/CommentsSection";
 import { ReviewsSection } from "../components/ReviewsSection";
 import { PromptKitViewer } from "../components/PromptKitViewer";
-import { AssetGenerator } from "../components/AssetGenerator";
+import { AssetGenerator, FreeTutorialTop } from "../components/AssetGenerator";
 import { LoginNudge } from "../components/LoginNudge";
 import { useResumeIntent } from "../src/lib/purchase";
 
@@ -105,6 +105,9 @@ export const ItemDetail: React.FC<{ kind: Kind }> = ({ kind }) => {
 
         {/* Shared-link visitors who aren't logged in: one-tap login → buy */}
         <LoginNudge item={item} />
+
+        {/* Free "how to edit" video on top — open to everyone */}
+        {kind === "product" && <FreeTutorialTop product={item as Product} />}
 
         {/* Prompt kit products: PSD files → layers → prompts viewer on top */}
         {kind === "product" && (item as Product).promptKit && <PromptKitViewer product={item as Product} />}
@@ -210,7 +213,7 @@ export const ItemDetail: React.FC<{ kind: Kind }> = ({ kind }) => {
 
             {/* FAQ */}
             {/* Free "how to edit" video + AI asset generator (prompts for buyers) */}
-            {kind === "product" && <AssetGenerator product={item as Product} />}
+            {kind === "product" && <AssetGenerator product={item as Product} showTutorial={false} />}
 
             {item.faq && item.faq.length > 0 && (
               <div className="mt-10">

@@ -397,7 +397,7 @@ function OfferSettings({ offer }: { offer: TitleCardOffer }) {
       <div className="p-4 flex items-center justify-between"><H t="Booking open" s="Turn off to pause new bookings" /><Toggle value={d.open} onChange={v => set("open", v)} /></div>
 
       <div className="p-4">
-        <H t="₹499 project file product" s="Pick the product buyers get (also given free with every edit)" />
+        <H t="Project file product" s="Pick the product buyers get (also given free with every edit). Its price on the product is the price shown here — change it in Products." />
         <select value={d.fileProductId} onChange={e => set("fileProductId", e.target.value)} className={inp}>
           <option value="">— not ready yet (Buy shows “Soon”) —</option>
           {(store?.products || []).map(p => <option key={p.id} value={p.id}>{p.name} · ₹{p.price}</option>)}

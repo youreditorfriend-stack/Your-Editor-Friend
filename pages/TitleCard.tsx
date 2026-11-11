@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import "./titlecard.css";
 import { useAuth } from "../src/lib/auth";
-import { useStore } from "../src/lib/store";
+import { applyCoupon, useStore } from "../src/lib/store";
 import { loadRazorpay, usePurchase } from "../src/lib/purchase";
 import { getWhatsAppLink } from "../src/lib/site";
 import { useTestimonials } from "../src/lib/testimonials";
@@ -90,7 +90,9 @@ const TitleCard: React.FC = () => {
   const slot = nextSlot(offer);
   const price = priceForSlot(offer, slot);
   const owned = !!offer.fileProductId && !!profile?.purchases?.includes(offer.fileProductId);
-  const payNow = owned ? price - offer.filePrice : price;
+  const fileProductX = store?.products.find(p => p.id === offer.fileProductId);
+  const filePrice = fileProductX ? fileProductX.price : offer.filePrice;  // the product's own price
+  const payBase = owned ? price - filePrice : price;
   const left = Math.max(0, offer.total - offer.booked);
   const nextTier = sortedTiers(offer).find(t => t.upTo >= slot && priceForSlot(offer, t.upTo + 1) > price && t.upTo < offer.total);
   const fileProduct = store?.products.find(p => p.id === offer.fileProductId);
@@ -129,6 +131,9 @@ const TitleCard: React.FC = () => {
   const [note, setNote] = useState("");
   const [ownPhoto, setOwnPhoto] = useState(true);
   const [showOk, setShowOk] = useState(true);
+  const [couponIn, setCouponIn] = useState("");
+  const [coupon, setCoupon] = useState<{ code: string; off: number } | null>(null);
+  const [couponErr, setCouponErr] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [done, setDone] = useState<null | { id: string; batch?: any }>(null);
@@ -188,7 +193,7 @@ const TitleCard: React.FC = () => {
     if (!ownPhoto) return toast("Please confirm these are your photos");
     setBusy(true);
     try {
-      const order = await createEditOrder({ top, big, pose, photos: photos.map(p => p.url), name, phone, email, note, showOk });
+      const order = await createEditOrder({ top, big, pose, photos: photos.map(p => p.url), name, phone, email, note, showOk, coupon: coupon?.code || "" });
       const ok = await loadRazorpay();
       if (!ok || !window.Razorpay) throw new Error("Payment window didn't load. Check your internet and try again.");
       let finished = false;
@@ -236,6 +241,7 @@ const TitleCard: React.FC = () => {
     buy(fileProduct);
   };
 
+  const payNow = Math.max(1, payBase - (coupon?.off || 0));
   const waMsg = done ? `Hi! Title card booking ${done.id}\nTop text: ${top || "-"}\nBig name: ${big}\nPose: ${pose}\nPhotos: ${photos.length}\nName: ${name}` : "";
   const helpWa = getWhatsAppLink("Hi! I have a question about the title card edit.");
 
@@ -289,13 +295,13 @@ const TitleCard: React.FC = () => {
               </button>
             </div>
             <h1>Your name. <span className="o">This title card.</span></h1>
-            <p className="sub">Edit it yourself for ₹{offer.filePrice} — or send your photos and I'll edit it for you.</p>
+            <p className="sub">Edit it yourself for ₹{filePrice} — or send your photos and I'll edit it for you.</p>
           </div>
 
           <div className="compare" ref={cmpRef}>
             <div className="cmp">
               <div className="h"><small style={{ alignSelf: "flex-start", fontSize: 11.5, color: "var(--text)" }}>What you get</small></div>
-              <div className="h"><small>Project file</small><strong>₹{offer.filePrice}</strong><small>You edit</small></div>
+              <div className="h"><small>Project file</small><strong>₹{filePrice}</strong><small>You edit</small></div>
               <div className="h best">
                 <span className="pill">{full ? "SOLD OUT" : `ONLY ${left} LEFT`}</span>
                 <small>I edit for you</small>
@@ -394,7 +400,7 @@ const TitleCard: React.FC = () => {
         <section className="faq">
           <div className="eyebrow">Questions</div>
           <h2>Before you book</h2>
-          <details><summary>I bought the ₹{offer.filePrice} file. Can I upgrade later?</summary><p>Yes. Log in with the same account and pay only the rest (edit price minus ₹{offer.filePrice}) — as long as slots are left.</p></details>
+          <details><summary>I bought the ₹{filePrice} file. Can I upgrade later?</summary><p>Yes. Log in with the same account and pay only the rest (edit price minus ₹{filePrice}) — as long as slots are left.</p></details>
           <details><summary>What quality will I get?</summary><p>Full HD 1080p MP4, ready to post. Sent on WhatsApp.</p></details>
           <details><summary>Which software do I need for the project file?</summary><p>After Effects 2022 or newer. No paid plugins.</p></details>
           <details><summary>What if I don't like the result?</summary><p>1 free revision is included (text, photo or pose change).</p></details>
@@ -513,13 +519,25 @@ const TitleCard: React.FC = () => {
               <div className="summary">
                 {owned ? (<>
                   <div><span>Title card edit (slot {slot})</span><b>₹{price}</b></div>
-                  <div><span>Project file (already paid)</span><b className="free">−₹{offer.filePrice}</b></div>
-                  <div><span>Pay now</span><b>₹{payNow}</b></div>
+                  <div><span>Project file (already paid)</span><b className="free">−₹{filePrice}</b></div>
                 </>) : (<>
                   <div><span>Title card edit (slot {slot})</span><b>₹{price}</b></div>
                   <div><span>Project file</span><b className="free">FREE</b></div>
-                  <div><span>Total</span><b>₹{payNow}</b></div>
                 </>)}
+                {coupon && <div><span>Coupon {coupon.code}</span><b className="free">−₹{coupon.off}</b></div>}
+                <div><span>{owned ? "Pay now" : "Total"}</span><b>₹{payNow}</b></div>
+              </div>
+              <div className="field">
+                <label>Have a coupon? <small>optional</small></label>
+                <div className="phone"><input value={couponIn} placeholder="CODE" style={{ textTransform: "uppercase" }} onChange={e => { setCouponIn(e.target.value.toUpperCase().replace(/\s+/g, "")); setCouponErr(""); }} />
+                  <button className="btn ghost" style={{ width: "auto", margin: 5, padding: "0 14px" }} onClick={() => {
+                    if (coupon) { setCoupon(null); setCouponIn(""); return; }
+                    const r = applyCoupon(payBase, couponIn, store?.coupons || [], "titlecard-edit");
+                    if (!r.ok || !r.coupon || r.coupon.percentOff >= 100) { setCouponErr(r.error || "This coupon can't be used here"); return; }
+                    setCoupon({ code: (r.coupon.code || couponIn).toUpperCase(), off: r.discount });
+                  }}>{coupon ? "Remove" : "Apply"}</button></div>
+                {couponErr && <div className="hint" style={{ color: "#ff8a8a" }}>{couponErr}</div>}
+                {coupon && <div className="hint" style={{ color: "#3ddc84" }}>Coupon {coupon.code} applied · −₹{coupon.off}</div>}
               </div>
               {err && <div className="err">{err}</div>}
             </div>
@@ -547,7 +565,7 @@ const TitleCard: React.FC = () => {
               <div className="field"><label>Your full name</label><input value={name} onChange={e => setName(e.target.value)} autoComplete="name" /></div>
               <div className="field"><label>WhatsApp number</label><div className="phone"><span className="cc">+91</span><input value={phone} inputMode="numeric" maxLength={10} onChange={e => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))} /></div></div>
               <div className="field"><label>Email <small>optional</small></label><input value={email} inputMode="email" onChange={e => setEmail(e.target.value)} /></div>
-              <p className="hint" style={{ marginTop: 12 }}>No payment now. Want to edit it yourself meanwhile? The ₹{offer.filePrice} project file is still available.</p>
+              <p className="hint" style={{ marginTop: 12 }}>No payment now. Want to edit it yourself meanwhile? The ₹{filePrice} project file is still available.</p>
               {err && <div className="err">{err}</div>}
             </div>
           )}

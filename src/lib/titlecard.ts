@@ -142,7 +142,7 @@ export async function uploadPhoto(file: File): Promise<string> {
   return d.url;
 }
 
-export interface BookingInput { top: string; big: string; pose: string; photos: string[]; name: string; phone: string; email: string; note: string; showOk: boolean }
+export interface BookingInput { top: string; big: string; pose: string; photos: string[]; name: string; phone: string; email: string; note: string; showOk: boolean; coupon?: string }
 export async function createEditOrder(input: BookingInput) {
   return call({ action: "create-order", idToken: await token(), ...input });
 }

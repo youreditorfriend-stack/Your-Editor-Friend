@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Download, ExternalLink, Library as LibraryIcon, Lock, MessageCircle, Play, ShoppingBag } from 'lucide-react';
+import { Download, ExternalLink, Library as LibraryIcon, Lock, MessageCircle, Play, ShoppingBag, Sparkles } from 'lucide-react';
+import { AssetGenerator } from '../components/AssetGenerator';
+import { PromptKitViewer } from '../components/PromptKitViewer';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../src/lib/auth';
 import { formatPrice, getPostPurchaseRecommendations, hasClaimedFreeAssets, hasFreeAssets, useStore } from '../src/lib/store';
@@ -10,6 +12,7 @@ import { RateWidget } from '../components/ReviewsSection';
 export const Library: React.FC = () => {
   const { user, profile, signIn } = useAuth();
   const { store } = useStore();
+  const [openId, setOpenId] = useState<string | null>(null);
 
   if (!user) {
     return (
@@ -41,6 +44,8 @@ export const Library: React.FC = () => {
     .filter(({ product: p, owned }) => owned || hasClaimedFreeAssets(purchases, p.id));
   const ownedCourses = (store?.courses || []).filter(c => purchases.includes(c.id));
   const empty = libraryProducts.length === 0 && ownedCourses.length === 0;
+  const hasExtras = (p: any) => !!(p.assetGen || p.tutorialUrl || p.promptKit);
+  const openP = libraryProducts.find(x => x.product.id === openId)?.product;
 
   return (
     <div className="px-6 pb-24">
@@ -164,11 +169,28 @@ export const Library: React.FC = () => {
                             <Download size={15} /> Free Assets
                           </a>
                         )}
+                        {hasExtras(p) && (
+                          <button onClick={() => { setOpenId(openId === p.id ? null : p.id); setTimeout(() => document.getElementById("lib-extras")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80); }}
+                            className={`mt-2 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all border ${openId === p.id ? "bg-[#FF7A1A] text-black border-[#FF7A1A]" : "bg-[#FF7A1A]/10 text-[#FF7A1A] border-[#FF7A1A]/40 hover:bg-[#FF7A1A]/20"}`}>
+                            <Sparkles size={14} /> {openId === p.id ? "Hide prompts" : "Prompts & tutorial"}
+                          </button>
+                        )}
                         {owned && <RateWidget itemId={p.id} itemTitle={p.name} compact />}
                       </div>
                     </motion.div>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {openP && (
+              <div id="lib-extras" className="mt-8 scroll-mt-32 rounded-3xl border border-[#FF7A1A]/25 bg-[#0d0d0d] p-4 md:p-8">
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className="text-lg md:text-2xl font-semibold">{openP.name}</h2>
+                  <button onClick={() => setOpenId(null)} className="text-zinc-500 hover:text-white text-sm">Close ✕</button>
+                </div>
+                {openP.promptKit && <div className="mt-4"><PromptKitViewer product={openP} /></div>}
+                <AssetGenerator product={openP} />
               </div>
             )}
 

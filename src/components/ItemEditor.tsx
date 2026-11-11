@@ -213,6 +213,11 @@ export function ItemEditor({
               <Section title="Preview video" sub="YouTube / Instagram link or an mp4 link">
                 <input className={inputCls} value={p.previewVideo || ""} onChange={e => onChange({ previewVideo: e.target.value })} placeholder="https://youtube.com/watch?v=…" />
               </Section>
+              {isProduct && (
+                <Section title="How to edit — tutorial video" sub="YouTube link (unlisted is fine). Shows at the top of the product page and in My Library — free for everyone.">
+                  <input className={inputCls} value={p.tutorialUrl || ""} onChange={e => onChange({ tutorialUrl: e.target.value.trim() })} placeholder="https://youtu.be/…" />
+                </Section>
+              )}
               <Section title="Description" sub="Use ## for headings, - for bullet points">
                 <textarea rows={8} className={`${areaCls} font-mono`} value={p.description || ""} onChange={e => onChange({ description: e.target.value })}
                   placeholder={"## What's inside\n- After Effects project\n- Fonts\n- Tutorial video"} />

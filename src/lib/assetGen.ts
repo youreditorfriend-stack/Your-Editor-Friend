@@ -89,9 +89,10 @@ const poseOpts = (guide: string): AgOption[] => [
   { id: "own", label: "My own pose", upload: "Your photo" },
 ];
 
+export const RESPECTA_TUTORIAL = "https://youtu.be/O-u8Mzzacwg";
 export const RESPECTA_PRESET: { pub: AssetGenPublic; prompts: AgPrompts } = {
   pub: {
-    min: 3, max: 15, allowTxt: true, promptsFor: "buyers",
+    min: 3, max: 15, allowTxt: true, promptsFor: "everyone",
     rules: [
       "For photo steps, upload ONLY your own photo — never the example images (AI tools refuse celebrity faces). For the name video, upload the video we give you.",
       "Clear, front-facing photo, good light, face not covered.",
