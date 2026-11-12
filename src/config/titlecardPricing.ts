@@ -27,7 +27,7 @@ export const EDIT_TIERS: EditTier[] = [
     delivery: "24–48 hours",
     revisions: 1,
     features: ["Your name + your photo", "Pick a pose", "1080p MP4 on WhatsApp", "1 revision", "24–48 hour delivery"],
-    message: "Hi! I want the SCENE title card edit — Name + Photo (₹599) 🔥\nName to show: ___\nSmall top line (optional): ___\nI'll send 1–3 clear photos here 📸",
+    message: "Hi! I want the SCENE title card edit — Name + Photo (₹599)\nName to show: ___\nSmall top line (optional): ___\nI'll send 1–3 clear photos here",
   },
 ];
 
@@ -48,5 +48,6 @@ export interface TitleCardExample { src: string; name: string; type: "video" | "
 // { src: "/titlecard/examples/arun.mp4", name: "ARUN", type: "video" }
 export const EXAMPLES: TitleCardExample[] = [];
 
+// No emoji in the messages: WhatsApp's link page turns them into "�".
 export const waLink = (tier: EditTier) =>
   `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(tier.message)}`;
