@@ -113,6 +113,11 @@ async function token() {
 }
 
 /** Shorter side of an image in pixels (used to block tiny photos). */
+/** ₹599 edit: only the name is taken on the site; photos come on WhatsApp after paying. */
+export async function createSimpleEditOrder(big: string, top: string, name: string) {
+  return call({ action: "create-order", simple: true, idToken: await token(), big, top, name });
+}
+
 // ── Admin ──
 export async function adminList() { return call({ action: "admin-list", idToken: await token() }); }
 export async function adminUpdate(id: string, patch: Record<string, any>) { return call({ action: "admin-update", idToken: await token(), id, patch }); }

@@ -142,7 +142,7 @@ async function confirmTitleCard(rzp: any, order: any, orderId: string, paymentId
     const draft = draftSnap.data() as any;
     if (draft.doneId) return { id: draft.doneId as string, draft, already: true, full: false, slot: draft.slot };
     const offer = { total: 100, booked: 0, batches: [], ...(offerSnap.data() || {}) } as any;
-    if (offer.booked >= offer.total) {
+    if (!draft.simple && offer.booked >= offer.total) {  // simple (₹599) bookings have no slot limit
       tx.set(draftRef, { full: true, paymentId }, { merge: true });
       return { id: "", draft, already: false, full: true, slot: 0 };
     }

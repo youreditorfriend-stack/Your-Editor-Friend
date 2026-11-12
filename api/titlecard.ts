@@ -20,6 +20,9 @@ export const config = { api: { bodyParser: { sizeLimit: "4mb" } } };
 const ADMIN_EMAILS = ["youreditorfriend@gmail.com"];
 const FIREBASE_API_KEY = "AIzaSyBqgmzrNelS701uQ1ngLvcoatUkcBuiRic";
 const OFFER_DOC = "store/titlecard";
+// ₹ prices. KEEP IN SYNC with src/config/titlecardPricing.ts (api/ can't import src/).
+const EDIT_PRICE = 599;
+const FILE_PRICE = 149;
 
 // Keep in sync with src/lib/titlecard.ts (DEFAULT_OFFER)
 const DEFAULTS = {
@@ -113,6 +116,35 @@ export default async function handler(req: any, res: any) {
 
       const top = clean(body.top, 14).toUpperCase();
       const big = clean(body.big, 15).toUpperCase().replace(/\s+/g, " ");
+
+      // Simple booking (current /titlecard): only the name on the site, fixed
+      // price, photos are sent on WhatsApp after paying. No slots.
+      if (body.simple === true) {
+        if (!big || big.split(" ").length > 2) return json(res, 400, { error: "Name: 1–2 words, up to 15 letters" });
+        if (!/^[A-Z0-9 .&'!-]*$/.test(top + big)) return json(res, 400, { error: "Use English letters only" });
+        const offer = await loadOffer(db);
+        if (offer.open === false) return json(res, 409, { error: "Booking is closed right now" });
+        let upgrade = false;
+        if (offer.fileProductId) {
+          const us = await db.doc(`users/${user.uid}`).get();
+          upgrade = ((us.data()?.purchases || []) as string[]).includes(offer.fileProductId);
+        }
+        const amount = upgrade ? EDIT_PRICE - FILE_PRICE : EDIT_PRICE;
+        const rzp = new Razorpay({ key_id: keyId, key_secret: keySecret });
+        const order = await rzp.orders.create({
+          amount: Math.round(amount * 100), currency: "INR",
+          receipt: `titlecard-${Date.now()}`.slice(0, 40),
+          notes: { kind: "titlecard", uid: user.uid, itemId: "titlecard-edit", itemName: "Title card edit", couponCode: "" },
+        });
+        await db.doc(`editDrafts/${order.id}`).set({
+          uid: user.uid, userEmail: user.email, top, big, pose: "On WhatsApp", photos: [],
+          name: clean(body.name, 80) || big, phone: "", email: user.email || "", note: "Photos on WhatsApp",
+          showOk: false, simple: true, amount, slotPrice: EDIT_PRICE, upgrade, couponCode: "", couponOff: 0,
+          createdAt: new Date().toISOString(),
+        });
+        return json(res, 200, { orderId: order.id, amount: order.amount, currency: order.currency, keyId, itemName: "Title card edit", upgrade, price: amount });
+      }
+
       const pose = clean(body.pose, 60);
       const name = clean(body.name, 80);
       const phone = clean(body.phone, 10).replace(/\D/g, "");

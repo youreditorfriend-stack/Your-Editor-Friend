@@ -132,6 +132,49 @@ header.tcp-top{display:flex;align-items:center;justify-content:space-between;pad
 .tcp .how ol{margin:8px 0 0;padding-left:20px;display:grid;gap:5px;color:#d6d6d6;font-size:13px}
 .tcp .how em{font-style:normal;color:var(--wa);font-weight:700}
 .tcp .sticky .btn{white-space:nowrap}
+.tcp .was-i{color:var(--dim);font-size:.62em;font-weight:600;margin-right:6px;text-decoration:line-through}
+.tcp .btn.main .was-i,.tcp .btn.wa .was-i{color:rgba(0,0,0,.5)}
+.tcp .btn.wa{box-shadow:0 6px 22px -8px rgba(37,211,102,.7)}
+.tcp .tier.dim{background:#141414;border-color:#262626}
+.tcp .tier.dim .tier-h strong{color:#cfcfcf}
+.tcp .tier.dim li{color:#a9a9a9}
+.tcp .tier.dim .yes{background:#262626;color:#9a9a9a}
+
+/* ₹599 edit sheet */
+.tcp .sheet-bg{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.7);opacity:0;pointer-events:none;transition:opacity .25s}
+.tcp .sheet-bg.on{opacity:1;pointer-events:auto}
+.tcp .sheet{position:fixed;z-index:61;left:0;right:0;bottom:0;max-height:92vh;max-height:92dvh;background:#101010;border-radius:20px 20px 0 0;border-top:1px solid var(--line2);display:flex;flex-direction:column;transform:translateY(100%);transition:transform .35s cubic-bezier(.2,.8,.2,1)}
+.tcp .sheet.on{transform:none}
+.tcp .sh-head{padding:10px 16px;border-bottom:1px solid var(--line)}
+.tcp .grab{width:38px;height:4px;border-radius:9px;background:#333;margin:0 auto 10px}
+.tcp .sh-title{display:flex;justify-content:space-between;align-items:center}
+.tcp .sh-title b{font-size:15px}
+.tcp .sh-title button{color:var(--muted);font-size:22px;line-height:1;padding:0 4px}
+.tcp .sh-body{flex:1;overflow:auto;padding:14px 16px 20px}
+.tcp .sh-foot{padding:10px 16px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--line);display:flex;gap:10px}
+.tcp .pane{animation:tcp-fade .3s}
+@keyframes tcp-fade{from{opacity:0;transform:translateY(6px)}}
+.tcp .field{margin-top:14px}
+.tcp .field label{display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:12.5px;font-weight:600;margin-bottom:6px}
+.tcp .field label small{color:var(--dim);font-weight:500}
+.tcp .field input{width:100%;background:var(--card2);border:1px solid var(--line2);border-radius:12px;padding:12px 13px;font-size:16px;outline:none}
+.tcp .field input:focus{border-color:var(--o)}
+.tcp .hint{font-size:11.5px;color:var(--muted);margin-top:5px}
+.tcp .sendlist{margin-top:16px;background:rgba(37,211,102,.06);border:1px solid rgba(37,211,102,.25);border-radius:14px;padding:12px 14px}
+.tcp .sendlist b{font-size:13.5px}
+.tcp .sendlist ul{list-style:none;margin:8px 0 6px;padding:0;display:grid;gap:7px}
+.tcp .sendlist li{display:flex;gap:9px;align-items:flex-start;font-size:13px;color:#dcdcdc}
+.tcp .sendlist .box{flex:none;width:18px;height:18px;border-radius:5px;border:1.5px solid var(--wa);color:var(--wa);display:grid;place-items:center;font-size:11px;font-weight:900}
+.tcp .sendlist small{color:var(--muted);font-size:11.5px}
+.tcp .opt{display:flex;align-items:center;gap:10px;margin-top:12px;background:var(--card);border:1px solid var(--line2);border-radius:12px;padding:11px 12px;cursor:pointer}
+.tcp .opt input{accent-color:var(--o);width:18px;height:18px;flex:none}
+.tcp .opt div{flex:1}.tcp .opt b{display:block;font-size:13.5px}.tcp .opt small{color:var(--muted);font-size:12px}
+.tcp .done{text-align:center;padding:20px 4px}
+.tcp .done .ok-ic{width:64px;height:64px;border-radius:50%;background:var(--wa);color:#06210f;display:grid;place-items:center;margin:8px auto 14px;font-size:30px;font-weight:900}
+.tcp .done h3{font-size:20px;font-weight:800}
+.tcp .done p{color:var(--muted);margin-top:6px}
+.tcp .slotno{display:block;margin-top:4px;font-family:Anton,sans-serif;font-size:38px;color:var(--o);letter-spacing:1px}
+.tcp .err{margin-top:12px;background:rgba(255,80,80,.08);border:1px solid rgba(255,80,80,.3);color:#ffb4b4;border-radius:10px;padding:9px 11px;font-size:12.5px}
 
 @media (min-width:900px){
   .tcp .ex-grid{grid-auto-flow:row;grid-template-columns:repeat(3,1fr);overflow:visible;margin:0;padding:0}
@@ -139,6 +182,9 @@ header.tcp-top{display:flex;align-items:center;justify-content:space-between;pad
   .tcp .tier{padding:20px 18px 16px;display:flex;flex-direction:column}
   .tcp .tier ul{flex:1}
   .tcp .hero-ctas{grid-template-columns:1fr 1fr;max-width:560px}
+  .tcp .sheet{left:50%;right:auto;width:480px;bottom:auto;top:50%;border-radius:20px;border:1px solid var(--line2);transform:translate(-50%,-45%);opacity:0;pointer-events:none;transition:transform .3s,opacity .3s}
+  .tcp .sheet.on{transform:translate(-50%,-50%);opacity:1;pointer-events:auto}
+  .tcp .grab{display:none}
   .tcp .how{max-width:560px}
   header.tcp-top{padding:18px 0 14px}
   .tcp .hero-grid{grid-template-columns:1.35fr 1fr;gap:28px;align-items:start}

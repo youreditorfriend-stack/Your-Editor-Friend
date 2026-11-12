@@ -6,10 +6,11 @@ import { useStore } from "../src/lib/store";
 import { usePurchase } from "../src/lib/purchase";
 import { getWhatsAppLink } from "../src/lib/site";
 import { useTestimonials } from "../src/lib/testimonials";
-import { useTitleCardOffer } from "../src/lib/titlecard";
+import { createSimpleEditOrder, useTitleCardOffer } from "../src/lib/titlecard";
+import { loadRazorpay } from "../src/lib/purchase";
 import { track } from "../src/lib/track";
 import {
-  EDIT_TIERS, EXAMPLES, PROJECT_FILE, SHOW_SOCIAL_PROOF, SOCIAL_PROOF_COUNT, waLink, type EditTier,
+  EDIT_TIERS, EXAMPLES, PROJECT_FILE, SEND_ON_WHATSAPP, SHOW_SOCIAL_PROOF, SOCIAL_PROOF_COUNT, paidMessage, waText,
 } from "../src/config/titlecardPricing";
 
 const Check = () => (
@@ -28,19 +29,12 @@ function useAnton() {
 
 const EDIT = EDIT_TIERS[0];
 
-/** Plain <a target=_blank> — works in Instagram's in-app browser (Android + iOS). */
-const WaButton: React.FC<{ tier: EditTier; className?: string; label?: string }> = ({ tier, className = "btn wa", label }) => (
-  <a className={className} href={waLink(tier)} target="_blank" rel="noopener noreferrer"
-    onClick={() => track("whatsapp_click", { tier: tier.id, price: tier.price })}>
-    {label || `Book on WhatsApp · ₹${tier.price}`}
-  </a>
-);
 
 
 const TitleCard: React.FC = () => {
   useAnton();
   const { offer } = useTitleCardOffer();
-  const { profile } = useAuth();
+  const { user, profile, signIn } = useAuth();
   const { store } = useStore();
   const { buy, paying, owns } = usePurchase();
   const { list: testimonials } = useTestimonials(true);
@@ -76,9 +70,71 @@ const TitleCard: React.FC = () => {
   }, []);
 
   const helpWa = getWhatsAppLink("Hi! I have a question about the SCENE title card.");
-  const fileBtn = owned
-    ? <Link className="btn ghost" to="/my-library">✓ Owned · My Library</Link>
-    : <button className="btn ghost" onClick={buyFile} disabled={!!paying}>{fileProduct ? `Buy file · ₹${PROJECT_FILE.price}` : "Coming soon"}</button>;
+  const fileBtn = (cls = "btn wa big") => owned
+    ? <Link className="btn ghost big" to="/my-library">✓ Owned · My Library</Link>
+    : <button className={cls} onClick={buyFile} disabled={!!paying}>{fileProduct ? `Buy project file · ₹${PROJECT_FILE.price}` : "Coming soon"}</button>;
+
+  // ── ₹599 edit: name on the site → Razorpay → WhatsApp (only after paying)
+  const editPrice = owned ? EDIT.price - PROJECT_FILE.price : EDIT.price;
+  const [sheet, setSheet] = useState(false);
+  const [big, setBig] = useState("");
+  const [top, setTop] = useState("");
+  const [willSend, setWillSend] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const [doneId, setDoneId] = useState("");
+  useEffect(() => { document.body.style.overflow = sheet ? "hidden" : ""; return () => { document.body.style.overflow = ""; }; }, [sheet]);
+  const openEdit = () => { setErr(""); setSheet(true); track("edit_sheet_open", { price: editPrice }); };
+  const onBig = (v: string) => {
+    let s = v.toUpperCase().replace(/[^A-Z0-9 .&'!-]/g, "").replace(/\s{2,}/g, " ").replace(/^\s+/, "");
+    if (/^\S+ \S+ /.test(s)) s = s.split(" ").filter(Boolean).slice(0, 2).join(" ");
+    setBig(s.slice(0, 15));
+  };
+  const waAfterPay = doneId ? waText(paidMessage(doneId, big.trim(), top.trim())) : "";
+  const payEdit = async () => {
+    setErr("");
+    if (!big.trim()) return setErr("Type the name to show on the card");
+    if (!willSend) return setErr("Tick the box — you'll send your photos on WhatsApp after paying");
+    if (!user) { try { await signIn(); } catch { return; } }
+    setBusy(true);
+    try {
+      track("edit_checkout_started", { price: editPrice });
+      const order = await createSimpleEditOrder(big.trim(), top.trim(), user?.displayName || "");
+      const ok = await loadRazorpay();
+      if (!ok || !(window as any).Razorpay) throw new Error("Payment window didn't load. Check your internet and try again.");
+      let finished = false;
+      const rzp = new (window as any).Razorpay({
+        key: order.keyId, amount: order.amount, currency: order.currency, order_id: order.orderId,
+        name: "Your Editor Friend", description: "Title card edit",
+        prefill: { name: user?.displayName || "", email: user?.email || "" },
+        theme: { color: "#FF7A1A" },
+        modal: { ondismiss: () => { if (!finished) setBusy(false); } },
+        handler: async (resp: any) => {
+          finished = true;
+          try {
+            const r = await fetch("/api/verify-payment", {
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ orderId: resp.razorpay_order_id, paymentId: resp.razorpay_payment_id, signature: resp.razorpay_signature }),
+            });
+            const b = await r.json().catch(() => ({}));
+            if (r.ok && b?.titlecard?.id) {
+              setDoneId(b.titlecard.id);
+              track("edit_payment_success", { price: editPrice });
+              // straight to WhatsApp (same tab — works in Instagram's in-app browser)
+              window.location.href = waText(paidMessage(b.titlecard.id, big.trim(), top.trim()));
+            } else setErr(b?.error || "Payment received but we couldn't confirm it. Message me on WhatsApp with your payment ID: " + resp.razorpay_payment_id);
+          } catch {
+            setErr("Payment received but the confirmation failed. Message me on WhatsApp with your payment ID: " + resp.razorpay_payment_id);
+          } finally { setBusy(false); }
+        },
+      });
+      rzp.on?.("payment.failed", (r: any) => setErr(r?.error?.description || "Payment failed. Try again or use another method."));
+      rzp.open();
+    } catch (e: any) {
+      setErr(e?.message || "Couldn't start the payment. Try again.");
+      setBusy(false);
+    }
+  };
 
   return (
     <div className="tcp">
@@ -100,8 +156,8 @@ const TitleCard: React.FC = () => {
           <p className="sub">Edit it yourself for ₹{PROJECT_FILE.price} — or I'll edit it with your name &amp; photo for ₹{EDIT.price}.</p>
           {SHOW_SOCIAL_PROOF && SOCIAL_PROOF_COUNT > 0 && <p className="proof">🔥 {SOCIAL_PROOF_COUNT} people already got theirs</p>}
           <div className="hero-ctas" ref={heroCtaRef}>
-            <WaButton tier={EDIT} className="btn wa big" label={`I edit it for you · ₹${EDIT.price}`} />
-            <a className="btn ghost big" href="#plans">Project file · ₹{PROJECT_FILE.price}</a>
+            <a className="btn wa big" href="#plans">Project file · <s className="was-i">₹{PROJECT_FILE.oldPrice}</s> ₹{PROJECT_FILE.price}</a>
+            <button className="btn ghost big" onClick={openEdit}>I edit it for you · ₹{editPrice}</button>
           </div>
         </div>
 
@@ -128,30 +184,29 @@ const TitleCard: React.FC = () => {
           <h2>Do it yourself, or let me do it</h2>
 
           <div className="tiers">
-            <div className="tier file">
-              <div className="tier-h"><b>{PROJECT_FILE.name}</b><strong>₹{PROJECT_FILE.price}</strong></div>
+            <div className="tier hot">
+              <span className="pill">{PROJECT_FILE.badge}</span>
+              <div className="tier-h"><b>{PROJECT_FILE.name}</b><strong><s className="was-i">₹{PROJECT_FILE.oldPrice}</s>₹{PROJECT_FILE.price}</strong></div>
               <p className="tier-sub">{PROJECT_FILE.subtext}</p>
               <ul>{PROJECT_FILE.features.map(f => <li key={f}><Check />{f}</li>)}</ul>
-              {fileBtn}
+              {fileBtn()}
               <div className="tier-foot">🔒 Razorpay secure · ⚡ Instant download</div>
             </div>
-            {EDIT_TIERS.map(t => (
-              <div key={t.id} className={`tier ${t.badge ? "hot" : ""}`}>
-                {t.badge && <span className="pill">{t.badge}</span>}
-                <div className="tier-h"><b>{t.name}</b><strong>₹{t.price}</strong></div>
-                <ul>{t.features.map(f => <li key={f}><Check />{f}</li>)}</ul>
-                <WaButton tier={t} className="btn wa big" />
-                <div className="tier-foot">Pay by UPI on WhatsApp after you send your details</div>
-              </div>
-            ))}
+            <div className="tier dim">
+              <div className="tier-h"><b>{EDIT.name}</b><strong>₹{editPrice}</strong></div>
+              <p className="tier-sub">Don't have After Effects? I'll do it for you.</p>
+              <ul>{EDIT.features.map(f => <li key={f}><Check />{f}</li>)}</ul>
+              <button className="btn ghost big" onClick={openEdit}>Book the edit · ₹{editPrice}</button>
+              <div className="tier-foot">Pay securely → send your photos on WhatsApp</div>
+            </div>
           </div>
 
           <div className="how">
-            <b>How the ₹{EDIT.price} edit works</b>
+            <b>How the ₹{editPrice} edit works</b>
             <ol>
-              <li>Tap <em>“Book on WhatsApp”</em></li>
-              <li>Fill in your name and send 1–3 clear photos</li>
-              <li>Pay by UPI on WhatsApp → get your MP4</li>
+              <li>Type the name for your card and pay ₹{editPrice}</li>
+              <li>WhatsApp opens — send 1–3 clear photos</li>
+              <li>Get your 1080p MP4 on WhatsApp in {EDIT.delivery}</li>
             </ol>
           </div>
         </section>
@@ -178,8 +233,8 @@ const TitleCard: React.FC = () => {
           <details><summary>Do I need After Effects?</summary><p>Only for the ₹{PROJECT_FILE.price} project file (After Effects 2022 or newer, no paid plugins). For the ₹{EDIT.price} edit, I do everything.</p></details>
           <details><summary>How fast will I get it?</summary><p>The ₹{EDIT.price} edit: {EDIT.delivery}. The project file downloads instantly.</p></details>
           <details><summary>Which sizes do I get?</summary><p>Horizontal 16:9, 1080p — the same format as the video above.</p></details>
-          <details><summary>How do I pay?</summary><p>Edit: pay by UPI on WhatsApp after you send your details. Project file: secure Razorpay checkout on this page.</p></details>
-          <details><summary>I bought the file. Can I upgrade to the edit?</summary><p>Yes. Message me on WhatsApp and pay just the difference (₹{EDIT.price - PROJECT_FILE.price}).</p></details>
+          <details><summary>How do I pay?</summary><p>Both are paid securely on this page with Razorpay (UPI, cards, net banking). After paying for the edit, WhatsApp opens so you can send your photos.</p></details>
+          <details><summary>I bought the file. Can I upgrade to the edit?</summary><p>Yes. Log in with the same account and the edit costs only the difference (₹{EDIT.price - PROJECT_FILE.price}).</p></details>
         </section>
 
         <div className="help">
@@ -191,8 +246,54 @@ const TitleCard: React.FC = () => {
 
       {/* sticky CTA (phone) */}
       <div className={`sticky ${sticky ? "on" : ""}`}>
-        <div className="info"><b>I edit it for you</b><small>Name + photo · {EDIT.delivery}</small></div>
-        <WaButton tier={EDIT} label={`WhatsApp · ₹${EDIT.price}`} />
+        <div className="info"><b>Project file · <s className="was-i">₹{PROJECT_FILE.oldPrice}</s> ₹{PROJECT_FILE.price}</b><small>Price drop · instant download</small></div>
+        {owned ? <Link className="btn ghost" to="/my-library">My Library</Link>
+          : <button className="btn wa" onClick={buyFile} disabled={!!paying}>Buy · ₹{PROJECT_FILE.price}</button>}
+      </div>
+
+      {/* ₹599 edit sheet: name → pay → WhatsApp */}
+      <div className={`sheet-bg ${sheet ? "on" : ""}`} onClick={() => !busy && setSheet(false)} />
+      <div className={`sheet ${sheet ? "on" : ""}`} role="dialog" aria-label="Book the edit">
+        <div className="sh-head">
+          <div className="grab" />
+          <div className="sh-title"><b>{EDIT.name} · ₹{editPrice}</b><button onClick={() => !busy && setSheet(false)} aria-label="Close">×</button></div>
+        </div>
+        <div className="sh-body">
+          {!doneId ? (
+            <div className="pane">
+              <div className="field" style={{ marginTop: 0 }}>
+                <label>Name to show on the card <small>{big.length}/15</small></label>
+                <input value={big} maxLength={15} autoComplete="off" onChange={e => onBig(e.target.value)} placeholder="e.g. JANISH" />
+                <div className="hint">1–2 words · English letters only</div>
+              </div>
+              <div className="field">
+                <label>Small top line <small>optional · {top.length}/14</small></label>
+                <input value={top} maxLength={14} autoComplete="off" onChange={e => setTop(e.target.value.toUpperCase().replace(/[^A-Z0-9 .&'!-]/g, ""))} placeholder="e.g. THE EDITOR" />
+              </div>
+              <div className="sendlist">
+                <b>After you pay, send these on WhatsApp</b>
+                <ul>{SEND_ON_WHATSAPP.map(s => <li key={s}><span className="box">✓</span>{s}</li>)}</ul>
+                <small>WhatsApp opens automatically right after payment.</small>
+              </div>
+              <label className="opt"><input type="checkbox" checked={willSend} onChange={e => setWillSend(e.target.checked)} /><div><b>I'll send my photos on WhatsApp after paying</b><small>The edit starts once I get your photos</small></div></label>
+              {err && <div className="err">{err}</div>}
+            </div>
+          ) : (
+            <div className="pane done">
+              <div className="ok-ic">✓</div>
+              <h3>Payment done!</h3>
+              <span className="slotno">{doneId}</span>
+              <p>Now send your photos on WhatsApp — your order ID is filled in.</p>
+              <a className="btn wa big" style={{ marginTop: 16 }} href={waAfterPay}>Open WhatsApp &amp; send photos</a>
+              {err && <div className="err">{err}</div>}
+            </div>
+          )}
+        </div>
+        {!doneId && (
+          <div className="sh-foot">
+            <button className="btn main big" onClick={payEdit} disabled={busy}>{busy ? "Please wait…" : `Pay now · ₹${editPrice}`}</button>
+          </div>
+        )}
       </div>
 
       <div className={`toast ${toastMsg ? "on" : ""}`}>{toastMsg}</div>
