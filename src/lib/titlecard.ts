@@ -113,43 +113,6 @@ async function token() {
 }
 
 /** Shorter side of an image in pixels (used to block tiny photos). */
-export function imageShortSide(file: File): Promise<number> {
-  return new Promise(res => {
-    const url = URL.createObjectURL(file);
-    const i = new Image();
-    i.onload = () => { res(Math.min(i.naturalWidth, i.naturalHeight)); URL.revokeObjectURL(url); };
-    i.onerror = () => { res(0); URL.revokeObjectURL(url); };
-    i.src = url;
-  });
-}
-
-// Resize in the browser (max 2000px, JPEG) so uploads stay small and fast.
-async function toJpeg(file: File, max = 2000): Promise<string> {
-  const url = URL.createObjectURL(file);
-  try {
-    const img = await new Promise<HTMLImageElement>((ok, bad) => { const i = new Image(); i.onload = () => ok(i); i.onerror = bad; i.src = url; });
-    const k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
-    const c = document.createElement("canvas");
-    c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
-    c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
-    return c.toDataURL("image/jpeg", 0.88);
-  } finally { URL.revokeObjectURL(url); }
-}
-
-export async function uploadPhoto(file: File): Promise<string> {
-  const data = await toJpeg(file);
-  const d = await call({ action: "upload-photo", idToken: await token(), contentType: "image/jpeg", data });
-  return d.url;
-}
-
-export interface BookingInput { top: string; big: string; pose: string; photos: string[]; name: string; phone: string; email: string; note: string; showOk: boolean; coupon?: string }
-export async function createEditOrder(input: BookingInput) {
-  return call({ action: "create-order", idToken: await token(), ...input });
-}
-export async function joinWaitlist(name: string, phone: string, email: string) {
-  return call({ action: "waitlist", name, phone, email });
-}
-
 // ── Admin ──
 export async function adminList() { return call({ action: "admin-list", idToken: await token() }); }
 export async function adminUpdate(id: string, patch: Record<string, any>) { return call({ action: "admin-update", idToken: await token(), id, patch }); }

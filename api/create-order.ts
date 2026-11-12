@@ -21,10 +21,22 @@ function json(res: any, status: number, body: any) {
 
 // Loads item + coupon list from Firestore in one round-trip so we can compute
 // the discounted price without trusting anything sent by the client.
+// Title card project file price (₹). KEEP IN SYNC with PROJECT_FILE.price in
+// src/config/titlecardPricing.ts — api/ files can't import from src/ (see NOTE).
+const TITLECARD_FILE_PRICE = 149;
+
 async function loadStore(itemId: string) {
-  const snap = await adminDb().doc("store/data").get();
+  const [snap, tc] = await Promise.all([
+    adminDb().doc("store/data").get(),
+    adminDb().doc("store/titlecard").get().catch(() => null),
+  ]);
   if (!snap.exists) return { item: null, coupons: [] };
   const d = snap.data() || {};
+  const tcFileId = tc?.exists ? (tc.data()?.fileProductId || "") : "";
+  if (tcFileId && itemId === tcFileId) {
+    const p = (d.products || []).find((x: any) => x.id === itemId);
+    return { item: p ? { id: p.id, price: TITLECARD_FILE_PRICE, name: p.name } : null, coupons: (d.coupons || []) as any[] };
+  }
   const items = [
     ...(d.products || []).map((p: any) => ({ id: p.id, price: p.price, name: p.name })),
     ...(d.courses || []).map((c: any) => ({ id: c.id, price: c.price, name: c.title })),

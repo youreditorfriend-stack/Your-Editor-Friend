@@ -58,7 +58,8 @@ export default async function handler(req: any, res: any) {
       const origin = `${proto}://${host}`;
       let html = await (await fetch(`${origin}/index.html`)).text();
       const title = "Your name in a cinematic title card 🔥";
-      const desc = "AE project ₹499 · or I edit it for you from ₹1499 (launch price) · only 100 edit slots";
+      // prices: keep in sync with src/config/titlecardPricing.ts
+      const desc = "Your name in a cinematic title card — AE project file ₹149, or I edit it for you for ₹599. Order on WhatsApp.";
       const image = `${origin}/titlecard/og.jpg`;
       const tags = [
         `<meta property="og:type" content="product">`,

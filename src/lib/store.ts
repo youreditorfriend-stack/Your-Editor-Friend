@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../firebase";
+import { PROJECT_FILE } from "../config/titlecardPricing";
+
+const TITLECARD_FILE_PRICE = PROJECT_FILE.price;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -324,7 +327,11 @@ export function useStore() {
     if (cache) return;
     (async () => {
       try {
-        const snap = await getDoc(doc(db, "store", "data"));
+        const [snap, tcSnap] = await Promise.all([
+          getDoc(doc(db, "store", "data")),
+          getDoc(doc(db, "store", "titlecard")).catch(() => null),
+        ]);
+        const tcFileId: string = tcSnap?.exists() ? (tcSnap.data()?.fileProductId || "") : "";
         if (snap.exists()) {
           const d = snap.data();
           cache = {
@@ -347,7 +354,11 @@ export function useStore() {
         // Keep "free" consistent with price (price 0 always means free)
         cache = {
           ...cache,
-          products: cache.products.map(p => ({ ...p, free: p.price === 0 })),
+          // The title card project file's price lives in src/config/titlecardPricing.ts
+          // (the server charges the same amount in /api/create-order).
+          products: cache.products
+            .map(p => p.id === tcFileId ? { ...p, price: TITLECARD_FILE_PRICE } : p)
+            .map(p => ({ ...p, free: p.price === 0 })),
           courses: cache.courses.map(c => ({ ...c, free: c.price === 0 })),
         };
       } catch (e) {

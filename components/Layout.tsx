@@ -7,7 +7,10 @@ import { AiChat } from './AiChat';
 import { WHATSAPP_LINK, WHATSAPP_DISPLAY, EMAIL, INSTAGRAM_URL, YOUTUBE } from '../src/lib/site';
 import { useAuth } from '../src/lib/auth';
 import { usePageEnabled } from '../src/lib/store';
-import { useTitleCardOffer, isFull, nextSlot, priceForSlot } from '../src/lib/titlecard';
+import { useTitleCardOffer } from '../src/lib/titlecard';
+import { PROJECT_FILE } from '../src/config/titlecardPricing';
+
+const TITLECARD_FROM_PRICE = PROJECT_FILE.price;
 
 const allNavLinks = [
   { id: 'home', name: 'Home', to: '/' },
@@ -82,9 +85,12 @@ export const Layout: React.FC = () => {
   // Title card launch offer: thin sale bar on top of every store page (admin → Edit orders → Settings)
   const { offer: tc, loaded: tcLoaded } = useTitleCardOffer();
   const saleBar = tcLoaded && tc.bar?.on && tc.open !== false;
-  const saleText = isFull(tc)
-    ? `All ${tc.total} edit slots booked · join the waiting list`
-    : (tc.bar?.text || '').replace('{left}', String(Math.max(0, tc.total - tc.booked))).replace('{price}', `₹${priceForSlot(tc, nextSlot(tc))}`);
+  // No more slots/batches: {price} = the cheapest title card price, {left} is dropped.
+  const barRaw = (tc.bar?.text || 'Title card offer')
+    .replace(/\s*[·|-]?\s*only \{left\}[^·|]*/i, '').replace('{left}', '').trim();
+  const saleText = barRaw.includes('{price}')
+    ? barRaw.replace('{price}', `₹${TITLECARD_FROM_PRICE}`)
+    : `${barRaw} · from ₹${TITLECARD_FROM_PRICE}`;
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-[#EDEDED] font-sans selection:bg-[#FF7A1A] selection:text-white antialiased">
@@ -149,7 +155,7 @@ export const Layout: React.FC = () => {
           <Link to="/titlecard" className="flex items-center justify-center gap-2 bg-[#FF7A1A] text-black px-4 h-[34px] text-[12.5px] font-bold">
             <span className="w-[7px] h-[7px] rounded-full bg-black shrink-0 animate-pulse" />
             <span className="truncate">{saleText}</span>
-            <span className="shrink-0 bg-black text-[#FF7A1A] rounded-full px-2.5 py-0.5 text-[11.5px]">{isFull(tc) ? 'Join' : 'Book now'}</span>
+            <span className="shrink-0 bg-black text-[#FF7A1A] rounded-full px-2.5 py-0.5 text-[11.5px]">See options</span>
           </Link>
         )}
         <div className="max-w-7xl mx-auto px-4 md:px-6">
